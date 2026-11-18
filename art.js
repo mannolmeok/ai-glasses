@@ -117,6 +117,21 @@ function makeKit(b) {
     b.drawImage(c, Math.round((align === 'center' ? x - w / 2 : x - 6) * S) / S, Math.round((y - h / 2) * S) / S, w, h);
     return w - 12;
   };
+  K.M = (str, x, y, size, col, align = 'left', weight = 700) => { // 뷰파인더 글자: 고정폭 숫자·영문 + 그림자
+    str = String(str);
+    const S = K.S || HUD_SCALE, key = 'm|' + str + '|' + size + '|' + col + '|' + weight + '|' + S;
+    let c = TEXT_CACHE.get(key);
+    if (!c) {
+      const m = document.createElement('canvas'), g = m.getContext('2d'), f = `${weight} ${size * S}px "SF Mono","Menlo","Consolas","Roboto Mono","D2Coding",${FONT_KO}`; g.font = f;
+      const pad = 4 * S, w = Math.max(1, Math.ceil(g.measureText(str).width) + pad * 2), h = Math.ceil(size * 1.7 * S);
+      m.width = w; m.height = h; g.font = f; g.textBaseline = 'middle';
+      g.shadowColor = 'rgba(0,0,0,0.85)'; g.shadowBlur = 2.5 * S; g.shadowOffsetY = 0.8 * S; g.fillStyle = col; g.fillText(str, pad, h / 2); g.fillText(str, pad, h / 2);
+      c = m; if (TEXT_CACHE.size > 900) TEXT_CACHE.clear(); TEXT_CACHE.set(key, c);
+    }
+    const w = c.width / S, h = c.height / S, dx = align === 'center' ? x - w / 2 : align === 'right' ? x - w + 4 : x - 4;
+    b.drawImage(c, Math.round(dx * S) / S, Math.round((y - h / 2) * S) / S, w, h);
+    return w - 8;
+  };
   K.TW = (str, size, weight = 700) => { // 글자 폭만 잼
     const g = K._m || (K._m = document.createElement('canvas').getContext('2d'));
     g.font = `${weight} ${size}px ${FONT_KO}`; return Math.ceil(g.measureText(String(str)).width);

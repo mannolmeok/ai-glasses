@@ -31,7 +31,9 @@ const HUBUI = (() => {
   function lapHead(k, title, col, bg) { k.R(0, 0, LW, 26, bg); k.T(title, 10, 13, 15, col, 'left', 800); k.T(`${won(STATE.shown)}원`, LW - 8, 13, 13, PAL.gold, 'right', 800); }
   function lapFoot(k, hv, backLabel, bg, pages, pkey) {
     k.R(0, LH - 28, LW, 28, bg);
-    btn(k, 6, LH - 24, 92, 20, backLabel, 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 12 });
+    const out = !!(G.flags.sold || G.black); // 품절·협박 사건 전에는 바탕화면이 없는 것처럼: 뒤로 = 방으로
+    btn(k, 6, LH - 24, 92, 20, out ? backLabel : '< 방으로', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 12 });
+    if (out && !G.flags.deskSeen && Math.floor(now * 2) % 2 === 0) k.disc(96, LH - 23, 5, '#e8453e'); // 바탕화면에 새 소식: 빨간 점이 깜빡인다
     if (pages > 1) { const pg = hv.page;
       btn(k, LW / 2 - 62, LH - 24, 34, 20, '<', pg > 0 ? pkey + ':-1' : null, { off: pg <= 0, bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 13 });
       k.T(`${pg + 1} / ${pages}`, LW / 2, LH - 14, 12, '#5a6474', 'center', 800);

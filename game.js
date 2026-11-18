@@ -825,9 +825,10 @@ function finishExam() {
 // ---- 고시원: 방 · 노트북(AI마켓) · 일정표 · 폰 · 택배 ------------------------------------------
 function settle() { if (G.pending > 0) { addMoney(G.pending); G.pending = 0; sfx.news(); save(); } } // 밀린 입금
 function goHub(view) { scene = 'hub'; const hv = STATE.hv; hv.view = 'room'; hv.target = 'room'; hv.zoom = 0; hv.bpage = null; if (view) enterView(view, true); }
+const deskOpen = () => !!(G.flags.sold || G.black); // 바탕화면으로 나갈 수 있는가
 function enterView(v, instant) {
   const hv = STATE.hv; hv.view = v; hv.target = v; hv.zoom = instant ? 1 : 0;
-  if (v === 'laptop') { hv.app = 'desk'; hv.page = 0; hv.tab = shopItems('new').length ? 'new' : G.fresh.model ? 'model' : hv.tab === 'new' ? 'glass' : hv.tab; G.hints.shop = true; STATE.shownIds.clear(); }
+  if (v === 'laptop') { hv.app = deskOpen() && !G.flags.deskSeen ? 'desk' : 'shop'; if (hv.app === 'desk') G.flags.deskSeen = true; hv.page = 0; hv.tab = shopItems('new').length ? 'new' : G.fresh.model ? 'model' : hv.tab === 'new' ? 'glass' : hv.tab; G.hints.shop = true; STATE.shownIds.clear(); }
   if (v === 'board') { hv.act = 0; hv.bpage = null; }
   if (v === 'mail') { STATE.mailImg = null; }
   if (v === 'phone') { hv.ptab = phoneUnread() ? 'news' : hv.ptab; hv.npage = 0; }
@@ -864,7 +865,7 @@ function buyModel() {
 }
 function hubKey(key) { // 다가간 화면에서 누른 칸
   const hv = STATE.hv, [a, b] = key.split(':');
-  if (a === 'back') { if (hv.view === 'laptop' && hv.app !== 'desk') { hv.app = 'desk'; sfx.flip(); } else { hv.target = 'room'; sfx.zoom(); } }
+  if (a === 'back') { if (hv.view === 'laptop' && hv.app !== 'desk' && deskOpen()) { hv.app = 'desk'; G.flags.deskSeen = true; sfx.flip(); } else { hv.target = 'room'; sfx.zoom(); } }
   else if (a === 'app') { hv.app = b; hv.page = 0; sfx.flip(); if (b === 'shop') hv.tab = shopItems('new').length ? 'new' : G.fresh.model ? 'model' : hv.tab === 'new' ? 'glass' : hv.tab; }
   else if (a === 'hush') { if (G.black && G.money >= G.black.amount) { G.money -= G.black.amount; G.black = null; sfx.buy(); STATE.pops.push({ v: 0, t: 0, scene: 'hub', text: '입막음비 송금 완료', col: PAL.warn }); save(); } else sfx.no(); }
   else if (a === 'refuse') { if (G.black) reportByBroker('후회하실 텐데'); }
@@ -981,7 +982,8 @@ function hubLabel(action) {
 }
 function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 시계. 다가가면 그 물건의 화면
   const k = B.k, L = B.L, H = hudSet(), hv = STATE.hv, hover = STATE.hoverAct;
-  BTNS = []; HUB_RECT = null;
+  if (hv.view !== 'laptop') BTNS = []; // 노트북 화면의 버튼은 drawLaptop이 채운 것을 그대로 쓴다
+  HUB_RECT = null;
   if (hv.view === 'room') {
     const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches; // 터치 기기는 마우스를 올릴 수 없으니 이름표를 계속 보여 준다
     for (const l of WORLD.hubLabels()) {
