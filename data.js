@@ -218,6 +218,18 @@ const TRANSFER = [
   ['Choose the word closest to "laconic".', 'concise', ['lazy', 'wordy', 'tearful']],
   ['Choose the word closest to "capricious".', 'fickle', ['spacious', 'steady', 'cautious']],
 ];
+const IBANK = [ // 투자은행 면접 단골 질문
+  ['시계가 3시 15분일 때 시침과 분침 사이의 각도는?', '7.5도', ['0도', '15도', '30도']],
+  ['하루 동안 시침과 분침이 겹치는 횟수는?', '22번', ['24번', '12번', '23번']],
+  ['100명이 서로 한 번씩 악수하면 모두 몇 번?', '4,950번', ['10,000번', '5,050번', '9,900번']],
+  ['동전을 세 번 던져 모두 앞면이 나올 확률은?', '1/8', ['1/6', '1/4', '1/3']],
+  ['PER 10배, 주당순이익 500원이면 주가는?', '5,000원', ['50원', '500원', '50,000원']],
+  ['금리가 오르면 이미 발행된 채권의 가격은?', '내린다', ['오른다', '변하지 않는다', '두 배가 된다']],
+  ['EBITDA를 구할 때 영업이익에 다시 더하는 것은?', '감가상각비', ['법인세', '이자 비용', '배당금']],
+  ['기업 가치(EV)를 구할 때 시가총액에 더하는 것은?', '순차입금', ['현금', '매출', '영업이익']],
+  ['할인율이 오르면 미래 현금흐름의 현재 가치는?', '작아진다', ['커진다', '같다', '0이 된다']],
+  ['1부터 100까지 더하면?', '5,050', ['5,000', '4,950', '10,100']],
+];
 const OPEN_PROBLEMS = ['리만 가설은 참이다', 'P와 NP는 다르다', '모든 짝수는 두 소수의 합이다', '쌍둥이 소수는 끝없이 있다',
   '콜라츠 추측은 참이다', '양-밀스 질량 간극이 있다', '나비에-스토크스 해는 늘 매끄럽다', '호지 추측은 참이다', '버치-스위너턴다이어 추측은 참이다'];
 const GRAPES_RED = ['피노 누아', '카베르네 소비뇽', '시라', '메를로', '말벡', '네비올로', '템프라니요', '그르나슈'];
@@ -316,6 +328,7 @@ const GEN = {
     return GEN.tax(rng);
   },
   law(rng) { return poolQ(rng, LAW); },
+  ibank(rng) { return poolQ(rng, IBANK); },
   transfer(rng) { return poolQ(rng, TRANSFER); },
   customs(rng) { return poolQ(rng, CUSTOMS); },
   psat(rng) { return rng() < 0.5 ? GEN.logic(rng) : poolQ(rng, LAW); },
@@ -396,12 +409,12 @@ const CAUGHT_LINE = {
   homeroom: '"잠깐만, 그 안경 좀 보자."', dean: '"수험생, 그 안경 잠깐 벗어 보세요."', suneung: '"금속탐지기에 반응이 있네요?"',
   agent: '"부정행위로 퇴실 조치합니다."', robot: '"AI가 AI를 못 알아볼 줄 알았나?"', ta: '"교수님, 여기요! 이 학생 안경이..."',
   prof: '"자네, 학점은 포기한 건가?"', teacher: '"Excuse me. Glasses off, please."', cnproctor: '"안경 이리 주세요. 검사합니다."',
-  don: '"흥미롭군요. 그 대답은 안경이 한 거죠?"', don2: '"논리적으로, 당신은 방금 걸렸습니다."', judge: '"향이 아니라 렌즈를 맡고 계셨군요."',
+  don: '"흥미롭군요. 그 대답은 안경이 한 거죠?"', don2: '"논리적으로, 당신은 방금 걸렸습니다."', judge: '"향이 아니라 렌즈를 맡고 계셨군요."', banker: '"방금 그 답, 본인 생각입니까?"',
   alien: '"삐빅. 반칙 전파 감지."', reaper: '"명부에 커닝도 적혀 있구나."', yeomra: '"이승에서 하던 짓을 여기서도 하느냐!"',
   omega: '"이미 예측했습니다."', webcam: '"응시자분, 화면에서 눈을 떼지 마세요."',
 };
 const PROCTOR_NAME = { homeroom: '담임', dean: '감독관', suneung: '수능 감독관', agent: '시험 관리관', robot: 'AI 감독관', ta: '조교', prof: '교수님',
-  teacher: '미국 선생님', cnproctor: '가오카오 감독관', don: '옥스퍼드 교수', don2: '논리학 교수', judge: '소믈리에 심사위원', alien: '외계인', reaper: '저승사자', yeomra: '염라대왕', omega: 'Ω', webcam: '웹캠' };
+  teacher: '미국 선생님', cnproctor: '가오카오 감독관', don: '옥스퍼드 교수', don2: '논리학 교수', judge: '소믈리에 심사위원', banker: '면접관', alien: '외계인', reaper: '저승사자', yeomra: '염라대왕', omega: 'Ω', webcam: '웹캠' };
 
 // 시험마다 다른 장치 이름 (일정표·시작 화면)
 const SEC_NAME = { cctv: 'CCTV 회전', pulse: 'AI 탐지 전파', drone: '드론 전파 감시', screen: '화면 검사', alert: '불시 재난문자', emp: 'EMP' };

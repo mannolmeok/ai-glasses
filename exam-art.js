@@ -154,14 +154,11 @@ function drawResultPaper(g, Rz) {
   // 도장
   g.save(); g.translate(PAPER_W / 2 - 150, y + 60); g.rotate(-0.16); g.strokeStyle = Rz.passed ? red : '#3a3a48'; g.fillStyle = g.strokeStyle; g.lineWidth = 8; g.globalAlpha = 0.85;
   const st = Rz.stamp, sw = st.length > 3 ? 300 : 210; g.strokeRect(-sw / 2, -52, sw, 96); g.font = `800 ${st.length > 5 ? 46 : 64}px ${F}`; g.fillText(st, 0, 18); g.restore(); g.globalAlpha = 1;
-  y += 170; g.fillStyle = ink; g.fillRect(40, y - 36, PAPER_W - 80, 2);
-  const line = (t, size, col, w) => { let s2 = size; g.font = `${w || 700} ${s2}px ${F}`; while (g.measureText(t).width > PAPER_W - 90 && s2 > 20) { s2 -= 2; g.font = `${w || 700} ${s2}px ${F}`; } g.fillStyle = col; g.fillText(t, PAPER_W / 2, y); y += size + 16; };
-  if (Rz.fee > 0) line(`응시료 -${won(Rz.fee)}원`, 30, '#8a4a4a');
-  line(Rz.reward > 0 ? `${Rz.pay} +${won(Rz.reward)}원` : '상금 없음', 46, Rz.reward > 0 ? '#9a6a00' : '#6c6a80', 800);
-  const extra = []; if (Rz.perfect) extra.push(`만점 x${tune.jackpot_mult}`); if (Rz.coach > 1) extra.push(`면접 x${Rz.coach.toFixed(2)}`); if (Rz.bonus > 0) extra.push(`시간 x${(1 + Rz.bonus).toFixed(2)}`);
-  if (extra.length) line(extra.join(' · '), 28, '#17616a');
-  if (!Rz.tut) { const d = Math.round((Rz.heat - Rz.heat0) * 100); line(Rz.audited ? '점수가 너무 완벽했다. 가끔은 일부러 틀려야 한다' : `전수조사 의심 ${Math.round(Rz.heat * 100)}% (${d >= 0 ? '+' : ''}${d}%)`, 28, Rz.audited || Rz.heat >= 0.66 ? red : '#6c6a80', 800); }
-  if (Rz.unlock) line(Rz.unlock, 28, '#17616a', 800);
+  // 아래는 진짜 통지표처럼: 수험번호와 발급 기관만. 돈과 뉴스는 종이에 적히지 않는다
+  y = PAPER_H - 150; g.fillStyle = ink; g.fillRect(40, y - 40, PAPER_W - 80, 2);
+  g.textAlign = 'left'; g.font = `700 24px ${F}`; g.fillStyle = '#4a4860'; g.fillText(`수험번호  ${31000000 + Rz.tier * 1234567}`, 56, y); g.fillText('성      명  김수험', 56, y + 34);
+  g.textAlign = 'center'; g.font = `700 22px ${F}`; g.fillText('위와 같이 채점 결과를 통지합니다.', PAPER_W / 2, y + 84);
+  g.font = `800 26px ${F}`; g.fillStyle = ink; g.fillText('시 험 관 리 위 원 회', PAPER_W / 2, y + 122);
 }
 
 // ---- 토플 홈에디션: 고시원 노트북 화면 ----
@@ -286,7 +283,7 @@ function drawExamHud(k, L, E, now, H) {
     const base = Math.min(0.85, 0.12 + E.sus * 0.9), a = E.rising ? Math.min(1, base + 0.35 + 0.3 * Math.sin(now * 16)) : base;
     k.b.globalAlpha = Math.max(0, a); k.b.drawImage(lensGlow('A', C.bad), 0, 0); k.b.globalAlpha = 1;
   }
-  if (E.layout === 'table') drawArCard(k, L, E, now, H);
+  if (E.layout === 'table' && !E.result) drawArCard(k, L, E, now, H);
   if (!E.ar && live && E.view === 'paper' && (E.scan > 0 || E.ai)) { // 안경 전 단계: 소매 속 초소형 액정 (lens 0은 허벅지 폰)
     const lx = 44, ly = 262, lw = 104, lh = 50, small = E.gear.lens >= 2;
     R(lx - 6, ly - 4, lw + 12, lh + 30, '#2f3e66'); R(lx - 2, ly - 2, lw + 4, lh + 4, '#0a0a0e'); R(lx, ly, lw, lh, '#0c1a12');

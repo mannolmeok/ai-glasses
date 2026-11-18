@@ -80,7 +80,7 @@ function makeKit(b) {
   // 글자: 시스템 한글 글꼴을 버퍼 크기로 찍고 반투명 경계를 잘라 도트 글자로
   K.T = (str, x, y, size, col, align = 'left', weight = 700) => {
     str = String(str);
-    const S = HUD_SCALE, key = str + '|' + size + '|' + col + '|' + weight + '|' + S;
+    const S = K.S || HUD_SCALE, key = str + '|' + size + '|' + col + '|' + weight + '|' + S;
     let c = TEXT_CACHE.get(key);
     if (!c) { // 화면 실제 해상도로 찍어서 글자가 깨지지 않게 (S = 화면 배율)
       const m = document.createElement('canvas'), g = m.getContext('2d');
@@ -245,12 +245,29 @@ function plate(k, x, y, w, h, H) {
 }
 
 // ======================= 결과 · 허브 · 타이틀 · 엔딩 · figures =======================
-function drawResultButtons(k, L, Rz) { // 성적 통지표 아래: 다음에 할 일만
-  const defs = [[Rz.canRetry ? 'R 다시 응시' : '응시료 부족', 'retry', Rz.canRetry]];
-  if (Rz.next != null) defs.push([Rz.final ? 'N 엔딩 보기' : Rz.canNext ? 'N 다음 시험' : '응시료 부족', 'next', Rz.final || Rz.canNext]);
-  defs.push(['Enter 고시원으로', 'hub', true]);
-  const bw = 132, gap = 8, x0 = L.W / 2 - (defs.length * bw + (defs.length - 1) * gap) / 2, btns = [];
-  defs.forEach(([label, key, ok], i) => { const b = k.button(x0 + i * (bw + gap), L.H - 34, bw, 24, label, ok && key === Rz.focus, ok ? PAL.hud : '#5a5468'); if (ok) btns.push({ ...b, key }); });
+function drawResultHud(k, L, Rz, now, H) { // 결과 화면: 창 대신 기기 화면에 뜨는 글자. 녹화 중인 카메라처럼 구석에만
+  const { R, T, TO } = k, C = PAL, blink = Math.floor(now * 2) % 2 === 0, dark = '#0d2a30';
+  if (blink) k.disc(30, 26, 4, C.bad); TO('REC', 40, 26, 11, C.white, 'left', dark);
+  TO(`${Rz.tierName} · 채점 수신`, 74, 26, 10, H.c, 'left', dark);
+  if (!Rz.onPaper) { // 책상에 종이가 없는 시험(면접·원격): 결과도 기기 화면에
+    const col = Rz.passed ? C.good : C.bad;
+    TO(Rz.stamp, L.W / 2, 70, 26, col, 'center', dark); TO(Rz.caught ? '0점 처리' : `${Rz.score}점 · 정답 ${Rz.correct}/${Rz.qn} · 합격선 ${Rz.pass}점`, L.W / 2, 98, 12, C.white, 'center', dark);
+  }
+  const lines = [];
+  if (Rz.reward > 0) lines.push([`입금  ${Rz.pay} +${won(Rz.reward)}원${Rz.perfect ? `  (만점 x${tune.jackpot_mult})` : ''}`, C.gold]);
+  if (Rz.fee > 0) lines.push([`출금  응시료 -${won(Rz.fee)}원`, '#d6a0a0']);
+  if (!Rz.tut) { const d = Math.round((Rz.heat - Rz.heat0) * 100); lines.push([Rz.audited ? '전수조사  합격 취소 · 너무 완벽했다' : `전수조사 의심  ${Math.round(Rz.heat * 100)}% (${d >= 0 ? '+' : ''}${d})`, Rz.audited || Rz.heat >= 0.66 ? C.bad : Rz.heat >= 0.33 ? C.warn : H.c]); }
+  if (Rz.unlock) lines.push([`알림  ${Rz.unlock}`, H.c]);
+  lines.forEach(([t, col], i) => { let sz = 10; while (k.TW(t, sz, 800) > 330 && sz > 8) sz--; TO(t, 26, L.H - 28 - (lines.length - 1 - i) * 15, sz, col, 'left', dark); });
+  // 오른쪽 아래: 다음에 할 일 (글자만)
+  const defs = [['Enter 귀가', 'hub', true]];
+  if (Rz.next != null) defs.unshift([Rz.final ? 'N 엔딩' : Rz.canNext ? 'N 다음 시험' : 'N 응시료 부족', 'next', Rz.final || Rz.canNext]);
+  defs.unshift([Rz.canRetry ? 'R 재응시' : 'R 응시료 부족', 'retry', Rz.canRetry]);
+  const btns = []; let x = L.W - 24;
+  for (let i = defs.length - 1; i >= 0; i--) { const [label, key, ok] = defs[i], w = k.TW(label, 11, 800) + 14, bx = x - w, by = L.H - 38, focus = ok && key === Rz.focus;
+    if (focus && blink) R(bx, by + 21, w, 1, H.c);
+    TO(label, bx + w / 2, by + 11, 11, !ok ? '#6b6680' : focus ? C.white : H.c, 'center', dark);
+    if (ok) btns.push({ x: bx, y: by - 4, w, h: 30, key }); x = bx - 8; }
   return btns;
 }
 function drawResults(k, L, Rz, now, H) {
@@ -319,20 +336,37 @@ function drawTitle(k, L, now, hasSave, info) {
   return [{ ...b, key: 'start' }];
 }
 
+const END_SHOTS = [ // 엔딩 앞 장면: CCTV에 찍힌 세상
+  { kind: 'doctor', cam: 'CAM 02 · 종합병원 진료실', cap: '"잠시만요. 안경이... AI가 응답을 안 하네요."' },
+  { kind: 'court', cam: 'CAM 05 · 지방법원 301호 법정', cap: '"재판장님, 배터리가 없어서... 휴정을 요청합니다."' },
+  { kind: 'school', cam: 'CAM 11 · 고등학교 2학년 3반', cap: '"선생님, 그걸 왜 외워요? 안경이 풀어 주는데."' },
+];
+const END_T = { shot0: 1.4, shotLen: 4, me: 13.4, line1: 17.4, line2: 19.2, stats: 23 };
+function endShotAt(t) { const i = Math.floor((t - END_T.shot0) / END_T.shotLen); return t < END_T.me ? END_SHOTS[Math.max(0, Math.min(END_SHOTS.length - 1, i))] : null; }
 function drawEnding(k, L, G, now, H, info) {
-  const { R, T, TO } = k, C = PAL, cx = L.W / 2, t = info.t, st = G.stats;
+  const { R, T, TO } = k, C = PAL, cx = L.W / 2, t = info.t, st = G.stats, E2 = END_T;
   if (!info.world) R(0, 0, L.W, L.H, '#07060d'); // 3D를 못 쓰면 검은 바탕
-  if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
   const fade = (t0, t1) => Math.max(0, Math.min(1, (t - t0) / 0.8)) * (t1 ? Math.max(0, Math.min(1, (t1 - t) / 0.8)) : 1);
   const line = (str, y, size, col, a) => { if (a <= 0) return; k.b.globalAlpha = a; T(str, cx, y, size, col, 'center', 800); k.b.globalAlpha = 1; };
-  if (t < 9.5) { // 문구: 한 줄씩, 천천히
-    const ly = info.world ? L.H - 74 : L.H / 2 - 16;
-    if (info.world && t > 4) { k.b.globalAlpha = 0.55 * fade(4.0, 9.2); R(0, ly - 22, L.W, 76, '#05050a'); k.b.globalAlpha = 1; }
-    line('AI는 답을 알려 줍니다.', ly, 20, C.white, fade(5.0, 9.2));
-    line('어디에 쓸지는 알려 주지 않습니다.', ly + 32, 20, C.hud, fade(6.8, 9.2));
+  const shot = endShotAt(t);
+  if (shot) { // CCTV 화면: 녹화 표시, 카메라 이름, 시각, 자막
+    const i = END_SHOTS.indexOf(shot), lt = t - E2.shot0 - i * E2.shotLen, sec = 7 + Math.floor(now) % 50;
+    k.b.globalAlpha = 0.08; for (let y = 0; y < L.H; y += 3) R(0, y, L.W, 1, '#000000'); k.b.globalAlpha = 1;
+    if (Math.floor(now * 2) % 2) k.disc(24, 20, 4, C.bad); TO('REC', 34, 20, 11, C.white, 'left', '#101010');
+    TO(shot.cam, 24, 38, 10, C.white, 'left', '#101010'); TO(`2031-03-${14 + i} 10:4${i}:${String(sec).padStart(2, '0')}`, L.W - 24, 20, 10, C.white, 'right', '#101010');
+    k.b.globalAlpha = 0.6; R(0, L.H - 58, L.W, 34, '#000000'); k.b.globalAlpha = 1;
+    if (lt > 0.6) T(shot.cap, cx, L.H - 41, 13, C.white, 'center', 800);
+    if (lt < 0.25 || lt > E2.shotLen - 0.2) { k.b.globalAlpha = 0.85; R(0, 0, L.W, L.H, '#000000'); k.b.globalAlpha = 1; } // 화면 전환
+  }
+  if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
+  if (t < E2.stats) {
+    if (!shot) { const ly = info.world ? L.H - 74 : L.H / 2 - 16;
+      if (info.world && t > E2.line1 - 1) { k.b.globalAlpha = 0.55 * fade(E2.line1 - 1, E2.stats - 0.3); R(0, ly - 22, L.W, 76, '#05050a'); k.b.globalAlpha = 1; }
+      line('AI는 답을 알려 줍니다.', ly, 20, C.white, fade(E2.line1, E2.stats - 0.3));
+      line('어디에 쓸지는 알려 주지 않습니다.', ly + 32, 20, C.hud, fade(E2.line2, E2.stats - 0.3)); }
     return [];
   }
-  const a = Math.min(1, (t - 9.5) / 0.8);
+  const a = Math.min(1, (t - E2.stats) / 0.8);
   if (info.world) { k.b.globalAlpha = 0.82 * a; R(0, 0, L.W, L.H, '#05050a'); }
   k.b.globalAlpha = a;
   let y = 28;

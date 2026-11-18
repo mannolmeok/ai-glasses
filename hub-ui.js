@@ -26,124 +26,105 @@ const HUBUI = (() => {
     if (cur) out.push(cur); return out;
   }
 
-  // ---- 노트북: 바탕화면 (AI마켓 · 텔레그램) ----
-  function drawDesk(k, r, hv, now) {
-    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
-    R(x, y, w, h, '#16324a'); for (let i = 0; i < 9; i++) R(x, y + Math.round(h * i / 9), w, Math.ceil(h / 9), ['#16324a', '#183a52', '#1a425a', '#1c4a60', '#1e5266', '#205a6a', '#22626c', '#24686c', '#266e6a'][i]);
-    T('고시원 노트북', x + 10, y + 12, 10, '#c9e6f0', 'left', 700); T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
+  // ---- 노트북: 3D 화면 표면에 직접 그린다 (400x240, 큰 글자, 한 화면에 상품 2개) ----
+  const LW = 400, LH = 240;
+  function lapHead(k, title, col, bg) { k.R(0, 0, LW, 26, bg); k.T(title, 10, 13, 15, col, 'left', 800); k.T(`${won(STATE.shown)}원`, LW - 8, 13, 13, PAL.gold, 'right', 800); }
+  function lapFoot(k, hv, backLabel, bg, pages, pkey) {
+    k.R(0, LH - 28, LW, 28, bg);
+    btn(k, 6, LH - 24, 92, 20, backLabel, 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 12 });
+    if (pages > 1) { const pg = hv.page;
+      btn(k, LW / 2 - 62, LH - 24, 34, 20, '<', pg > 0 ? pkey + ':-1' : null, { off: pg <= 0, bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 13 });
+      k.T(`${pg + 1} / ${pages}`, LW / 2, LH - 14, 12, '#5a6474', 'center', 800);
+      btn(k, LW / 2 + 28, LH - 24, 34, 20, '>', pg < pages - 1 ? pkey + ':1' : null, { off: pg >= pages - 1, bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 13 }); }
+    const n = hv.order.length; if (n) k.T(`주문 ${n}건 · 방에 택배 옴`, LW - 8, LH - 14, 11, '#c0392b', 'right', 800);
+  }
+  function drawDesk(k, hv, now) {
+    const { R, T } = k, C = PAL;
+    for (let i = 0; i < 8; i++) R(0, i * 30, LW, 30, ['#16324a', '#183a52', '#1a425a', '#1c4a60', '#1e5266', '#205a6a', '#22626c', '#24686c'][i]);
+    T('고시원 노트북', 10, 13, 12, '#c9e6f0', 'left', 700); T(`${won(STATE.shown)}원`, LW - 8, 13, 13, C.gold, 'right', 800);
     const icon = (ix, label, key, col, glyph, badge) => {
-      const iy = y + h / 2 - 50, hot = inR({ x: ix, y: iy, w: 96, h: 100 }, hover);
-      if (hot) { k.b.globalAlpha = 0.25; R(ix, iy, 96, 100, '#ffffff'); k.b.globalAlpha = 1; }
-      R(ix + 20, iy + 8, 56, 56, C.dark); R(ix + 22, iy + 10, 52, 52, col); glyph(ix + 48, iy + 36);
-      T(label, ix + 48, iy + 80, 12, C.white, 'center', 800);
-      if (badge) { k.disc(ix + 74, iy + 12, 8, '#e8453e'); T(String(badge), ix + 74, iy + 12, 10, C.white, 'center', 800); }
-      btns.push({ x: ix, y: iy, w: 96, h: 100, key });
+      const iy = 54, hot = inR({ x: ix, y: iy, w: 120, h: 126 }, hover);
+      if (hot) { k.b.globalAlpha = 0.25; R(ix, iy, 120, 126, '#ffffff'); k.b.globalAlpha = 1; }
+      R(ix + 24, iy + 8, 72, 72, C.dark); R(ix + 27, iy + 11, 66, 66, col); glyph(ix + 60, iy + 44);
+      T(label, ix + 60, iy + 102, 16, C.white, 'center', 800);
+      if (badge) { k.disc(ix + 94, iy + 12, 11, '#e8453e'); T(String(badge), ix + 94, iy + 12, 13, C.white, 'center', 800); }
+      btns.push({ x: ix, y: iy, w: 120, h: 126, key });
     };
     const tgBadge = G.black || (G.flags.sold && soldOut(gearDef('lens'))) ? 1 : 0;
-    icon(x + w / 2 - 130, 'AI마켓', 'app:shop', '#0f1722', (cx, cy) => T('AI', cx, cy, 22, C.hud, 'center', 800), shopNewCount());
-    icon(x + w / 2 + 34, '텔레그램', 'app:tg', '#2aa3e0', (cx, cy) => k.poly([[cx - 16, cy], [cx + 16, cy - 13], [cx + 8, cy + 14], [cx - 2, cy + 5]], '#ffffff'), tgBadge);
-    R(x, y + h - 22, w, 22, '#0d1f2c');
-    btn(k, x + 6, y + h - 19, 74, 16, '< 방으로', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff' });
-    T('아이콘을 눌러 열기', x + w - 8, y + h - 11, 10, '#8fb0c0', 'right', 700);
+    icon(60, 'AI마켓', 'app:shop', '#0f1722', (cx, cy) => T('AI', cx, cy, 30, C.hud, 'center', 800), shopNewCount());
+    icon(220, '텔레그램', 'app:tg', '#2aa3e0', (cx, cy) => k.poly([[cx - 22, cy], [cx + 22, cy - 18], [cx + 11, cy + 19], [cx - 3, cy + 7]], '#ffffff'), tgBadge);
+    lapFoot(k, hv, '< 방으로', '#0d1f2c', 1);
   }
-  // ---- 노트북: 텔레그램 (품절된 초소형 카메라를 구해 주는 해외 브로커) ----
-  function drawTg(k, r, hv, now) {
-    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
-    R(x, y, w, h, '#0e1621'); R(x, y, w, 24, '#17212b'); T('텔레그램', x + 10, y + 12, 13, '#5eb5f7', 'left', 800); T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
+  function drawTg(k, hv, now) {
+    const { R, T } = k, C = PAL;
+    R(0, 0, LW, LH, '#0e1621'); lapHead(k, '텔레그램', '#5eb5f7', '#17212b');
     const want = G.flags.sold && soldOut(gearDef('lens')), done = !!G.flags.cam, bl = G.black;
-    let by = y + 34;
-    const bubble = (text, mine) => { const ls = wrap(k, text, w * 0.6, 11), bw = Math.max(...ls.map(l => k.TW(l, 11, 700))) + 16, bh = ls.length * 14 + 8, bx = mine ? x + w - 12 - bw : x + 12;
-      R(bx, by, bw, bh, mine ? '#2b5278' : '#182533'); ls.forEach((l, i) => T(l, bx + 8, by + 11 + i * 14, 11, C.white, 'left', 700)); by += bh + 6; };
-    if (!want && !done && !bl) { T('새 대화가 없습니다', x + w / 2, y + h / 2 - 8, 12, '#6d7f8f', 'center', 800); T('모르는 사람이 보낸 메시지는 조심하세요', x + w / 2, y + h / 2 + 10, 10, '#4a5a6a', 'center', 700); }
-    else {
-      T('"구해드림" · 해외 구매 대행', x + w / 2, by + 2, 10, '#6d7f8f', 'center', 700); by += 16;
-      if (!bl) { bubble('사장님 초소형 카메라 찾으시죠? 요즘 한국에서 다 품절이라던데', false);
-        bubble('재고 있어요?', true);
-        bubble(`해외 창고에 딱 남았음. 요즘 귀해서 값은 좀 올랐어요. ${won(brokerCost())}원, 선입금`, false); }
-      if (bl) { // 다시 연락 온 브로커: 입막음비를 내거나, 제보당하거나
-        bubble('사장님 오랜만. 요즘 정부 단속 심해진 거 아시죠?', false);
-        bubble(`구매자 명단이 저한테 있거든요. ${won(bl.amount)}원 보내면 지워 드림. 안 보내면 제보합니다`, false);
-        const ok = G.money >= bl.amount;
-        btn(k, x + w - 12 - 170, y + h - 56, 170, 24, ok ? `입막음비 송금 · ${won(bl.amount)}원` : `${won(bl.amount - G.money)}원 모자람`, ok ? 'hush' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff' });
-        btn(k, x + 12, y + h - 56, 130, 24, '무시한다 (제보당함)', 'refuse', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da' });
-        T(bl.seen ? '다음 시험이 끝날 때까지 답이 없으면 제보한다' : '', x + w / 2, y + h - 66, 10, PAL.warn, 'center', 800);
-      } else if (done) { bubble('입금했어요', true); bubble('확인. 택배로 보냄. 우리 서로 모르는 사이인 거 알죠', false); }
-      else { const ok = G.money >= brokerCost(); btn(k, x + w - 12 - 190, y + h - 56, 190, 24, ok ? `입금하기 · ${won(brokerCost())}원` : `${won(brokerCost() - G.money)}원 모자람`, ok ? 'broker' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff' }); }
-    }
-    R(x, y + h - 22, w, 22, '#17212b');
-    btn(k, x + 6, y + h - 19, 84, 16, '< 바탕화면', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff' });
-    const n = hv.order.length; if (n) T(`주문 ${n}건 · 방으로 나가면 택배가 와요`, x + w - 8, y + h - 11, 10, '#f5cc4a', 'right', 800);
-  }
-
-  // ---- 노트북: AI마켓 ----
-  function drawShop(k, r, hv, now) {
-    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
-    R(x, y, w, h, '#f3f4f7');
-    R(x, y, w, 24, '#0f1722'); T('AI마켓', x + 10, y + 12, 14, C.hud, 'left', 800);
-    R(x + 78, y + 5, 150, 14, '#1c2634'); T('시험 전 총알배송 · 부품 검색', x + 84, y + 12, 9, '#6f8094', 'left', 700);
-    T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
-    // 탭
-    const fresh = shopNewCount(), tw = Math.floor((w - 16) / 4);
-    SHOP_TABS.forEach(([key, name], i) => {
-      const on = hv.tab === key, bx = x + 8 + i * tw, label = key === 'new' && fresh ? `${name} ${fresh}` : name;
-      R(bx, y + 28, tw - 4, 18, on ? '#ffffff' : '#dfe3ea'); if (on) R(bx, y + 28, tw - 4, 2, '#e8453e');
-      T(label, bx + (tw - 4) / 2, y + 37, 11, on ? '#1d2433' : '#5a6474', 'center', 800);
-      if (key === 'new' && fresh && !on) R(bx + tw - 12, y + 31, 4, 4, '#e8453e');
-      btns.push({ x: bx, y: y + 28, w: tw - 4, h: 18, key: 'tab:' + key });
-    });
-    const top = y + 50, bottom = y + h - 26, list = shopItems(hv.tab), per = hv.tab === 'model' ? 4 : 4;
-    const pages = Math.max(1, Math.ceil(list.length / per)); hv.page = Math.max(0, Math.min(pages - 1, hv.page));
-    const items = list.slice(hv.page * per, hv.page * per + per);
-    if (!list.length) {
-      T(hv.tab === 'new' ? '새로 들어온 상품이 없어요' : '아직 입고된 상품이 없어요', x + w / 2, (top + bottom) / 2 - 8, 12, '#5a6474', 'center', 800);
-      T('시험에 처음 합격하면 신상이 입고돼요', x + w / 2, (top + bottom) / 2 + 10, 10, '#8a94a4', 'center', 700);
-    } else if (hv.tab === 'model') {
-      const rh = Math.floor((bottom - top) / 4);
-      items.forEach((it, i) => {
-        const ry = top + i * rh, m = it.m, cur = G.gear.model === it.i, owned = G.gear.model > it.i, next = G.gear.model + 1 === it.i;
-        R(x + 8, ry, w - 16, rh - 4, cur ? '#e6fbfd' : '#ffffff'); k.frame(x + 8, ry, w - 16, rh - 4, cur ? '#2a8f9a' : '#d0d5de', 1);
-        drawGear(k, 'model', x + 28, ry + (rh - 4) / 2, 26, it.i);
-        T(m.name, x + 50, ry + 14, fitText(k, m.name, w - 240, 13), '#1d2433', 'left', 800);
-        T(`지능 ${it.i + 1}단계 · ${m.note}`, x + 50, ry + 30, 10, '#5a6474', 'left', 700);
-        if (rh > 54) T(`지금 시험에서 AI 정답률 ${Math.round(aiAccuracyAt(CONFIG.tiers[nextTierIndex()], it.i) * 100)}%`, x + 50, ry + 44, 10, '#2a8f9a', 'left', 700);
-        if (it.fresh) { R(x + w - 46, ry + 3, 30, 12, '#e8453e'); T('NEW', x + w - 31, ry + 9, 9, C.white, 'center', 800); markShown('model'); }
-        const bw = 128, bx = x + w - 16 - bw, by = ry + rh - 4 - 26;
-        if (cur) btn(k, bx, by, bw, 20, '구독 중', null, { on: true });
-        else if (owned) btn(k, bx, by, bw, 20, '이전 모델', null, { off: true });
-        else if (next) { const cost = modelCost(it.i), ok = G.money >= cost; btn(k, bx, by, bw, 20, ok ? `구독 ${won(cost)}원` : `${won(cost)}원 모자람`, ok ? 'model' : null, { off: !ok, bg: '#e8453e', col: '#e8453e', fg: '#ffffff' }); }
-        else btn(k, bx, by, bw, 20, '앞 모델부터', null, { off: true });
-      });
+    let by = 34;
+    const bubble = (text, mine) => { const ls = wrap(k, text, 250, 12), bw = Math.max(...ls.map(l => k.TW(l, 12, 700))) + 16, bh = ls.length * 15 + 8, bx = mine ? LW - 10 - bw : 10;
+      R(bx, by, bw, bh, mine ? '#2b5278' : '#182533'); ls.forEach((l, i) => T(l, bx + 8, by + 12 + i * 15, 12, C.white, 'left', 700)); by += bh + 5; };
+    if (!want && !done && !bl) { T('새 대화가 없습니다', LW / 2, 100, 15, '#6d7f8f', 'center', 800); T('모르는 사람의 메시지는 조심하세요', LW / 2, 124, 11, '#4a5a6a', 'center', 700); }
+    else if (bl) { // 다시 연락 온 브로커: 입막음비를 내거나, 제보당하거나
+      bubble('사장님 오랜만. 요즘 단속 심해진 거 아시죠?', false);
+      bubble(`구매자 명단이 저한테 있어요. ${won(bl.amount)}원 보내면 지워 드림. 안 보내면 제보합니다`, false);
+      if (bl.seen) T('다음 시험이 끝날 때까지 답이 없으면 제보한다', LW / 2, 158, 11, PAL.warn, 'center', 800);
+      const ok = G.money >= bl.amount;
+      btn(k, 10, LH - 62, 150, 26, '무시 (제보당함)', 'refuse', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da', size: 12 });
+      btn(k, LW - 10 - 210, LH - 62, 210, 26, ok ? `송금 · ${won(bl.amount)}원` : `${won(bl.amount - G.money)}원 모자람`, ok ? 'hush' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff', size: 13 });
     } else {
-      const cw = Math.floor((w - 24) / 2), ch = Math.floor((bottom - top - 4) / 2);
-      items.forEach((d, i) => {
-        const cx = x + 8 + (i % 2) * (cw + 8), cy = top + Math.floor(i / 2) * (ch + 4), lv = G.gear[d.id], cap = gearCap(d), count = d.kind === 'count';
-        const maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, isNew = !!G.fresh[d.id], so = soldOut(d), gone = so && G.flags.sold;
-        R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, ok ? '#2a8f9a' : '#d0d5de', 1);
-        R(cx + 6, cy + 6, 34, 34, '#eef1f6'); drawGear(k, d.id, cx + 23, cy + 23, 28, lv + 1);
-        const name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1);
-        T(name, cx + 46, cy + 13, fitText(k, name, cw - 52 - (isNew ? 30 : 0), 12, 9), '#1d2433', 'left', 800);
-        T(count ? `${d.name} · 지금 ${lv}명` : `${d.name} · ${lv ? `지금 ${gearName(d.id, lv)}` : '아직 없음'}`, cx + 46, cy + 28, fitText(k, `${d.name} · 지금 ${lv ? gearName(d.id, lv) : '아직 없음'}`, cw - 52, 10), '#6a7484', 'left', 700);
-        if (isNew) { R(cx + cw - 34, cy + 5, 28, 12, '#e8453e'); T('NEW', cx + cw - 20, cy + 11, 9, C.white, 'center', 800); markShown(d.id); }
-        const eff = maxed ? GEAR_TEXT[d.id](lv) : GEAR_TEXT[d.id](lv + 1), el = wrap(k, eff, cw - 14, 10).slice(0, 2);
-        el.forEach((ln, j) => T(ln, cx + 8, cy + 50 + j * 13, 10, '#17616a', 'left', 800));
-        if (ch > 112) T(GEAR_REVIEW[d.id] || '', cx + 8, cy + 50 + el.length * 13 + 2, 9, '#9a8a5a', 'left', 700);
-        const by = cy + ch - 26;
-        if (so) { R(cx + cw - 78, cy + 5, 72, 12, gone ? '#5a6474' : '#e8453e'); T(gone ? '품절' : '남은 재고 1개', cx + cw - 42, cy + 11, 9, C.white, 'center', 800); }
-        if (gone) btn(k, cx + 6, by, cw - 12, 20, '품절 · 재입고 미정 (다른 경로를 찾아보세요)', null, { off: true });
-        else if (maxed) btn(k, cx + 6, by, cw - 12, 20, cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에서 신형 입고', null, { off: true });
-        else btn(k, cx + 6, by, cw - 12, 20, ok ? `주문하기 · ${won(cost)}원` : `${won(cost)}원 · ${won(cost - G.money)}원 모자람`, ok ? 'buy:' + d.id : null, { off: !ok, bg: '#e8453e', col: '#e8453e', fg: '#ffffff' });
-      });
+      bubble('초소형 카메라 찾으시죠? 한국은 다 품절이라던데', false);
+      bubble('재고 있어요?', true);
+      bubble(`해외 창고에 딱 남았음. 값은 좀 올랐어요. ${won(brokerCost())}원, 선입금`, false);
+      if (done) { bubble('입금했어요', true); bubble('확인. 택배 보냄. 우린 모르는 사이', false); }
+      else { const ok = G.money >= brokerCost(); btn(k, LW - 10 - 220, LH - 62, 220, 26, ok ? `입금하기 · ${won(brokerCost())}원` : `${won(brokerCost() - G.money)}원 모자람`, ok ? 'broker' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff', size: 13 }); }
     }
-    // 아래 줄
-    R(x, y + h - 22, w, 22, '#e3e6ec');
-    btn(k, x + 6, y + h - 19, 84, 16, '< 바탕화면', 'back', { bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
-    if (pages > 1) {
-      btn(k, x + w / 2 - 56, y + h - 19, 24, 16, '<', hv.page > 0 ? 'page:-1' : null, { off: hv.page <= 0, bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
-      T(`${hv.page + 1} / ${pages}`, x + w / 2, y + h - 11, 10, '#1d2433', 'center', 800);
-      btn(k, x + w / 2 + 32, y + h - 19, 24, 16, '>', hv.page < pages - 1 ? 'page:1' : null, { off: hv.page >= pages - 1, bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
-    }
-    const n = hv.order.length;
-    T(n ? `주문 ${n}건 · 방으로 나가면 택배가 와요` : botRate() > 0 ? `대리 응시 초당 ${won(botRate())}원` : '', x + w - 8, y + h - 11, 10, n ? '#c0392b' : '#5a6474', 'right', 800);
+    lapFoot(k, hv, '< 바탕화면', '#17212b', 1);
+  }
+  function drawShop(k, hv, now) {
+    const { R, T } = k, C = PAL;
+    R(0, 0, LW, LH, '#f3f4f7'); lapHead(k, 'AI마켓', C.hud, '#0f1722');
+    const fresh = shopNewCount(), tw = Math.floor((LW - 12) / 4);
+    SHOP_TABS.forEach(([key, name], i) => {
+      const on = hv.tab === key, bx = 6 + i * tw, label = key === 'new' && fresh ? `신상 ${fresh}` : key === 'model' ? 'AI 모델' : name;
+      R(bx, 30, tw - 4, 22, on ? '#ffffff' : '#dfe3ea'); if (on) R(bx, 30, tw - 4, 3, '#e8453e');
+      T(label, bx + (tw - 4) / 2, 42, 13, on ? '#1d2433' : '#5a6474', 'center', 800);
+      btns.push({ x: bx, y: 30, w: tw - 4, h: 22, key: 'tab:' + key });
+    });
+    const list = shopItems(hv.tab), per = 2, pages = Math.max(1, Math.ceil(list.length / per)); hv.page = Math.max(0, Math.min(pages - 1, hv.page));
+    const items = list.slice(hv.page * per, hv.page * per + per), top = 58, cw = 190, ch = 150;
+    if (!list.length) { T(hv.tab === 'new' ? '새로 들어온 상품이 없어요' : '아직 입고된 상품이 없어요', LW / 2, 120, 15, '#5a6474', 'center', 800); T('시험에 처음 합격하면 신상이 들어와요', LW / 2, 144, 11, '#8a94a4', 'center', 700); }
+    items.forEach((it, i) => {
+      const cx = 6 + i * (cw + 8), cy = top, isModel = hv.tab === 'model';
+      let id, name, sub, eff, isNew, label, key, off, state = '';
+      if (isModel) {
+        const m = it.m, cur = G.gear.model === it.i, owned = G.gear.model > it.i, next = G.gear.model + 1 === it.i, cost = modelCost(it.i), ok = G.money >= cost;
+        id = 'model'; name = m.name; sub = `지능 ${it.i + 1}단계 · ${m.note}`; eff = `지금 시험 AI 정답률 ${Math.round(aiAccuracyAt(CONFIG.tiers[nextTierIndex()], it.i) * 100)}%`; isNew = it.fresh; if (isNew) markShown('model');
+        if (cur) { label = '구독 중'; off = true; } else if (owned) { label = '이전 모델'; off = true; } else if (!next) { label = '앞 모델부터'; off = true; } else { label = ok ? `구독 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'model' : null; off = !ok; }
+      } else {
+        const d = it, lv = G.gear[d.id], cap = gearCap(d), count = d.kind === 'count', maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, so = soldOut(d), gone = so && G.flags.sold;
+        id = d.id; name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1); sub = count ? `${d.name} · 지금 ${lv}명` : `${d.name} · ${lv ? '지금 ' + gearName(d.id, lv) : '아직 없음'}`;
+        eff = GEAR_TEXT[d.id](maxed ? lv : lv + 1); isNew = !!G.fresh[d.id]; if (isNew) markShown(d.id);
+        if (so) state = gone ? '품절' : '남은 재고 1개';
+        if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
+      }
+      R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, off ? '#d0d5de' : '#2a8f9a', 2);
+      R(cx + 8, cy + 8, 44, 44, '#eef1f6'); drawGear(k, id, cx + 30, cy + 30, 36, 3);
+      if (isNew) { R(cx + cw - 42, cy + 6, 36, 15, '#e8453e'); T('NEW', cx + cw - 24, cy + 14, 11, C.white, 'center', 800); }
+      if (state) { const sw2 = k.TW(state, 11, 800) + 10; R(cx + 58, cy + 8, sw2, 15, state === '품절' ? '#5a6474' : '#e8453e'); T(state, cx + 58 + sw2 / 2, cy + 16, 11, C.white, 'center', 800); }
+      const nl = wrap(k, name, cw - 16, 15).slice(0, 2); nl.forEach((ln, j) => T(ln, cx + 8, cy + 66 + j * 17, 15, '#1d2433', 'left', 800));
+      let ty = cy + 66 + nl.length * 17;
+      T(sub, cx + 8, ty, fitText(k, sub, cw - 16, 11, 9), '#6a7484', 'left', 700); ty += 15;
+      wrap(k, eff, cw - 16, 11).slice(0, nl.length > 1 ? 1 : 2).forEach((ln, j) => T(ln, cx + 8, ty + j * 14, 11, '#17616a', 'left', 800));
+      btn(k, cx + 6, cy + ch - 30, cw - 12, 24, label, key, { off, bg: '#e8453e', col: '#e8453e', fg: '#ffffff', size: 13 });
+    });
+    lapFoot(k, hv, '< 바탕화면', '#e3e6ec', pages, 'page');
+  }
+  function laptop(k, hv, now, hoverXY) { // 노트북 화면 한 장을 그리고 누를 수 있는 칸을 돌려준다 (화면 좌표 400x240)
+    btns = []; hover = hoverXY;
+    (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, hv, now);
+    const b = k.b; b.globalAlpha = 0.06; b.fillStyle = '#000000'; for (let y = 0; y < LH; y += 2) b.fillRect(0, y, LW, 0.5); // 주사선
+    b.globalAlpha = 0.05; b.fillStyle = '#ffffff'; b.fillRect(0, ((now * 30) % (LH + 60)) - 30, LW, 18); b.globalAlpha = 1;
+    if (hover) { const [mx, my] = hover; k.poly([[mx, my], [mx, my + 13], [mx + 4, my + 10], [mx + 10, my + 10]], '#101018'); k.poly([[mx + 1, my + 2], [mx + 1, my + 10], [mx + 3, my + 8], [mx + 7, my + 8]], '#ffffff'); }
+    return btns;
   }
 
   // ---- 벽: 시험 일정표 ----
@@ -255,10 +236,10 @@ const HUBUI = (() => {
   function draw(k, L, hv, now, hoverXY) {
     btns = []; hover = hoverXY; let rect = null;
     const z = hv.zoom * hv.zoom * (3 - 2 * hv.zoom);
-    if (hv.view === 'laptop') { if (hv.zoom >= 1) { rect = WORLD.hubRect('laptop'); if (rect) { (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, rect, hv, now); screenFx(k, rect, now); } } }
+    if (hv.view === 'laptop') rect = WORLD.hubRect('laptop'); // 노트북은 3D 화면 표면에 그린다 (laptop)
     else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) { drawBoard(k, rect, hv, now); paperFx(k, rect); } } }
     else if (hv.view === 'phone') { rect = drawPhone(k, L, hv, now, z); if (z >= 1) screenFx(k, { x: rect.x + 6, y: rect.y + 6, w: rect.w - 12, h: rect.h - 12 }, now); }
     return { btns, rect };
   }
-  return { draw };
+  return { draw, laptop, LW, LH };
 })();

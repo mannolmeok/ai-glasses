@@ -818,7 +818,8 @@ function finishExam() {
     marks, self: E.selfN, ai: E.aiN, heat0, heat: G.heat, audited, tut, unlock, final, next: passed ? (final ? 'end' : E.tier + 1) : null, focus: passed ? 'next' : 'retry', canRetry: true, canNext: true };
   perfect ? sfx.top() : passed ? sfx.pass() : sfx.fail();
   RZ.stamp = audited ? '합격 취소' : E.caught ? '부정행위' : perfect ? '수석 합격' : passed ? '합격' : '불합격';
-  if (E.layout === 'room') { E.result = RZ; E.prevView = E.view; E.view = 'result'; E.viewT = 0; E.holding = false; E.scan = 0; } // 책상 위 성적 통지표로 본다
+  RZ.onPaper = E.layout === 'room'; E.result = RZ; E.holding = false; E.scan = 0; E.rising = false; E.sus = Math.min(E.sus, 0.4);
+  if (RZ.onPaper) { E.prevView = E.view; E.view = 'result'; E.viewT = 0; } // 책상 위 성적 통지표로 본다
   events.push({ type: 'result', passed, perfect, caught: E.caught, correct, reward, fee: E.fee });
   save(); scene = 'results';
 }
@@ -918,10 +919,11 @@ function updateHub(dt) {
   } else {
     STATE.hoverAct = null;
     if (hv.zoom >= 1 && hv.target !== 'room') {
-      for (const [x, y] of taps) {
+      for (let [x, y] of taps) {
+        if (hv.view === 'laptop') { const lp = lapPoint([x, y]); if (!lp) { hv.target = 'room'; sfx.zoom(); continue; } [x, y] = lp; }
         const b = hitBtn(BTNS, x, y);
         if (b) { hubKey(b.key); if (scene !== 'hub' || hv.view === 'room') return; }
-        else if (HUB_RECT && (x < HUB_RECT.x - 6 || x > HUB_RECT.x + HUB_RECT.w + 6 || y < HUB_RECT.y - 6 || y > HUB_RECT.y + HUB_RECT.h + 6)) { hv.target = 'room'; sfx.zoom(); } // 바깥을 누르면 방으로
+        else if (hv.view !== 'laptop' && HUB_RECT && (x < HUB_RECT.x - 6 || x > HUB_RECT.x + HUB_RECT.w + 6 || y < HUB_RECT.y - 6 || y > HUB_RECT.y + HUB_RECT.h + 6)) { hv.target = 'room'; sfx.zoom(); } // 바깥을 누르면 방으로
       }
       if (pressed('Escape') || pressed('Backspace')) hubKey('back');
       if (hv.view === 'laptop' && hv.app === 'desk') { if (pressed('Digit1')) hubKey('app:shop'); else if (pressed('Digit2')) hubKey('app:tg'); }
@@ -930,14 +932,20 @@ function updateHub(dt) {
       if (pressed('ArrowLeft')) hubKey(hv.view === 'laptop' ? 'page:-1' : hv.view === 'board' ? 'bpage:-1' : 'npage:-1');
     }
   }
-  const over = hv.view === 'room' ? STATE.hoverAct : STATE.hover && hitBtn(BTNS, STATE.hover[0], STATE.hover[1]);
+  const hp = hv.view === 'laptop' ? lapPoint(STATE.hover) : STATE.hover;
+  const over = hv.view === 'room' ? STATE.hoverAct : hp && hitBtn(BTNS, hp[0], hp[1]);
   const cur = over ? 'pointer' : ''; if (canvas.style.cursor !== cur) canvas.style.cursor = cur;
   if (STATE.away) { STATE.away.t += dt; if (STATE.away.t > 6) STATE.away = null; }
 }
 
 // ---- Scenes ------------------------------------------------------------------------------
-let BTNS = [], HUB_RECT = null;
-const ENDING_STATS = 9.5; // 엔딩: 문구가 지나가고 기록 화면이 뜨는 시각(초)
+let BTNS = [], HUB_RECT = null, LAPKIT = null;
+function lapPoint(p) { const uv = p && WORLD.hubUV(p[0], p[1]); return uv ? [uv[0] * HUBUI.LW, uv[1] * HUBUI.LH] : null; }
+function drawLaptop() { // 노트북 화면을 3D 표면에 그린다
+  if (!LAPKIT) { const c = WORLD.laptopCanvas(); LAPKIT = makeKit(c.getContext('2d')); LAPKIT.S = c.width / HUBUI.LW; LAPKIT.b.setTransform(LAPKIT.S, 0, 0, LAPKIT.S, 0, 0); }
+  BTNS = HUBUI.laptop(LAPKIT, STATE.hv, now, STATE.hv.zoom >= 1 ? lapPoint(STATE.hover) : null);
+}
+const ENDING_STATS = END_T.stats; // 엔딩: 문구가 지나가고 기록 화면이 뜨는 시각(초)
 function reset() {
   seed = Number(params.get('seed')) || CONFIG.seed;
 }
@@ -985,7 +993,7 @@ function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 �
     if (G.heat > 0.01) { plate(k, L.W - 118, 6, 110, 20, H); k.T(`전수조사 의심 ${Math.round(G.heat * 100)}%`, L.W - 63, 16, 10, G.heat >= 0.66 ? PAL.bad : G.heat >= 0.33 ? PAL.warn : H.c2, 'center', 800); }
     if (G.run.started || G.run.done) { plate(k, 8, 6, 78, 20, H); k.T(fmtRun(G.run.t), 47, 16, 11, G.run.done ? PAL.gold : H.c, 'center', 800); }
   } else {
-    const ui = HUBUI.draw(k, L, hv, now, STATE.hover); BTNS = ui.btns; HUB_RECT = ui.rect;
+    const ui = HUBUI.draw(k, L, hv, now, STATE.hover); if (hv.view !== 'laptop') BTNS = ui.btns; HUB_RECT = ui.rect;
   }
   for (const p of STATE.pops) if (p.scene === 'hub' && p.t >= 0) k.TO(p.text || ('+' + won(p.v) + '원'), L.W / 2, 62 - p.t * 14, 12, p.col || PAL.gold);
   drawNote(B);
@@ -1021,7 +1029,7 @@ const scenes = {
   },
   hub: {
     update(dt) { updateHub(dt); },
-    draw(B) { WORLD.renderHub(G, now, STATE.hoverAct, STATE.hv); drawHubHud(B); },
+    draw(B) { if (STATE.hv.view === 'laptop' && WORLD.ok) drawLaptop(); WORLD.renderHub(G, now, STATE.hoverAct, STATE.hv); drawHubHud(B); },
   },
   play: {
     update(dt) { state.t += dt; updateExam(dt); },
@@ -1059,7 +1067,7 @@ const scenes = {
       RZ.canRetry = G.money >= examFee(TIERS[RZ.tier]);
       RZ.canNext = RZ.next != null && !RZ.final && G.money >= examFee(TIERS[RZ.next]);
       if (E.result) E.viewT = Math.min(1, E.viewT + 0.03);
-      WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); BTNS = E.result ? drawResultButtons(B.k, B.L, RZ) : drawResults(B.k, B.L, RZ, now, hudSet()); drawNote(B);
+      WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); BTNS = drawResultHud(B.k, B.L, RZ, now, hudSet()); drawNote(B);
     },
   },
   ending: {
@@ -1080,7 +1088,8 @@ const scenes = {
       if (pressed('KeyX')) act('wipe');
     },
     draw(B) {
-      if (WORLD.ok) WORLD.renderEnding(STATE.endT || 0, now);
+      const et = STATE.endT || 0, shot = endShotAt(et);
+      if (WORLD.ok) { if (shot) WORLD.renderTableau(shot.kind, now); else WORLD.renderEnding(et - END_T.me + 1.2, now); }
       BTNS = drawEnding(B.k, B.L, G, now, hudSet(), Object.assign(endingInfo(), { t: STATE.endT || 0, world: WORLD.ok }));
       if (STATE.wipeArm > 0) B.k.TO('한 번 더 누르면 저장을 지우고 새 타임어택 (기록은 남아요)', B.L.W / 2, B.L.H - 58, 11, PAL.warn);
     },
