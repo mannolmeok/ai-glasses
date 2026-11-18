@@ -50,7 +50,7 @@ window.CONFIG = {
   black_heat: { value: 0.5, min: 0, max: 1, step: 0.05 },          // 협박을 무시해 제보당하면 쌓이는 의심
 
   // ---- 시험마다 다른 장치 ----
-  metal_sus: { value: 0.35, min: 0, max: 0.9, step: 0.05 },        // 수능 입실 금속탐지기: 시작 의심도
+  metal_sus: { value: 0.55, min: 0, max: 0.9, step: 0.05 },        // 수능 입실 금속탐지기: 시작 의심도
   glass_sus: { value: 0.5, min: 0, max: 0.9, step: 0.05 },         // 가오카오 입실 안경 검사: 시작 의심도
   visit_out_min: { value: 8, min: 2, max: 30, step: 0.5 },         // 교수·선생님이 교실 밖에 있는 시간(초)
   visit_out_max: { value: 14, min: 2, max: 40, step: 0.5 },
@@ -73,6 +73,9 @@ window.CONFIG = {
   glow_rate: { value: 0.35, min: 0, max: 2, step: 0.05 },          // 책상 앞에서 AI 답이 렌즈에 떠 있으면 (주시의 몇 배)
   calc_sus: { value: 0.3, min: 0, max: 0.9, step: 0.05 },          // 계산기 검사에 걸리면 오르는 의심도
   long_scan: { value: 1.5, min: 1, max: 3, step: 0.05 },           // LEET 긴 지문: 스캔 시간 배율
+  essay_read: { value: 0.9, min: 0.2, max: 3, step: 0.1 },         // 서술형: 모범 답안 한 줄을 읽는 시간(초). 이 동안이 위험하다
+  essay_write: { value: 1.1, min: 0.2, max: 3, step: 0.1 },        // 서술형: 읽은 한 줄을 옮겨 쓰는 시간(초). 이 동안은 안전하다
+  essay_mem: { value: 5, min: 1, max: 15, step: 0.5 },             // 서술형: 읽은 줄을 기억하는 시간(초). 손을 떼고 있으면 줄어든다
   stairs_time: { value: 10, min: 4, max: 20, step: 1 },             // LEET 쉬는 시간 계단 질주: 뛰는 시간(초)
   stairs_need: { value: 34, min: 10, max: 80, step: 2 },            // 이만큼 계단을 밟으면 머리가 맑아진다 (2교시는 AI 없이도 답이 보인다)
   session_keep: { value: 0.5, min: 0, max: 1, step: 0.05 },        // 교시가 바뀔 때 남는 의심도 비율
@@ -197,7 +200,7 @@ window.CONFIG = {
       stand: [1.7, 2.8], walk: [1.0, 1.7], tell: 0.55, watch: 2.4, speed: 0.13, cross: 0.3, feint: 0.28, sus: 1.35, ai: 6.1, reward: 260000000, pay: '의전원 장학금',
       news: 'MDEET 수석도 의혹. 감독관 지침 개정 "의심되면 책상 밑에서 올려다보라"',
       head: ['2028학년도 의·치의학교육입문검사', '자연과학추론'], lines: ['MDEET', '감독관이 어디서든 지켜봅니다'] },
-    { id: 'bar', act: 1, name: '변호사시험', subject: '공법·형사법·민사법', gen: 'law', qn: 6, parts: ['1교시 공법', '2교시 형사법', '3교시 민사법'], time: 80, room: 'bar',
+    { id: 'bar', act: 1, name: '변호사시험', subject: '공법·형사법·민사법', gen: 'law', qn: 6, essay: false, parts: ['1교시 공법', '2교시 형사법', '3교시 민사법'], time: 80, room: 'bar',
       sec: ['cctv', 'pulse'], mech: ['sessions', 'peek'], noAuto: true, boss: true,
       staff: [{ type: 'robot', name: 'AI 감독관' }, { type: 'agent', name: '시험 관리관' }],
       stand: [1.4, 2.4], walk: [0.8, 1.4], tell: 0.5, watch: 2.6, speed: 0.12, cross: 0.35, feint: 0.3, sus: 1.4, ai: 6.2, reward: 950000000, pay: '첫 연봉',
@@ -226,7 +229,7 @@ window.CONFIG = {
       staff: [{ type: 'dean', name: '감독관' }, { type: 'agent', name: '시험 관리관' }, { type: 'homeroom', name: '감독관' }],
       stand: [1.6, 2.6], walk: [0.9, 1.5], tell: 0.5, watch: 2.6, speed: 0.12, cross: 0.35, feint: 0.3, sus: 1.4, ai: 8.4, reward: 570000000000, pay: '월가 보너스',
       head: ['CFA Level III', 'Portfolio Management'], lines: ['CFA Level III', '승인된 계산기만 허용 · 무작위 검사'] },
-    { id: 'calbar', act: 2, name: '캘리포니아 변호사시험', subject: 'Multistate Bar', gen: 'mbe', qn: 12, time: 140, room: 'convention', device: 'tablet', sec: ['cctv', 'pulse'], pulse: 'screen', mech: ['peek'],
+    { id: 'calbar', act: 2, name: '캘리포니아 변호사시험', subject: 'Multistate Bar', gen: 'mbe', qn: 12, essay: false, time: 140, room: 'convention', device: 'tablet', sec: ['cctv', 'pulse'], pulse: 'screen', mech: ['peek'],
       staff: [{ type: 'agent', name: '순회 요원' }, { type: 'agent', name: '순회 요원' }, { type: 'agent', name: '순회 요원' }, { type: 'agent', name: '순회 요원' }],
       stand: [1.4, 2.4], walk: [0.8, 1.4], tell: 0.45, watch: 2.6, speed: 0.16, cross: 0.4, feint: 0.4, sus: 1.45, ai: 8.8, reward: 2100000000000, pay: '빅로펌 연봉',
       head: ['California Bar Exam', 'Multistate Bar Examination'], lines: ['California Bar Exam', 'ExamSoft 화면 검사 가동 중'] },
@@ -302,7 +305,7 @@ window.CONFIG = {
     { id: 'autooff', name: '자동 소등 칩', group: 'glass', unlock: 7, caps: [2, 2, 2], mult: 3, step: 1, ladder: ['자동 소등 칩', '자동 소등 칩 개량형'] },
     { id: 'jammer', name: '전파 위장기', group: 'device', unlock: 9, caps: [1, 2, 3], mult: 4, step: 2.5, ladder: ['와이파이 위장', '드론 교란기', '전파 블랙홀'] },
     { id: 'autoscan', name: '자동 스캔 칩', group: 'glass', unlock: 10, caps: [0, 1, 2], mult: 6, step: 4, ladder: ['매크로 칩', '습관 학습 칩', '무의식 스캔'] },
-    { id: 'glasscase', name: '안경 위장 케이스', group: 'glass', unlock: 13, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['돋보기 위장 케이스', '도수 안경 완벽 위장'] },
+    { id: 'glasscase', name: '안경 방수', group: 'glass', unlock: 13, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['생활 방수 코팅', '완전 방수 실링'] },
     { id: 'gazefix', name: '시선 보정 렌즈', group: 'glass', unlock: 14, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['시선 보정 렌즈', '눈 맞춤 합성 렌즈'] },
     { id: 'eyedrop', name: '인공눈물 칩', group: 'device', unlock: 15, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['인공눈물 칩', '안구 냉각 칩'] },
     { id: 'calccover', name: '계산기 위장 커버', group: 'device', unlock: 16, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['계산기 스티커', '승인 계산기 껍데기'] },

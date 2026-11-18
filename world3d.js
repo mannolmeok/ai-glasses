@@ -455,7 +455,22 @@ const WORLD = (() => {
     const eraser = pivot(sc, gx + 0.01, 0.744, gz); eraser.rotation.y = 0.2; eraser.visible = false;
     bx(eraser, 0.035, 0.026, 0.044, 0xf4f1e8, -0.048, 0.013, 0); bx(eraser, 0.082, 0.028, 0.046, 0x2b5f8a, 0.01, 0.014, 0); bx(eraser, 0.068, 0.002, 0.036, 0x0b0b0e, 0.01, 0.0285, 0);
     const lcdT = canvasTex(128, 64, false), lcdFace = plane(eraser, 0.062, 0.031, new THREE.MeshBasicMaterial({ map: lcdT.t, fog: false }), 0.01, 0.0298, 0, -Math.PI / 2);
-    return { paper, paperTex, watch, pen, gadget: { pcase, lid, caseT, caseFace, eraser, lcdT, open: 0 } };
+    // 입실 검사 소품: 물그릇과 안경(가오카오), 탐지봉(수능). 그 장면에서만 보인다
+    const bowl = pivot(sc, MY.x + 0.2, 0.744, MY.z - 0.1); bowl.visible = false;
+    bx(bowl, 0.2, 0.012, 0.15, 0x8f98a4, 0, 0.006, 0); for (const [w, d, x, z] of [[0.2, 0.012, 0, -0.07], [0.2, 0.012, 0, 0.07], [0.012, 0.15, -0.095, 0], [0.012, 0.15, 0.095, 0]]) bx(bowl, w, 0.05, d, 0x9aa3ae, x, 0.03, z);
+    bx(bowl, 0.176, 0.004, 0.126, 0, 0, 0.044, 0, new THREE.MeshBasicMaterial({ color: 0x4fa3c8, transparent: true, opacity: 0.8 }));
+    const dunk = pivot(bowl, 0, 0.3, 0); for (const x of [-0.035, 0.035]) { bx(dunk, 0.06, 0.006, 0.04, 0x17151c, x, 0, 0); bx(dunk, 0.048, 0.007, 0.028, 0x9fd8ee, x, 0, 0); } bx(dunk, 0.012, 0.006, 0.006, 0x17151c, 0, 0, 0);
+    bx(dunk, 0.5, 0.07, 0.07, 0xb03a30, 0.36, 0.05, 0.0); bx(dunk, 0.07, 0.03, 0.06, 0xd9a57c, 0.09, 0.02, 0.0);
+    const bubbles = [0, 1, 2, 3].map(i => bx(bowl, 0.01, 0.01, 0.01, 0xffffff, -0.05 + i * 0.033, 0.05, (i % 2) * 0.03 - 0.015));
+    const wand = pivot(sc, MY.x, 1.0, MY.z - 0.25); wand.visible = false; bx(wand, 0.04, 0.03, 0.3, 0x17151c, 0, 0, -0.1); bx(wand, 0.12, 0.014, 0.12, 0x2a2a32, 0, 0, 0.1); const wandLed = glowMat(0x3a1010); bx(wand, 0.03, 0.01, 0.03, 0, 0, 0.02, 0.0, wandLed); bx(wand, 0.07, 0.07, 0.4, 0x1c2a4a, 0, 0.02, -0.45);
+    // 단추 스티커 장면: 고개를 숙여 내려다본 내 옷. 감독관 손이 단추마다 스티커를 붙인다
+    const shirt = pivot(sc, 0, -5, 0); shirt.visible = false;
+    bx(shirt, 0.9, 0.62, 0.02, 0x3f5285, 0, 0, 0); bx(shirt, 0.06, 0.62, 0.006, 0x4a5f96, 0, 0, 0.012); bx(shirt, 0.012, 0.62, 0.004, 0x34447a, 0.03, 0, 0.016);
+    for (const sx of [-1, 1]) { const c = bx(shirt, 0.2, 0.07, 0.016, 0x34447a, sx * 0.12, 0.27, 0.018); c.rotation.z = sx * 0.5; }
+    const stk = canvasTex(64, 64, false); { const g = stk.g; g.clearRect(0, 0, 64, 64); g.fillStyle = '#b05a10'; g.beginPath(); g.arc(32, 32, 31, 0, 7); g.fill(); g.fillStyle = '#ff8a2a'; g.beginPath(); g.arc(32, 32, 27, 0, 7); g.fill(); g.fillStyle = '#4a2400'; g.font = `800 17px ${FONT}`; g.textAlign = 'center'; g.fillText('검사필', 32, 38); stk.t.needsUpdate = true; }
+    const stickers = [0.15, 0, -0.15].map((y, i) => { bx(shirt, 0.03, 0.03, 0.008, 0xe8ecf2, 0, y, 0.018); if (i === 0) bx(shirt, 0.011, 0.011, 0.004, 0x101014, 0, y, 0.024); const m = plane(shirt, 0.085, 0.085, new THREE.MeshBasicMaterial({ map: stk.t, transparent: true, alphaTest: 0.5, fog: false }), 0, y, 0.028); m.rotation.z = (i - 1) * 0.25; m.visible = false; return m; });
+    const sArm = pivot(shirt, 0.6, 0.15, 0.05); bx(sArm, 0.6, 0.085, 0.07, 0xb03a30, 0.37, 0, 0); bx(sArm, 0.09, 0.06, 0.05, 0xd9a57c, 0.03, 0, 0);
+    return { paper, paperTex, watch, pen, gadget: { pcase, lid, caseT, caseFace, eraser, lcdT, open: 0, bowl, dunk, bubbles, wand, wandLed, shirt, stickers, sArm } };
   }
   function secDevices(sc, tier, X1, HY, Z0, X0, MY) { // CCTV·탐지 전파 장치·드론
     let cctv = null, pulse = null, drone = null;
@@ -793,11 +808,23 @@ const WORLD = (() => {
     const sec = Math.floor(now) % 60; if (sec !== EX.clockSec) { EX.clockSec = sec; drawClockFace(sec); }
     if (EX.paperTex) {
       const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
-      const sig = [E.qi, E.part, E.ar, E.clear, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
+      const sig = [E.qi, E.part, E.ar, E.clear, E.dead, !!E.intro, E.es && E.es.done + '/' + Math.floor(E.es.w * 14), E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
       if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
     }
     if (EX.gadget && !EX.home) { // 책상 위 소품: 스캔하는 동안만 뚜껑이 열리고 화면이 켜진다
-      const G2 = EX.gadget, st = hudStage(E), on = E.start <= 0 && !E.over && !E.caught && (E.scan > 0 || (E.ai && !E.fb));
+      const G2 = EX.gadget, st = hudStage(E), I = E.intro, ring = !E.caught && E.pulse && E.T.pulse === 'alert' && E.pulse.warn > 0 && E.gear.lens < 2, on = ring || (!I && E.start <= 0 && !E.over && !E.caught && (E.scan > 0 || (E.ai && !E.fb) || E.tryHold));
+      G2.pcase.rotation.z = ring ? Math.sin(now * 80) * 0.035 : 0; // 재난문자: 필통이 떤다
+      const wt = I && I.kind === 'water' ? I.t : -1; G2.bowl.visible = wt >= 0;
+      if (wt >= 0) { const dn = clamp((wt - 0.9) / 0.5, 0, 1) - clamp((wt - 3.0) / 0.5, 0, 1); G2.dunk.position.y = lerp(0.3, 0.052, ease(dn)) + (dn >= 1 ? Math.sin(now * 9) * 0.004 : 0); G2.dunk.rotation.z = (1 - dn) * 0.25;
+        G2.bubbles.forEach((m, i) => { const p = (now * 1.6 + i * 0.27) % 1; m.visible = dn >= 1; m.position.y = 0.05 + p * 0.07; }); }
+      const kt = I && I.kind === 'sticker' ? I.t : -1; G2.shirt.visible = kt >= 0;
+      if (kt >= 0) { const inn = ease(clamp(kt / 0.45, 0, 1)) * (1 - ease(clamp((kt - 3.1) / 0.4, 0, 1))); // 고개를 숙이면 옷이 화면 아래에서 올라온다
+        G2.shirt.scale.setScalar(0.33); G2.shirt.quaternion.copy(cam.quaternion).multiply(_qs.setFromEuler(_es.set(-0.3, 0.05, 0.03)));
+        _ps.set(0, -0.012 - (1 - inn) * 0.3, -0.2).applyQuaternion(cam.quaternion); G2.shirt.position.copy(cam.position).add(_ps);
+        const ys = [0.15, 0, -0.15], at = [0.9, 1.4, 1.9]; G2.stickers.forEach((m, i) => { const p = clamp((kt - at[i]) / 0.12, 0, 1); m.visible = p > 0; m.scale.setScalar(0.4 + 0.6 * p + (p < 1 ? 0.2 : 0)); });
+        const ti = kt < 1.15 ? 0 : kt < 1.65 ? 1 : 2, out = kt > 2.3 ? ease(clamp((kt - 2.3) / 0.5, 0, 1)) : 0; G2.sArm.position.y += (ys[ti] - G2.sArm.position.y) * 0.3; G2.sArm.position.x = 0.05 + (1 - ease(clamp(kt / 0.7, 0, 1))) * 0.7 + out * 0.8; }
+      const mt = I && I.kind === 'metal' ? I.t : -1; G2.wand.visible = mt >= 0;
+      if (mt >= 0) { const sw = clamp((mt - 0.5) / 2.2, 0, 1); G2.wand.position.x = EX.eye.x + lerp(0.5, -0.45, ease(sw)); G2.wand.position.y = EX.eye.y - 0.32 + Math.sin(sw * 9) * 0.04; G2.wand.position.z = EX.eye.z - 0.55; G2.wandLed.color.setHex(mt > 1.5 && mt < 2.3 && Math.floor(now * 10) % 2 ? 0xff3030 : 0x3a1010); }
       G2.pcase.visible = st === 'case'; G2.eraser.visible = st === 'eraser';
       G2.open += ((on ? 1 : 0) - G2.open) * 0.3; G2.lid.rotation.x = -G2.open * 1.95; G2.caseFace.visible = G2.open > 0.04;
       if (st === 'case' && G2.open > 0.04) { drawGadgetScreen(G2.caseT.g, E, now, 'case'); G2.caseT.t.needsUpdate = true; }
@@ -1203,6 +1230,7 @@ const WORLD = (() => {
     draw(END.scene, END.cam, now, 1.4);
   }
 
+  const _qs = new THREE.Quaternion(), _es = new THREE.Euler(), _ps = new THREE.Vector3();
   // ---------- 계단: LEET 쉬는 시간에 전력으로 오르내리는 계단 ----------
   const ST = { scene: null, i: 0, yaw: 0, pitch: 0 }, ST_N = 14, ST_H = 0.17, ST_D = 0.3;
   function buildStairs() {

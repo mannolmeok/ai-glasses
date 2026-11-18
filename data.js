@@ -377,10 +377,21 @@ const GEN = {
 function clampN(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
 // 시험 한 교시(또는 모듈·블록)의 문제. 토익은 앞쪽 listen개가 듣기 문항
+// 서술형: 보기 없이 모범 답안을 한 줄씩 읽고 옮겨 쓴다 [문제, 답안 네 줄]
+const ESSAYS = [
+  ['법률유보 원칙의 의미를 서술하시오.', ['행정은 법률에 근거해야 한다.', '국민의 권리를 제한할 때는', '국회가 만든 법률이 필요하다.', '이를 법률유보 원칙이라 한다.']],
+  ['정당방위의 성립 요건을 서술하시오.', ['현재의 부당한 침해가 있어야 한다.', '자기나 타인의 법익을 지키려는', '방위 행위여야 하고,', '그 행위에 상당한 이유가 있어야 한다.']],
+  ['계약 해제의 효과를 서술하시오.', ['계약은 처음부터 없던 것이 된다.', '각 당사자는 받은 것을 돌려줄', '원상회복 의무를 진다.', '손해가 있으면 배상도 청구할 수 있다.']],
+  ['죄형법정주의의 내용을 서술하시오.', ['법률이 없으면 범죄도 없고', '법률이 없으면 형벌도 없다.', '소급해서 처벌할 수 없으며', '유추해석도 금지된다.']],
+  ['미란다 원칙의 내용을 서술하시오.', ['체포할 때 피의자에게', '진술을 거부할 수 있다는 것과', '변호인의 도움을 받을 수 있음을', '미리 알려야 한다.']],
+  ['소멸시효 제도의 취지를 서술하시오.', ['권리를 오래 행사하지 않으면', '그 권리는 사라진다.', '오래 이어진 사실관계를 존중하고', '증거를 찾기 어려워지기 때문이다.']],
+];
+function essayQ(rng, n) { const e = ESSAYS[(n + Math.floor(rng() * 2)) % ESSAYS.length]; return { kind: 'essay', q: e[0], lines: e[1], choices: ['', '', '', ''], answer: 0, human: false }; }
 function makeQuestions(rng, tier, part = 0) {
   const out = [];
   for (let i = 0; i < tier.qn; i++) {
     const n = part * tier.qn + i;
+    if (tier.essay && i === tier.qn - 1) { out.push(essayQ(rng, part)); continue; } // 교시의 마지막 문제는 서술형
     if (tier.listen && n < tier.listen) out.push(GEN.toeicLC(rng));
     else out.push(GEN[tier.gen](rng, false, n));
   }
@@ -437,9 +448,9 @@ const GEAR_TEXT = {
   cctvjam: lv => lv >= 3 ? 'CCTV에 안 찍힘' : `CCTV 의심도 ${pct(jamFactor(lv, 3))}`,
   coach: lv => `합격 보상 x${coachMult(lv).toFixed(2)}`,
   autooff: lv => lv >= 2 ? '감독관이 책상 앞에 서면 렌즈 소등 + 스캔 자동 멈춤' : '감독관이 책상 앞에 서면 렌즈 소등',
-  jammer: lv => lv >= 3 ? '탐지 전파·드론·재난문자·EMP 완전 차단' : `탐지 전파·드론·재난문자·EMP ${pct(jamFactor(lv, 3))}`,
+  jammer: lv => lv >= 3 ? '탐지 전파·드론 완전 차단 · EMP에도 살아남음' : `탐지 전파·드론 ${pct(jamFactor(lv, 3))} · EMP는 못 막음`,
   autoscan: lv => `안 볼 때 알아서 스캔 (반응 ${autoDelayAt(lv).toFixed(2)}초)`,
-  glasscase: lv => `안경 물 검사 ${pct(gearCut(lv))}`,
+  glasscase: lv => lv >= 2 ? '물에 담가도 아무 일 없음' : '물에 담가도 켜짐 (잠깐 물방울)',
   gazefix: lv => `마주 보는 시험 의심도 ${pct(1 - lv * tune.gaze_cut)}`,
   eyedrop: lv => `눈 피로 ${pct(gearCut(lv))}`,
   calccover: lv => `계산기 검사 ${pct(gearCut(lv))}`,
@@ -457,8 +468,8 @@ const GEAR_BLURB = {
   earbud: '귓속말로 답을 불러 주고, 방송으로 나오는 문제도 받아쓴다', deepcam: '원격 감독 웹캠에 성실한 내 얼굴을 대신 보여 준다',
   watch: '손목에서 시험 시간을 늘려 주는 수상한 시계', wide: '시야가 넓은 렌즈로 다음 문제까지 한꺼번에 읽는다',
   cctvjam: '교실 CCTV 화면에서 내 자리만 지운다', coach: '합격 뒤 면접에서 귀띔해서 장학금·연봉이 오른다',
-  autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: '탐지 전파·드론·재난문자·EMP로부터 내 기기를 숨긴다',
-  autoscan: '안경이 감독관 시선을 읽고 혼자 스캔한다', glasscase: '입실 검사 때 평범한 돋보기처럼 보이게 한다',
+  autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: '탐지 전파와 드론으로부터 내 기기를 숨긴다. 최고 단계는 EMP도 버틴다',
+  autoscan: '안경이 감독관 시선을 읽고 혼자 스캔한다', glasscase: '입실 때 안경을 물에 담가도 고장 나지 않는다. 없으면 그 시험 내내 먹통',
   gazefix: '마주 앉은 면접관에게 내 눈이 늘 상대를 보는 것처럼 보이게 한다', eyedrop: '긴 시험에서 눈이 피로해져 스캔이 느려지는 걸 막는다',
   calccover: '승인된 계산기 껍데기를 씌워 검사를 통과한다', screenfilm: '노트북 감시 프로그램에 평범한 화면을 보여 준다',
   taste: '혀에 붙인 센서가 와인 품종을 분석한다', thirdeye: '외계인이 곁눈질하는 방향을 렌즈에 그려 준다',
@@ -470,7 +481,7 @@ const GEAR_REVIEW = {
   bot: '형이 대신 쳐 줌 ★★★☆☆', earbud: '귀에서 정답이 들려요 ★★★★★', deepcam: '감독관이 제 사진만 봤어요 ★★★★☆',
   watch: '시간이 늘어난 기분 ★★★★☆', wide: '한 번에 두 문제씩 ★★★★★', cctvjam: 'CCTV에 제 자리만 비어요 ★★★★★',
   coach: '면접관이 울었어요 ★★★★★', autooff: '불이 알아서 꺼져요 ★★★★☆', jammer: '드론이 그냥 지나감 ★★★★★',
-  autoscan: '손 놓고 있어도 됨 ★★★★★', glasscase: '할머니 돋보기인 줄 알더라고요 ★★★★☆', gazefix: '교수님이 제 눈빛에 감동 ★★★★★',
+  autoscan: '손 놓고 있어도 됨 ★★★★★', glasscase: '물그릇에서 건져도 켜져요 ★★★★★', gazefix: '교수님이 제 눈빛에 감동 ★★★★★',
   eyedrop: '세 블록 내내 쌩쌩 ★★★★☆', calccover: '계산기 검사 프리패스 ★★★★★', screenfilm: '감시 프로그램이 졸았어요 ★★★★☆',
   taste: '혀가 품종을 말해 줌 ★★★★★', thirdeye: '이마가 좀 간지러움 ★★★★☆', candle: '촛불이 미리 알려 줘요 ★★★★★',
   clone: '나랑 나랑 나랑 ★★★★★', humanmod: '로봇 아니냐는 소리 안 들음 ★★★★☆', offbeat: 'Ω도 못 따라옴 ★★★★★',

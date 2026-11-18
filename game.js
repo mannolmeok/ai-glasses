@@ -307,7 +307,7 @@ addEventListener('blur', () => { down.clear(); ptrs.clear(); });
 function takeTaps() { const t = ptr.taps; ptr.taps = []; return t; }
 function takeReleases() { const r = releases; releases = []; return r; }
 function hitBtn(btns, x, y) { return (btns || []).find(b => x >= b.x && x <= b.x + b.w && y >= b.y - 2 && y <= b.y + b.h + 2); }
-function scanHeld() { return down.has('Space') || scanPointer(); }
+function scanHeld() { return down.has('Space') || (E && E.layout === 'table' && (down.has('ArrowLeft') || down.has('KeyA'))) || scanPointer(); }
 function setView(v) { // 고개를 그쪽으로 돌려 둔다 (다시 바꿀 때까지 그대로)
   if (!E || v === E.view) return;
   const side = x => x === 'left' || x === 'right';
@@ -323,7 +323,8 @@ function viewInput(taps) { // 화면 왼쪽·오른쪽·위를 누르고 있는 
   for (const p of ptrs.values()) if (p.zone === 'L' || p.zone === 'R' || p.zone === 'T') z = p.zone;
   setView(z === 'L' || down.has('ArrowLeft') || down.has('KeyA') ? 'left' : z === 'R' || down.has('ArrowRight') || down.has('KeyD') ? 'right' : z === 'T' || down.has('ArrowUp') || down.has('KeyW') ? front : 'paper');
 }
-function scanPointer() { for (const p of ptrs.values()) if (p.zone === 'C' || (E && E.layout === 'table')) return true; return false; }
+function scanPointer() { // 시험장: 가운데를 꾹. 면접: 화면 왼쪽(AI 답변이 뜨는 쪽)을 꾹
+  for (const p of ptrs.values()) if (E && E.layout === 'table' ? p.x < EXAM_LAYOUT.W * 0.45 && p.y < 270 : p.zone === 'C') return true; return false; }
 
 // ---- Audio: started on first input, mute on M --------------------------------------------
 let audio = null, muted = false;
@@ -438,12 +439,16 @@ function startExam(ti) {
     cctv: T.sec.includes('cctv') ? { ph: rng() * 6.28, a: 1, on: false } : null,
     pulse: T.sec.includes('pulse') ? { next: 3 + rng() * 3, warn: 0, active: 0 } : null };
   E.pulseCut = T.pulse === 'screen' ? gearCut(g.screenfilm) : jamFactor(g.jammer, 3);
-  E.stickerSlow = T.mech.includes('sticker') && g.lens < tune.glass_level ? tune.sticker_slow : 1;
+  E.stickerSlow = 1; E.dead = null; E.deadNext = null; E.intro = null; E.wetT = 0; // 단추 스티커는 이제 느려지는 게 아니라 아예 가려진다 (E.dead)
   // 입실 검사: 시작부터 의심을 안고 들어간다
   const stealth = Math.pow(1 - tune.stealth_cut, g.stealth), N = E.startNotes;
-  if (T.mech.includes('metal')) { E.sus = tune.metal_sus * stealth; N.push({ text: `입실 금속탐지기 삑! 의심도 ${Math.round(E.sus * 100)}%에서 시작`, col: PAL.bad }); }
-  if (T.mech.includes('glasscheck')) { E.sus = tune.glass_sus * stealth * gearCut(g.glasscase); N.push({ text: E.sus > 0.01 ? `안경을 물에 담갔다! 의심도 ${Math.round(E.sus * 100)}%에서 시작` : '안경 물 검사 통과 (위장 케이스)', col: E.sus > 0.01 ? PAL.bad : PAL.good }); }
-  if (T.mech.includes('sticker')) N.push({ text: E.stickerSlow > 1 ? '옷 단추마다 스티커! 단추 카메라가 가려져 스캔이 느려진다' : '옷 단추마다 스티커 (안경이라 상관없음)', col: E.stickerSlow > 1 ? PAL.bad : PAL.good });
+  const glassOn = R === 'room' && g.lens >= tune.glass_level && g.lens <= 5, camOn = g.lens < tune.glass_level; // 안경을 쓰고 있나 · 단추 카메라를 쓰고 있나
+  if (T.mech.includes('metal')) { E.sus = tune.metal_sus * stealth; E.intro = { kind: 'metal', t: 0, dur: 3.8 }; N.push({ text: `탐지봉이 울렸다. 의심 ${Math.round(E.sus * 100)}%에서 시작`, col: PAL.bad }); }
+  if (T.mech.includes('glasscheck')) { // 안경을 물에 담근다: 방수가 아니면 그 시험 내내 먹통
+    if (glassOn) { E.intro = { kind: 'water', t: 0, dur: 4.6, ok: g.glasscase > 0 }; if (g.glasscase < 1) E.deadNext = 'water'; else if (g.glasscase < 2) E.wetT = 8; N.push({ text: g.glasscase > 0 ? '안경 물 검사 통과 (방수)' : '안경이 물을 먹었다. 이 시험은 AI 없이', col: g.glasscase > 0 ? PAL.good : PAL.bad }); }
+    else N.push({ text: '안경 물 검사: 안경이 없어 그냥 지나감', col: PAL.good });
+  }
+  if (T.mech.includes('sticker')) { E.intro = { kind: 'sticker', t: 0, dur: 3.6 }; if (camOn) E.deadNext = 'sticker'; N.push({ text: camOn ? '단추 카메라가 스티커에 가려졌다. 이 시험은 AI 없이' : '옷 단추마다 스티커 (안경이라 상관없음)', col: camOn ? PAL.bad : PAL.good }); }
   const names = [...T.mech.filter(m => !['tutorial', 'metal', 'glasscheck', 'sticker'].includes(m)).map(m => m === 'idcheck' && T.check === 'calc' ? MECH_NAME.calc : MECH_NAME[m]), ...T.sec.map(s => s === 'pulse' && T.pulse ? SEC_NAME[T.pulse] : SEC_NAME[s])];
   if (names.length) N.push({ text: names.join(' · '), col: PAL.warn });
   if (T.noAuto) N.push({ text: 'AI 감독관이 이어폰·자동 스캔을 막는다', col: PAL.bad });
@@ -554,7 +559,10 @@ function stepPulse(p, dt) {
   if (p.active > 0) { p.active -= dt; return; }
   if (p.warn > 0) {
     const before = Math.ceil(p.warn); p.warn -= dt;
-    if (p.warn <= 0) { p.warn = 0; p.active = 0.6; sfx.pulse(); if (E.T.pulse === 'emp' && !E.ai && E.pulseCut > 0) { E.scan *= 1 - tune.emp_wipe * E.pulseCut; flash('EMP! 스캔이 날아갔다', PAL.bad); } }
+    if (p.warn <= 0) { p.warn = 0; p.active = 0.6; sfx.pulse();
+      if (E.T.pulse === 'emp' && G.gear.jammer < 3 && !E.dead) { E.dead = 'emp'; E.scan = 0; E.ai = false; sfx.warp(); } // EMP: 대비한 장비가 아니면 전자기기가 전부 먹통
+      if (E.T.pulse === 'alert' && G.gear.lens < 2 && !E.caught) { E.sus = 1; E.source = { how: 'alert', by: E.staff[0] }; getCaught(); } // 재난문자: 폰을 켜 둔 채면 그 자리에서 적발
+    }
     else if (Math.ceil(p.warn) !== before) sfx.beep();
     return;
   }
@@ -620,8 +628,9 @@ function threat() { // 지금 스캔하면 초당 오르는 의심도와, 스캔
 }
 function markAnswer(i, how) { // 정답인지는 시험이 끝날 때까지 모른다
   if (!E || E.fb || E.caught || E.over || E.start > 0 || E.breakT > 0 || i < 0 || i > 3) return;
+  if (E.qs[E.qi].kind === 'essay' && how !== 'essay') return; // 서술형은 다 옮겨 써야 답이 된다
   if (how !== 'auto' && (E.view !== 'paper' || E.viewT < 1)) { if (how === 'key' && E.layout !== 'table') setView('paper'); return; } // 시험지를 보고 있어야 마킹 (숫자 키는 먼저 고개를 숙인다)
-  const q = E.qs[E.qi], viaAI = how === 'auto' || (E.ai && i === q.aiPick);
+  const q = E.qs[E.qi], viaAI = how === 'auto' || how === 'essay' || (E.ai && i === q.aiPick);
   if (q.final) { if (E.ai && how !== 'auto') finishFinal(i); return; } // 마지막 문제: 무엇을 골라도 채점 없이 엔딩으로
   E.answers[E.qi] = i; E.via[E.qi] = how === 'auto' ? 'auto' : viaAI ? 'ai' : 'self';
   E.fb = { pick: i, t: 0, how };
@@ -669,6 +678,10 @@ function getCaught() {
   sfx.caught(); events.push({ type: 'caught', how: E.caughtHow });
 }
 function examHint() { // 첫 시험(모의평가)에서만, 한 번에 하나
+  if (E.dead) return E.dead === 'water' ? '안경이 물을 먹어 켜지지 않는다 · 직접 풀기' : E.dead === 'sticker' ? '단추 카메라가 가려졌다 · 직접 풀기' : 'EMP에 장비가 전부 꺼졌다 · 직접 풀기';
+  const q0 = E.qs[E.qi]; if (E.rising && (E.layout === 'table' || (q0 && q0.kind === 'essay'))) return '보고 있어요! 손 떼기';
+  if (q0 && q0.kind === 'essay' && !G.hints.essay) return '서술형: 가운데를 꾹 눌러 한 줄 읽고(위험) 옮겨 쓰기(안전)';
+  if (E.layout === 'table' && !G.hints.iv && !E.ai) return '화면 왼쪽을 꾹: AI 답변 읽기 · 면접관이 볼 땐 떼기 (←)';
   if (E.tier !== 0 || G.stats.exams > 0) return null;
   if (E.rising) return '누가 보고 있어요! 손 떼기';
   if (!G.hints.look) return '화면 양옆을 꾹: 누르는 동안 고개 돌려 감독관 보기 (← →)';
@@ -697,6 +710,16 @@ function updateExam(dt) {
   E.runShown = G.opts.timer ? G.run.t : 0;
   if (E.caught || E.over) { E.endT += dt; takeReleases(); if (E.endT > (E.caught ? 2.0 : 0.9)) finishExam(); return; }
   if (pressed('KeyP') || pressed('Escape')) { scene = 'pause'; return; }
+  if (E.intro) { // 입실 검사 장면: 탐지봉 · 안경 물에 담그기 · 단추 스티커
+    const I = E.intro, t0 = I.t; I.t += dt; takeReleases(); E.holding = false; E.hint = null; const v = I.kind === 'metal' ? 'front' : 'paper'; if (E.layout === 'room' && E.view !== v) setView(v); E.viewT = Math.min(1, E.viewT + dt / tune.look_time);
+    const at = s => t0 < s && I.t >= s;
+    if (I.kind === 'metal') { if (at(1.5)) { sfx.beep(); sfx.no(); } }
+    else if (I.kind === 'water') { if (at(1.3)) sfx.warp(); if (at(3.4)) (I.ok ? sfx.ai : sfx.no)(); }
+    else if (I.kind === 'sticker') { for (const s of [0.9, 1.4, 1.9]) if (at(s)) sfx.pencil(); }
+    if (I.t >= I.dur) { E.intro = null; if (E.deadNext) { E.dead = E.deadNext; E.deadNext = null; } }
+    return;
+  }
+  if (E.wetT > 0) E.wetT -= dt;
   // 고개 돌리기 (돌아보는 것만으로는 의심받지 않는다)
   if (E.start > 0 || E.breakT > 0) { if (E.layout === 'room' && E.view !== 'front' && !FORCE_VIEW) setView('front'); } else viewInput(taps);
   const held = E.start <= 0 && !(E.breakT > 0) && E.view === 'paper' && E.viewT >= 1 && scanHeld(); // 책상을 보는 채로 꾹 눌러야 스캔
@@ -731,24 +754,35 @@ function updateExam(dt) {
     if (safe) { E.unsafeT = 0; if (E.view === 'front') setView('paper'); } else E.unsafeT += dt;
     autoHold = onPaper && (safe || E.unsafeT < autoDelayAt(g.autoscan));
   }
-  const hold = (manual || autoHold) && !E.ai && !E.fb;
+  const hold = (manual || autoHold) && !E.ai && !E.fb && !E.dead; // 장비가 먹통이면 아무리 눌러도 스캔되지 않는다
+  E.tryHold = !!E.dead && manual;
+  const essay = q.kind === 'essay', table = E.layout === 'table', blind = table && E.staff.some(s => s.fixed && s.phase === 'watch'); // 면접관이 보는 동안은 읽히지 않는다
+  if (essay) { // 서술형: 한 줄 읽기(위험) → 그 줄 옮겨 쓰기(안전). 읽은 줄은 손을 떼고 있으면 잊는다
+    if (!E.es || E.es.q !== q) E.es = { q, done: 0, r: 0, w: 0, mem: 0 };
+    const es = E.es;
+    if (hold) { if (es.mem <= 0) { es.r += dt / tune.essay_read; if (es.r >= 1) { es.r = 0; es.mem = tune.essay_mem; sfx.elim(); } }
+      else { es.w += dt / tune.essay_write; E.tick += dt; if (E.tick > 0.14) { E.tick = 0; sfx.pencil(); } if (es.w >= 1) { es.w = 0; es.mem = 0; es.done++; G.hints.essay = true; if (es.done >= q.lines.length) { E.wasHold = hold; markAnswer(q.answer, 'essay'); } } } }
+    else { es.r = 0; if (es.mem > 0) { es.mem -= dt; if (es.mem <= 0) { es.mem = 0; es.w = 0; } } }
+  }
+  const risky = hold && !(essay && E.es.mem > 0); // 서술형에서 쓰는 동안은 평범한 수험생으로 보인다
   if (hold && !E.wasHold && T.mech.includes('omega') && E.scan < 0.05) { // Ω는 스캔 박자를 읽는다: 지난번과 같은 간격이면 들킨다
     const t = E.clockT, gap = E.lastScanT == null ? null : t - E.lastScanT, win = tune.omega_window * gearCut(g.offbeat);
     if (gap != null && E.lastGap != null && Math.abs(gap - E.lastGap) < win) { E.sus = Math.min(1, E.sus + tune.omega_jump); E.source = { how: 'omega', by: E.staff[0] }; flash('Ω가 박자를 읽었다! 간격을 바꿔라', PAL.bad); sfx.pulse(); }
     E.lastGap = gap; E.lastScanT = t;
   }
   const peeker = E.staff.find(s => s.phase === 'peek' && s.peek.stage === 'stare');
-  if (peeker && hold) { E.sus = 1; E.source = { how: 'peek', by: peeker }; getCaught(); return; } // 올려다보는 눈과 마주친 채 스캔하면 끝
-  if (!hold && !E.ai && !E.fb && E.scan > 0) E.scan = tune.scan_drop >= 10 ? 0 : Math.max(0, E.scan - tune.scan_drop * dt); // 손을 떼면 스캔이 처음으로 돌아간다
+  if (peeker && risky) { E.sus = 1; E.source = { how: 'peek', by: peeker }; getCaught(); return; } // 올려다보는 눈과 마주친 채 스캔하면 끝
+  if (!hold && !E.ai && !E.fb && E.scan > 0) E.scan = table ? Math.floor(E.scan * 4 + 1e-6) / 4 : tune.scan_drop >= 10 ? 0 : Math.max(0, E.scan - tune.scan_drop * dt); // 손을 떼면 스캔이 처음으로 돌아간다
   E.wasHold = hold; E.holding = hold; E.autoHolding = autoHold && !manual;
-  E.rising = (hold && th.r > 0) || th.idle > 0;
-  if (hold && th.r > 0) { E.sus += th.r * dt; E.source = th.src; }
-  if (th.idle > 0) { E.sus += th.idle * dt; if (!(hold && th.r > 0)) E.source = { how: atDesk ? 'check' : 'webcam', by: E.staff.find(s => s.phase === 'check') || E.staff[0] }; }
+  E.rising = (risky && th.r > 0) || th.idle > 0;
+  if (risky && th.r > 0) { E.sus += th.r * dt; E.source = th.src; }
+  if (th.idle > 0) { E.sus += th.idle * dt; if (!(risky && th.r > 0)) E.source = { how: atDesk ? 'check' : 'webcam', by: E.staff.find(s => s.phase === 'check') || E.staff[0] }; }
   if (!E.rising) E.sus -= tune.sus_decay * dt;
   E.sus = clamp(E.sus, 0, 1);
   if (E.sus >= 1) { getCaught(); return; }
-  if (listen && !E.ai && !E.fb && g.earbud > 0) { E.listen += dt / tune.listen_time; if (E.listen >= 1) { E.listen = 1; completeScan(); } } // 이어폰이 방송을 받아쓴다
-  if (hold) { // 스캔: 1/3, 2/3에서 오답이 하나씩 지워지고, 끝나면 AI의 답
+  if (listen && !E.ai && !E.fb && g.earbud > 0 && !E.dead) { E.listen += dt / tune.listen_time; if (E.listen >= 1) { E.listen = 1; completeScan(); } } // 이어폰이 방송을 받아쓴다
+  if (hold && !essay && !blind) { // 스캔: 1/3, 2/3에서 오답이 하나씩 지워지고, 끝나면 AI의 답
+    if (table) G.hints.iv = true;
     const before = Math.floor(E.scan * 3 + 1e-6);
     const secs = scanSecondsAt(g.lens) * E.stickerSlow * (T.mech.includes('long') ? tune.long_scan : 1) * (T.mech.includes('fatigue') ? 1 + tune.fatigue_step * E.part * gearCut(g.eyedrop) : 1);
     E.scan += dt / secs * (1 - tune.float_wobble * E.float);
@@ -1064,7 +1098,7 @@ const scenes = {
   },
   play: {
     update(dt) { state.t += dt; if (STATE.titleOut > 0) STATE.titleOut = Math.max(0, STATE.titleOut - dt); updateExam(dt); },
-    draw(B) { if (E.stairs) { WORLD.renderStairs(E.stairs, now); drawStairsHud(B.k, B.L, E, now); return; } WORLD.renderExam(E, now); if (params.get('hud') !== '0') drawExamHud(B.k, B.L, E, now, hudSet()); if (STATE.titleOut > 0) drawTitleOut(B.k, B.L, now, STATE.titleOut / 0.9); },
+    draw(B) { if (E.intro && params.get('hud') !== '0') { WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); drawIntro(B.k, B.L, E, now); return; } if (E.stairs) { WORLD.renderStairs(E.stairs, now); drawStairsHud(B.k, B.L, E, now); return; } WORLD.renderExam(E, now); if (params.get('hud') !== '0') drawExamHud(B.k, B.L, E, now, hudSet()); if (STATE.titleOut > 0) drawTitleOut(B.k, B.L, now, STATE.titleOut / 0.9); },
   },
   pause: {
     update() {
@@ -1203,6 +1237,10 @@ if (scene === 'play' || scene === 'pause' || scene === 'results') {
   if (params.get('t')) { const n = Math.round(Number(params.get('t')) / STEP); for (let i = 0; i < n && scene === 'play'; i++) step(); }
   if (params.get('scan')) { E.view = 'paper'; E.prevView = 'paper'; E.viewT = 1; E.start = 0; const v = Number(params.get('scan')); if (v >= 1) completeScan(); else { E.scan = v; E.holding = true; } } // check only: 스캔 중·스캔 끝 장면
   if (params.get('stairs')) { const v = params.get('stairs'); E.stairs = { phase: v === '1' ? 'intro' : v === '3' ? 'out' : 'run', t: 3, steps: v === '1' ? 0 : 23, last: 'L', left: 4.2, stumble: 0, result: v === '3' ? 'clear' : null }; if (params.get('clear')) { E.stairs = null; E.clear = true; E.start = 0; E.view = 'paper'; E.prevView = 'paper'; E.viewT = 1; } } // check only
+  if (params.get('essay')) { E.qi = E.qs.length - 1; E.start = 0; E.view = 'paper'; E.prevView = 'paper'; E.viewT = 1; E.es = { q: E.qs[E.qi], done: 2, r: 0, w: 0.55, mem: params.get('essay') === '2' ? 0 : 3.2 }; if (params.get('essay') === '2') E.es.r = 0.6; } // check only
+  if (params.get('intro')) { if (E.intro) E.intro.t = Number(params.get('intro')); } else if (E.intro) { E.intro = null; if (E.deadNext) { E.dead = E.deadNext; E.deadNext = null; } } // check only: 입실 장면의 그 순간 / 건너뛰기
+  if (params.get('dead')) E.dead = params.get('dead');
+  if (params.get('fire')) { E.start = 0; E.pulse.warn = params.get('fire') === '1' ? 0.8 : 0; E.pulse.active = params.get('fire') === '1' ? 0 : 0.35; }
   if (params.get('peek')) { const st = E.staff[0]; st.phase = 'peek'; st.peek = { stage: 'stare', t: 0.5 }; E.view = 'paper'; E.viewT = 1; }
   if (params.get('final')) { E.qi = E.qs.length - 2; E.start = 0; E.answers[E.qi] = 0; nextQuestion(); if (params.get('final') === '2') { E.view = 'paper'; E.viewT = 1; completeScan(); } }
   if (params.get('scene') === 'results') { while (!E.over) { E.qs.forEach((q, i) => { E.answers[i] = (i + E.part) % 4 === 3 ? (q.answer + 1) % 4 : q.answer; E.via[i] = i % 2 ? 'ai' : 'self'; }); endPart(true); E.breakT = 0; } finishExam(); }
