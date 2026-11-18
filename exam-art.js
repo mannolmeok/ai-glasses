@@ -104,25 +104,52 @@ function drawPaperTexture(g, E, now) {
     return;
   }
   if (!E.ar) return; // 안경 전 단계: 시험지 위에는 아무것도 뜨지 않는다 (답은 소매 속 액정에)
-  // 안경이 종이 위에 비추는 AR: 1/3, 2/3에서 지운 오답, 끝나면 AI가 고른 보기, 스캔 중엔 초점 틀
-  const strikes = Math.min(2, q.pre ? 2 : Math.floor(E.scan * 3 + 1e-6));
-  for (let j = 0; j < strikes; j++) {
-    const i = q.elim[j], y = PAPER_ROW(i); g.font = `700 ${cs}px ${F}`; const tw = q.kind === 'alien' ? 300 : g.measureText(text(q.choices[i])).width;
-    g.globalAlpha = 0.35; g.fillStyle = '#0f3238'; g.fillRect(56, y - 60, tw + 112, 76); g.globalAlpha = 1;
-    g.fillStyle = cyan; g.fillRect(132, y - 24, tw + 16, 7);
-  }
-  if (E.ai && !E.fb) {
-    const y = PAPER_ROW(q.aiPick);
-    g.lineWidth = 6; g.strokeStyle = cyan; g.strokeRect(46, y - 70, PAPER_W - 92, 92);
-    g.fillStyle = cyan; g.textAlign = 'right'; g.font = `800 40px ${F}`; g.fillText(`AI ${q.conf}%`, PAPER_W - 62, y - 8);
-  }
-  if ((E.holding || E.scan > 0) && !E.ai && !E.fb) {
-    const x0 = 36, y0 = 186, x1 = PAPER_W - 36, y1 = PAPER_ROW(3) + 44, L = 46;
-    g.fillStyle = cyan;
-    for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
-      g.fillRect(sx > 0 ? cx : cx - L, cy - (sy > 0 ? 0 : 6), L, 6); g.fillRect(cx - (sx > 0 ? 0 : 6), sy > 0 ? cy : cy - L, 6, L);
+  // 안경이 종이 위에 비추는 AR. 장비 단계마다 모양이 다르다 (hudStage)
+  const st = hudStage(E), col = HUD_INK[st] || cyan, row = i => PAPER_ROW(i), tw = i => { g.font = `700 ${cs}px ${F}`; return q.kind === 'alien' ? 300 : g.measureText(text(q.choices[i])).width; };
+  const strikes = Math.min(2, q.pre ? 2 : Math.floor(E.scan * 3 + 1e-6)), picked = E.ai && !E.fb, scanning = (E.holding || E.scan > 0) && !E.ai && !E.fb;
+  if (st === 'brain') { // 뇌 임플란트: 표시가 없다. 정답만 환하고 나머지는 흐려진다
+    if (picked) for (let i = 0; i < 4; i++) {
+      const y = row(i);
+      if (i !== q.aiPick) { g.globalAlpha = 0.72; g.fillStyle = bg; g.fillRect(40, y - 72, PAPER_W - 80, 98); g.globalAlpha = 1; }
+      else { const gr = g.createRadialGradient(PAPER_W / 2 - 60, y - 26, 20, PAPER_W / 2 - 60, y - 26, 330); gr.addColorStop(0, 'rgba(255,205,90,0.55)'); gr.addColorStop(1, 'rgba(255,205,90,0)'); g.fillStyle = gr; g.fillRect(20, y - 90, PAPER_W - 40, 130); }
     }
-    if (E.holding) { g.globalAlpha = 0.6; g.fillRect(x0, y0 + ((now * 520) % (y1 - y0)), x1 - x0, 4); g.globalAlpha = 1; }
+    else for (let j = 0; j < strikes; j++) { const y = row(q.elim[j]); g.globalAlpha = 0.5; g.fillStyle = bg; g.fillRect(40, y - 72, PAPER_W - 80, 98); g.globalAlpha = 1; }
+  } else if (st === 'contact') { // 콘택트렌즈: 보기 옆 작은 빛 고리 하나
+    for (let j = 0; j < strikes; j++) { const i = q.elim[j], y = row(i); g.globalAlpha = 0.55; g.fillStyle = col; g.fillRect(132, y - 22, tw(i) + 16, 3); g.globalAlpha = 1; }
+    if (picked) { const y = row(q.aiPick) - 22; g.strokeStyle = col; g.lineWidth = 12; g.globalAlpha = 0.25; g.beginPath(); g.arc(76, y, 30, 0, 7); g.stroke(); g.globalAlpha = 1; g.lineWidth = 5; g.beginPath(); g.arc(76, y, 30, 0, 7); g.stroke();
+      g.fillStyle = '#1e6a80'; g.textAlign = 'left'; g.font = `700 26px ${F}`; g.fillText(String(q.conf), 150 + tw(q.aiPick), y + 14); }
+    if (scanning) { g.fillStyle = col; g.globalAlpha = 0.7; for (let i = 0; i < 4; i++) { const on = Math.floor(now * 8) % 4 === i; g.beginPath(); g.arc(76, row(i) - 22, on ? 9 : 5, 0, 7); g.fill(); } g.globalAlpha = 1; }
+  } else {
+    for (let j = 0; j < strikes; j++) {
+      const i = q.elim[j], y = row(i), w = tw(i);
+      if (st !== 'proto') { g.globalAlpha = 0.35; g.fillStyle = st === 'mil' ? '#3a2a08' : st === 'used' ? '#0c3016' : '#0f3238'; g.fillRect(56, y - 60, w + 112, 76); g.globalAlpha = 1; }
+      g.fillStyle = col; g.fillRect(132, y - 24, w + 16, st === 'proto' ? 4 : 7);
+    }
+    if (picked) {
+      const y = row(q.aiPick);
+      if (st === 'proto') { // 시제품: 보기마다 확신도 막대, 고른 보기에 밑줄
+        const cf = choiceConf(q);
+        for (let i = 0; i < 4; i++) { const yy = row(i) - 26, on = i === q.aiPick; g.globalAlpha = 1; g.fillStyle = '#9aa0ac'; g.fillRect(PAPER_W - 250, yy, 130, 8); g.fillStyle = on ? '#0f95a8' : '#4a5060'; g.fillRect(PAPER_W - 250, yy, Math.round(130 * cf[i] / 100), 8);
+          g.textAlign = 'right'; g.font = `${on ? 800 : 700} ${on ? 34 : 26}px ${F}`; g.fillStyle = on ? '#0c6f7e' : '#4a5060'; g.fillText(cf[i] + '%', PAPER_W - 44, yy + 14); }
+        g.globalAlpha = 1; g.fillStyle = '#18a6ba'; g.fillRect(126, y + 10, tw(q.aiPick) + 28, 6);
+      } else if (st === 'mil') { // 군용: 표적 꺾쇠
+        const x0 = 46, x1 = PAPER_W - 46, y0 = y - 70, y1 = y + 22, Lc = 40; g.fillStyle = col;
+        for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) { g.fillRect(sx > 0 ? cx : cx - Lc, cy - (sy > 0 ? 0 : 6), Lc, 6); g.fillRect(cx - (sx > 0 ? 0 : 6), sy > 0 ? cy : cy - Lc, 6, Lc); }
+        g.fillStyle = '#b06a00'; g.textAlign = 'right'; g.font = `800 32px ${F}`; g.fillText(`TGT ${q.aiPick + 1} · CONF ${q.conf}`, PAPER_W - 62, y - 10);
+      } else { // 중고: 굵은 초록 상자
+        g.lineWidth = 7; g.strokeStyle = col; g.strokeRect(46, y - 70, PAPER_W - 92, 92);
+        g.fillStyle = 'rgba(255,60,60,0.45)'; g.textAlign = 'right'; g.font = `800 40px ${F}`; g.fillText(`AI ▶ ${q.aiPick + 1}  ${q.conf}%`, PAPER_W - 58, y - 8);
+        g.fillStyle = '#1f9a3a'; g.fillText(`AI ▶ ${q.aiPick + 1}  ${q.conf}%`, PAPER_W - 62, y - 8);
+      }
+    }
+    if (scanning) {
+      const x0 = 36, y0 = 186, x1 = PAPER_W - 36, y1 = PAPER_ROW(3) + 44, L = 46, t = st === 'proto' ? 3 : 6;
+      g.fillStyle = col;
+      for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) {
+        g.fillRect(sx > 0 ? cx : cx - L, cy - (sy > 0 ? 0 : t), L, t); g.fillRect(cx - (sx > 0 ? 0 : t), sy > 0 ? cy : cy - L, t, L);
+      }
+      if (E.holding) { g.globalAlpha = 0.6; g.fillRect(x0, y0 + ((now * 520) % (y1 - y0)), x1 - x0, st === 'proto' ? 2 : 4); g.globalAlpha = 1; }
+    }
   }
   if (E.pulse && E.T.pulse === 'screen' && (E.pulse.warn > 0 || E.pulse.active > 0)) { // 화면 검사: 태블릿 화면이 깜빡인다
     g.globalAlpha = E.pulse.active > 0 ? 0.35 : 0.12; g.fillStyle = '#ff3048'; g.fillRect(0, 0, PAPER_W, PAPER_H); g.globalAlpha = 1;
@@ -247,12 +274,100 @@ function lensGlow(side, hex) {
   return (GLOW_CACHE[id] = c);
 }
 
+// ---- 장비 단계별 HUD: 장비가 바뀌면 화면이 바뀐다 ----
+// case(필통 속 폰) · eraser(지우개 액정): 맨눈이라 HUD가 없다. used(중고 안경)부터 안경 HUD.
+function hudStage(E) { const lv = E.gear.lens; if (!E.ar) return lv >= 2 ? 'eraser' : 'case'; return lv >= 7 ? 'brain' : lv >= 6 ? 'contact' : lv >= 5 ? 'mil' : lv >= 4 ? 'proto' : 'used'; }
+const HUD_INK = { used: '#74ff8e', proto: '#7fe9ff', mil: '#ffb23a', contact: '#7fe9ff', brain: '#ffd678' };
+function choiceConf(q) { // 보기 네 개의 확신도 (고른 보기는 q.conf, 나머지는 남은 몫을 나눈다)
+  const rest = 100 - q.conf, w = [0, 1, 2, 3].map(i => i === q.aiPick ? 0 : (q.elim.includes(i) ? 1 : 3) + ((i * 7 + q.aiPick * 3) % 3)), sum = w.reduce((a, b) => a + b, 0) || 1;
+  const out = w.map(v => Math.floor(rest * v / sum)); out[q.aiPick] = q.conf; return out;
+}
+function drawStageHud(k, L, E, now, ST, INK, sec, pl, live, q) {
+  const { R, T } = k, M = k.M, W = L.W, HH = L.H, tier = E.T, C = PAL;
+  const mm = String(Math.floor(sec / 60)).padStart(2, '0'), ss = String(sec % 60).padStart(2, '0'), qn = Math.min(E.qi + 1, E.qs.length), qt = E.qs.length, q2 = n => String(n).padStart(2, '0');
+  const sus = Math.max(0, Math.min(1, E.sus)), sp = Math.round(sus * 100), low = E.timeLeft < 10 && Math.floor(now * 4) % 2, part = tier.parts ? ` · ${tier.parts[E.part]}` : '';
+  const frac = E.timeTotal ? Math.max(0, Math.min(1, E.timeLeft / E.timeTotal)) : 1, picked = E.ai && !E.fb && q, scanning = E.scan > 0 && !E.ai && !E.fb;
+  if (ST === 'case' || ST === 'eraser') { // 맨눈: 남은 시간과 문항 번호만. 의심은 화면 가장자리가 붉어지는 것뿐
+    k.SUB(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${ss}`, W - 18, 20, 14, low ? '#ff6a6a' : '#ffffff', 'right');
+    k.SUB(`${qn} / ${qt}${part}`, W - 18, 36, 9, '#e8e4da', 'right');
+  } else if (ST === 'used') { // 중고 AI 안경: 단색 초록, 굵은 글자, 죽은 화소, 가끔 밀리는 화면
+    const x0 = 62, y0 = 40;
+    M('LENS-OS 0.9b', x0, y0, 9, INK, 'left', 700); const bat = Math.round(frac * 100), cells = Math.ceil(frac * 3);
+    M(`BAT ${'▮'.repeat(cells)}${'▯'.repeat(3 - cells)} ${bat}%`, x0, y0 + 13, 9, bat < 20 && Math.floor(now * 3) % 2 ? '#ff5a5a' : INK, 'left', 700);
+    M(E.finalQ ? '--:--' : `${mm}:${ss}`, W - x0, y0 + 2, 18, low ? '#ff5a5a' : INK, 'right', 700); M(`Q ${q2(qn)}/${q2(qt)}${part}`, W - x0, y0 + 18, 8, INK, 'right', 700);
+    const n = 8, on = Math.round(sus * n), bx = W / 2 - 44;
+    M('의심', bx - 8, y0, 9, E.rising ? '#ff5a5a' : INK, 'right', 700); for (let i = 0; i < n; i++) { k.b.globalAlpha = i < on ? 1 : 0.3; R(bx + i * 9, y0 - 5, 6, 10, i < on && sp >= 60 ? '#ff5a5a' : INK); } k.b.globalAlpha = 1; M(`${sp}%`, bx + n * 9 + 4, y0, 9, INK, 'left', 700);
+    R(430, 124, 2, 2, '#000000'); R(434, 128, 2, 2, '#ff3ad0'); R(150, 300, 2, 2, '#000000'); // 죽은 화소
+    const gl = (now * 0.37) % 1; if (gl < 0.045) { k.b.globalAlpha = 0.35; R(0, 80 + Math.floor(((now * 7.3) % 1) * 200), W, 5, INK); R(0, 150 + Math.floor(((now * 3.1) % 1) * 150), W, 2, INK); k.b.globalAlpha = 1; } // 화면 밀림
+  } else if (ST === 'proto') { // 시제품 안경: 얇은 선, 흰색과 하늘색
+    const x0 = 40, y0 = 30, ink = '#ffffff';
+    k.disc(x0, y0, 2.5, INK); M(`Lens Pro · ${CONFIG.models[E.gear.model] ? CONFIG.models[E.gear.model].name : 'AI'} 연결됨`, x0 + 8, y0 + 0.5, 7.5, ink, 'left', 500);
+    M(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${ss}`, W - x0, y0 + 2, 16, low ? '#ff6a6a' : ink, 'right', 500); M(`${qn} / ${qt}${part}`, W - x0, y0 + 17, 7.5, '#dfe6ee', 'right', 500);
+    const bw = 130, bx = W / 2 - bw / 2;
+    M('의심', bx - 8, y0, 7.5, ink, 'right', 500); k.b.globalAlpha = 0.35; R(bx, y0 - 1, bw, 1.5, ink); k.b.globalAlpha = 1; R(bx, y0 - 1, Math.round(bw * sus), 1.5, sp >= 60 ? '#ff6a6a' : '#ffcf5a'); M(`${sp}%`, bx + bw + 8, y0, 7.5, E.rising ? '#ff6a6a' : ink, 'left', 500);
+  } else if (ST === 'mil') { // 군용 정찰 렌즈: 호박색 전술 화면. 감독관을 표적으로 잡고, 답은 어디를 봐도 떠 있다
+    k.b.globalAlpha = 0.55; for (const [cx, cy, sx, sy] of [[0, 0, 1, 1], [W, 0, -1, 1], [0, HH, 1, -1], [W, HH, -1, -1]]) k.poly([[cx, cy], [cx + sx * 70, cy], [cx, cy + sy * 70]], '#000000'); k.b.globalAlpha = 1;
+    const off = E.view === 'left' ? 2 : E.view === 'right' ? -2 : 0, dirs = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE', 'S'];
+    for (let i = -2; i <= 2; i++) { const d = dirs[(4 + i - off + 8) % 8]; M(d, W / 2 + i * 56, 20, 8, i === 0 ? '#ffffff' : INK, 'center', 700); if (i < 2) M('·', W / 2 + i * 56 + 28, 20, 8, INK, 'center', 700); }
+    R(W / 2 - 140, 28, 280, 1, INK); R(W / 2, 28, 1, 5, '#ffffff');
+    k.ring(W / 2, HH / 2, 14, INK); R(W / 2 - 1, HH / 2 - 1, 2, 2, INK);
+    const tx = 30, ty = 96, th = 150; k.frame(tx, ty, 7, th, INK, 1); R(tx + 1, ty + th - Math.round((th - 2) * sus) - 1, 5, Math.round((th - 2) * sus), sp >= 60 ? '#ff5a5a' : INK);
+    M('THREAT', tx + 12, ty + th - 14, 7.5, E.rising ? '#ff5a5a' : INK, 'left', 700); M(`${sp}%`, tx + 12, ty + th - 4, 9, E.rising ? '#ff5a5a' : INK, 'left', 700);
+    if (live && E.layout === 'room' && WORLD.staffRects) WORLD.staffRects().forEach((r, n) => { // 표적 꺾쇠
+      const s = E.staff[r.i]; if (!s || r.h < 30) return; const col = s.phase === 'watch' ? '#ff5a5a' : INK, x0 = Math.round(r.x), y0 = Math.round(r.y), x1 = Math.round(r.x + r.w), y1 = Math.round(Math.min(HH - 6, r.y + r.h)), l = 10;
+      for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) { R(sx > 0 ? cx : cx - l, sy > 0 ? cy : cy - 1.5, l, 1.5, col); R(sx > 0 ? cx : cx - 1.5, sy > 0 ? cy : cy - l, 1.5, l, col); }
+      const lx = x1 + 6 < W - 110 ? x1 + 6 : x0 - 6, al = x1 + 6 < W - 110 ? 'left' : 'right';
+      M(`TGT-${q2(n + 1)} ${s.name || '감독관'}`, lx, y0 + 6, 7.5, col, al, 700); M(s.phase === 'watch' ? '주시 중' : s.phase === 'tell' ? '돌아보는 중' : '등 돌림', lx, y0 + 17, 7.5, col, al, 500);
+    });
+    const g1 = '#9dff8a', gx = 30, gy = HH - 46;
+    if (picked) { M('정답 추정', gx, gy, 7.5, '#c8f4d8', 'left', 500); const w1 = M(`ANS ${q.aiPick + 1}`, gx, gy + 18, 19, g1, 'left', 700); M(`CONF ${q.conf}`, gx + w1 + 8, gy + 20, 10, g1, 'left', 700); }
+    else if (scanning) { M(`SCAN ${Math.round(E.scan * 100)}%`, gx, gy + 10, 10, g1, 'left', 700); k.b.globalAlpha = 0.35; R(gx, gy + 20, 110, 3, '#f4f1e8'); k.b.globalAlpha = 1; R(gx, gy + 20, Math.round(110 * E.scan), 3, g1); }
+    M(E.finalQ ? 'T---:--' : `T-${mm}:${ss}`, W - 30, HH - 34, 17, low ? '#ff5a5a' : INK, 'right', 700); M(`Q ${q2(qn)}/${q2(qt)}${part}`, W - 30, HH - 19, 7.5, INK, 'right', 500);
+  } else if (ST === 'contact') { // 콘택트렌즈: 시야 가장자리의 얇은 호 두 개. 깜빡이면 잠깐 꺼진다
+    const b = k.b, S = k.S || HUD_SCALE, blink = (now % 9) > 8.86;
+    if (blink) { b.globalAlpha = 0.3; R(0, 0, W, HH, '#000000'); b.globalAlpha = 1; }
+    else { const arc = (y0, cy, f, col) => { b.save(); b.setTransform(S, 0, 0, S, 0, 0); b.lineWidth = 1.5; b.strokeStyle = 'rgba(255,255,255,0.3)'; b.beginPath(); b.moveTo(W * 0.2, y0); b.quadraticCurveTo(W / 2, cy, W * 0.8, y0); b.stroke();
+        b.beginPath(); b.rect(W * 0.2, 0, W * 0.6 * f, HH); b.clip(); b.strokeStyle = col; b.beginPath(); b.moveTo(W * 0.2, y0); b.quadraticCurveTo(W / 2, cy, W * 0.8, y0); b.stroke(); b.restore(); };
+      arc(46, -6, frac, low ? '#ff6a6a' : '#ffffff'); arc(HH - 40, HH + 8, sus, sp >= 60 ? '#ff6a6a' : '#ffcf5a');
+      M(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${ss}`, W / 2, 12, 7.5, low ? '#ff6a6a' : '#ffffff', 'center', 500); M(`${qn}/${qt}`, W / 2, HH - 8, 7, '#e8e4da', 'center', 500); }
+  } else if (ST === 'brain') { // 뇌 임플란트: 숫자도 틀도 없다. 속마음 한 줄과 심장 박동선
+    k.SUB(E.finalQ ? '시간이 느껴지지 않는다' : sec > 5 ? `${sec}초쯤 남았다는 느낌` : '거의 끝났다는 느낌', W - 22, 20, 10, low ? '#ff9a9a' : '#f0ece2', 'right');
+    k.SUB(`${qn}번째 문제${part}`, W - 22, 34, 8, '#d8d4c8', 'right');
+    const y = HH - 12, sp2 = 60 + sus * 240, px = (now * sp2) % (W + 60) - 30; k.b.globalAlpha = 0.35 + sus * 0.5; R(0, y, W, 1, '#ff5a5a');
+    k.poly([[px - 12, y], [px - 6, y - 8 - sus * 8], [px - 3, y], [px, y + 9 + sus * 6], [px + 4, y - 4], [px + 8, y], [px + 8, y + 1.5], [px - 12, y + 1.5]], '#ff5a5a'); k.b.globalAlpha = 1;
+    if (live && picked && !E.finalQ) k.SUB(q.conf >= 70 ? `…${q.aiPick + 1}번이다. 왜인지는 모르겠다.` : `…${q.aiPick + 1}번인 것 같다.`, W / 2, HH - 34, 13, '#ffffff', 'center');
+    else if (live && scanning) k.SUB('…'.repeat(1 + Math.floor(E.scan * 3)), W / 2, HH - 34, 13, '#ffffff', 'center');
+  }
+}
+// ---- 책상 위 소품의 화면: 필통 속 폰(260x104) · 지우개 액정(128x64) ----
+function drawGadgetScreen(g, E, now, kind) {
+  const F = FONT_BODY, q = E.qs[Math.min(E.qi, E.qs.length - 1)], picked = E.ai && !E.fb && q, scanning = E.scan > 0 && !E.ai && !E.fb;
+  g.textBaseline = 'alphabetic';
+  if (kind === 'case') {
+    const w = 260, h = 104; g.fillStyle = '#17212b'; g.fillRect(0, 0, w, h);
+    g.fillStyle = '#f1ecdc'; g.fillRect(8, 12, 62, 80); g.fillStyle = '#8a8676'; for (let i = 0; i < 5; i++) g.fillRect(14, 30 + i * 12, 40 - (i % 2) * 10, 3); // 찍어 보낸 사진
+    if (Math.floor(now * 2) % 2) { g.fillStyle = '#ff4a4a'; g.beginPath(); g.arc(16, 20, 3, 0, 7); g.fill(); } g.fillStyle = '#c02a2a'; g.font = `800 9px ${F}`; g.textAlign = 'left'; g.fillText('REC', 22, 23);
+    g.fillStyle = '#7fb8e8'; g.font = `700 15px ${F}`; g.fillText('답안봇', 82, 24);
+    if (picked) { g.fillStyle = '#ffffff'; g.font = `800 50px ${F}`; g.fillText(`${q.aiPick + 1}번`, 80, 72); g.fillStyle = '#bfe0ff'; g.font = `700 17px ${F}`; g.fillText(`확신 ${q.conf}%`, 82, 94); }
+    else if (scanning) { g.fillStyle = '#c9d4e0'; g.font = `700 20px ${F}`; g.fillText(`읽는 중… ${Math.round(E.scan * 100)}%`, 82, 52); g.fillStyle = '#3a4656'; g.fillRect(82, 62, 164, 7); g.fillStyle = '#5eb5f7'; g.fillRect(82, 62, Math.round(164 * E.scan), 7);
+      const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) { g.fillStyle = '#9fc4e0'; g.font = `700 17px ${F}`; g.fillText(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, 82, 92); } }
+    else { g.fillStyle = '#5a6a7c'; g.font = `700 17px ${F}`; g.fillText('대기 중', 82, 58); }
+    g.globalAlpha = 0.12; g.fillStyle = '#000000'; for (let y = 0; y < h; y += 3) g.fillRect(0, y, w, 1); g.globalAlpha = 1;
+  } else {
+    const w = 128, h = 64, on = picked || scanning; g.fillStyle = on ? '#9fb08c' : '#69735e'; g.fillRect(0, 0, w, h); if (!on) return;
+    g.fillStyle = '#1c2416'; g.textAlign = 'left';
+    if (picked) { g.font = `800 58px "SF Mono","Menlo","Consolas",monospace`; g.fillText(String(q.aiPick + 1), 10, 54); g.font = `800 24px "SF Mono","Menlo","Consolas",monospace`; g.textAlign = 'right'; g.fillText(`${q.conf}%`, 122, 30); for (let i = 0; i < 5; i++) { g.globalAlpha = i < Math.round(q.conf / 20) ? 1 : 0.25; g.fillRect(60 + i * 13, 40, 9, 14); } g.globalAlpha = 1; }
+    else { for (let i = 0; i < 8; i++) { g.globalAlpha = i < Math.round(E.scan * 8) ? 1 : 0.22; g.fillRect(10 + i * 14, 12, 10, 18); } g.globalAlpha = 1; const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) { g.font = `800 20px "SF Mono","Menlo","Consolas",monospace`; g.fillText(q.elim.slice(0, st).map(i => 'x' + (i + 1)).join(' '), 10, 54); } }
+  }
+}
+
 // ---- 시험 중 안경 HUD ----
 function drawExamHud(k, L, E, now, H) {
   const X = EXAM_LAYOUT, C = PAL, { R, T, TO } = k, tier = E.T;
   const live = E.start <= 0 && !E.over && !E.caught && !(E.breakT > 0), onPaper = E.view === 'paper' && E.viewT >= 1, VF = CONFIG.hud_style === 'viewfinder';
   const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
-  if (E.ar) { k.b.globalAlpha = 0.06; for (let y = 1; y < L.H; y += 3) R(0, y, L.W, 1, H.c); k.b.globalAlpha = 1; } // 렌즈 스캔라인 (안경을 쓴 뒤부터)
+  const ST = hudStage(E), INK = HUD_INK[ST] || H.c;
+  if (ST === 'used' || ST === 'mil' || ST === 'proto') { k.b.globalAlpha = ST === 'used' ? 0.1 : ST === 'mil' ? 0.07 : 0.03; for (let y = 1; y < L.H; y += 3) R(0, y, L.W, 1, INK); k.b.globalAlpha = 1; } // 렌즈 스캔라인: 싼 안경일수록 짙다
   if (E.pulse && (E.pulse.warn > 0 || E.pulse.active > 0) && E.pulseCut > 0) { // 탐지 전파·드론: 렌즈에 잡음
     const strong = E.pulse.active > 0, n = strong ? 26 : 9;
     for (let i = 0; i < n; i++) {
@@ -284,41 +399,16 @@ function drawExamHud(k, L, E, now, H) {
     k.b.globalAlpha = Math.max(0, a); k.b.drawImage(lensGlow('A', C.bad), 0, 0); k.b.globalAlpha = 1;
   }
   if (E.layout === 'table' && !E.result) drawArCard(k, L, E, now, H);
-  if (!E.ar && live && E.view === 'paper' && (E.scan > 0 || E.ai)) { // 안경 전 단계: 소매 속 초소형 액정 (lens 0은 허벅지 폰)
-    const small0 = E.gear.lens >= 2, fx = window.FX && window.FX[small0 ? 'lcd' : 'thigh'];
-    if (fx && fx.img.complete && fx.img.naturalWidth) { // 생성한 그림 위에 답을 띄운다
-      const dw = small0 ? 236 : 250, sc = dw / fx.w, dh = fx.h * sc, dx = small0 ? 8 : 6, dy = L.H - dh - (small0 ? 30 : 6);
-      k.b.imageSmoothingEnabled = false; k.b.drawImage(fx.img, dx, dy, dw, dh);
-      const sx = dx + fx.screen[0] * sc, sy = dy + fx.screen[1] * sc, sw = (fx.screen[2] - fx.screen[0]) * sc, sh = (fx.screen[3] - fx.screen[1]) * sc, cx = sx + sw / 2, ink = small0 ? '#06363c' : '#9ff3ff';
-      if (E.ai && !E.fb) { T(`${q.aiPick + 1}번`, cx, sy + sh * (small0 ? 0.4 : 0.36), small0 ? 11 : 15, ink, 'center', 800); T(`${q.conf}%`, cx, sy + sh * (small0 ? 0.82 : 0.6), small0 ? 7 : 9, ink, 'center', 700); }
-      else if (!E.ai) { T('전송 중', cx, sy + sh * (small0 ? 0.36 : 0.3), small0 ? 7 : 8, ink, 'center', 700); R(sx + 4, sy + sh * (small0 ? 0.7 : 0.48), sw - 8, 2, small0 ? '#0a5a62' : '#1c3a6a'); R(sx + 4, sy + sh * (small0 ? 0.7 : 0.48), Math.round((sw - 8) * E.scan), 2, ink);
-        const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, small0 ? dx + dw / 2 : cx, small0 ? dy + dh + 8 : sy + sh * 0.74, 7, small0 ? '#c9c4d8' : ink, 'center', 700); }
-    } else {
-      const lx = 44, ly = 262, lw = 104, lh = 50, small = E.gear.lens >= 2;
-      if (VF) { const gx = 30, gy = L.H - 62, g1 = '#7dffb0', M = k.M;
-        M(`AI 응답 수신 · ${small ? '소매 속 액정' : '허벅지 폰'}`, gx, gy, 7.5, '#c8f4d8', 'left', 500);
-        if (E.ai && !E.fb) { const w1 = M(`ANS ${q.aiPick + 1}`, gx, gy + 19, 19, g1, 'left', 700); M(`${q.conf}%`, gx + w1 + 8, gy + 21, 11, g1, 'left', 700); }
-        else if (!E.ai) { M(`SCAN ${Math.round(E.scan * 100)}%`, gx, gy + 15, 10, g1, 'left', 700); k.b.globalAlpha = 0.35; R(gx, gy + 25, 110, 3, '#f4f1e8'); k.b.globalAlpha = 1; R(gx, gy + 25, Math.round(110 * E.scan), 3, g1);
-          const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) M(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, gx + 120, gy + 15, 8, g1, 'left', 700); }
-      } else {
-      R(lx - 6, ly - 4, lw + 12, lh + 30, '#2f3e66'); R(lx - 2, ly - 2, lw + 4, lh + 4, '#0a0a0e'); R(lx, ly, lw, lh, '#0c1a12');
-      T(small ? '소매 속 액정' : '허벅지 위 폰', lx + lw / 2, ly + lh + 12, 8, '#c9c4d8', 'center', 700);
-      if (E.ai && !E.fb) { T(`답 ${q.aiPick + 1}번`, lx + lw / 2, ly + 17, 16, '#7dff9a', 'center', 800); T(`AI ${q.conf}%`, lx + lw / 2, ly + 38, 10, '#4ac27a', 'center', 800); }
-      else if (!E.ai) { T('문제 전송 중…', lx + lw / 2, ly + 14, 9, '#4ac27a', 'center', 700); R(lx + 8, ly + 26, lw - 16, 4, '#143a24'); R(lx + 8, ly + 26, Math.round((lw - 16) * E.scan), 4, '#7dff9a');
-        const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, lx + lw / 2, ly + 40, 9, '#7dff9a', 'center', 700); }
-      }
-    }
-  }
   if (E.finalQ) { // 마지막 문제: 렌즈가 깨진다
     const n = Math.round(6 + E.glitch * 26);
     for (let i = 0; i < n; i++) { const h = Math.abs(Math.sin(i * 12.9898 + Math.floor(now * 18) * 78.233) * 43758.5453) % 1; k.b.globalAlpha = 0.25 + E.glitch * 0.4; R(Math.floor(((h * 13) % 1) * L.W) - 60, Math.floor(h * L.H), 60 + Math.floor(((h * 7) % 1) * 260), 1 + Math.floor(((h * 5) % 1) * 3), i % 3 === 0 ? '#ff3a8a' : i % 3 === 1 ? H.c : '#ffffff'); }
     k.b.globalAlpha = 1;
     if (E.ai && Math.floor(now * 3) % 2) T('ERR: 응답자 확인 불가', L.W / 2 + Math.round(Math.sin(now * 40) * 3), 52, 11, '#ff3a8a', 'center', 800);
   }
-  if (E.ar && live && (onPaper || E.layout !== 'room') && E.scan > 0 && !E.ai && !E.fb) { // 스캔 진행 막대 (1/3, 2/3 눈금)
-    const bx = 200, bw = 240, by = VF ? 76 : 34;
-    R(bx - 1, by - 1, bw + 2, 5, '#0d2a30'); R(bx, by, bw, 3, H.c3); R(bx, by, Math.round(bw * E.scan), 3, H.c);
-    for (const f of [1 / 3, 2 / 3]) R(bx + Math.round(bw * f) - 1, by - 2, 2, 7, '#0d2a30');
+  if (E.ar && ST !== 'brain' && ST !== 'mil' && live && (onPaper || E.layout !== 'room') && E.scan > 0 && !E.ai && !E.fb) { // 스캔 진행 막대 (1/3, 2/3 눈금)
+    const thin = ST === 'proto' || ST === 'contact', bw = thin ? 160 : 240, bx = L.W / 2 - bw / 2, by = 76, bh = thin ? 2 : 3;
+    k.b.globalAlpha = 0.45; R(bx - 1, by - 1, bw + 2, bh + 2, '#0a0c0e'); k.b.globalAlpha = 1; R(bx, by, Math.round(bw * E.scan), bh, INK);
+    for (const f of [1 / 3, 2 / 3]) R(bx + Math.round(bw * f) - 1, by - 2, 1, bh + 4, '#f4f1e8');
   }
   // 시험마다 다른 장치: 꼭 필요할 때만
   if (live && q && q.kind === 'listen' && !E.ai && !E.fb) {
@@ -351,23 +441,9 @@ function drawExamHud(k, L, E, now, H) {
   // 떠다니는 안내 글자는 쓰지 않는다: 소리와 화면 속 움직임으로 안다
   if (false && E.flash) { const a = E.flash.t < 1.2 ? 1 : (1.6 - E.flash.t) / 0.4; k.b.globalAlpha = a; TO(E.flash.text, L.W / 2, 96, 14, E.flash.col || C.warn); k.b.globalAlpha = 1; }
   const sec = Math.max(0, Math.ceil(E.timeLeft));
-  if (VF) { // 몰래카메라 뷰파인더: 모서리 프레임, REC, 타임코드 시계, 얇은 의심 눈금
-    const W = L.W, HH = L.H, ink = '#f4f1e8', dim = '#d8d4c8', m = 14, len = 20, M = k.M;
-    for (const [cx, cy, sx, sy] of [[m, m, 1, 1], [W - m, m, -1, 1], [m, HH - m, 1, -1], [W - m, HH - m, -1, -1]]) { R(sx > 0 ? cx : cx - len, sy > 0 ? cy : cy - 2, len, 2, ink); R(sx > 0 ? cx : cx - 2, sy > 0 ? cy : cy - len, 2, len, ink); }
-    if (Math.floor(now * 1.5) % 2 === 0) k.disc(m + 13, m + 13, 3, '#ff4a4a');
-    M('REC', m + 20, m + 13, 10, ink, 'left', 700); M(E.ar ? 'CAM-02 · AI 렌즈' : 'CAM-01 · 초소형 카메라', m + 48, m + 13.5, 7.5, dim, 'left', 500);
-    M(E.finalQ ? '--:--:--' : `00:${String(Math.floor(sec / 60)).padStart(2, '0')}:${String(sec % 60).padStart(2, '0')}`, W - m - 9, m + 14, 17, E.timeLeft < 10 && Math.floor(now * 4) % 2 ? '#ff4a4a' : ink, 'right', 700);
-    M(`남은 시간 · Q ${String(Math.min(E.qi + 1, E.qs.length)).padStart(2, '0')}/${String(E.qs.length).padStart(2, '0')}` + (tier.parts ? ` · ${tier.parts[E.part]}` : ''), W - m - 9, m + 29, 7.5, dim, 'right', 500);
-    const sp = Math.round(Math.max(0, Math.min(1, E.sus)) * 100), bw = 150, bx = W / 2 - bw / 2, sy0 = pl >= 3 && E.layout === 'room' ? m + 22 : m + 6;
-    M(`의심 ${sp}%`, W / 2, sy0 + 5, 8, E.rising ? '#ff4a4a' : ink, 'center', 700);
-    k.b.globalAlpha = 0.35; R(bx, sy0 + 13, bw, 3, ink); k.b.globalAlpha = 1; R(bx, sy0 + 13, Math.round(bw * sp / 100), 3, sp >= 60 ? '#ff4a4a' : '#ffb43a');
-    for (let i = 0; i <= 4; i++) R(bx + Math.round(bw * i / 4), sy0 + 17, 1, 3, dim);
-  } else {
-    TO(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, X.clock[0], X.clock[1], 12, E.timeLeft < 10 ? C.bad : H.c, 'right', '#0d2a30');
-    if (tier.parts) T(tier.parts[E.part], X.clock[0] + 2, X.clock[1] + 14, 9, H.c2, 'right', 700);
-  }
+  drawStageHud(k, L, E, now, ST, INK, sec, pl, live, q);
   if (E.runShown) T(fmtRun(E.runShown), 48, 40, 10, H.c2, 'left', 700);
-  if (E.ar) k.b.drawImage(rimFor('land'), 0, 0); // 안경테는 안경을 쓴 뒤부터
+  if (ST === 'used') k.b.drawImage(rimFor('land'), 0, 0); else if (ST === 'proto') k.b.drawImage(rimFor('land', 1.16), 0, 0); // 안경테: 중고는 두껍고 시제품은 얇다. 렌즈·임플란트는 테가 없다
   drawExamOverlays(k, L, E, now, H);
 }
 

@@ -2,7 +2,7 @@
 // Question: 감독관 눈치를 보며 AI 안경으로 스캔하는 긴장감이, 장비와 시험이 함께 커지는 성장과 맞물려 엔딩까지 재밌나?
 // Date: 2026-11-18
 // 고시원 방에서 물건에 다가갔을 때의 화면: 노트북의 쇼핑몰 "AI마켓"(신상·안경·AI 기기·AI 모델 구독),
-// 벽의 시험 일정표(막별 시험 접수), 폰(알림·기록·설정). 640x360 도트 층에 그리고, 누를 수 있는 곳을 돌려준다.
+// 벽의 시험 일정표(구간별 시험 접수), 폰(알림·기록·설정). 640x360 도트 층에 그리고, 누를 수 있는 곳을 돌려준다.
 // 규칙과 숫자는 game.js, 여기서는 그리기만 한다.
 'use strict';
 
@@ -106,7 +106,7 @@ const HUBUI = (() => {
         id = d.id; name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1); sub = count ? `${d.name} · 지금 ${lv}명` : `${d.name} · ${lv ? '지금 ' + gearName(d.id, lv) : '아직 없음'}`;
         eff = GEAR_TEXT[d.id](maxed ? lv : lv + 1); isNew = !!G.fresh[d.id]; if (isNew) markShown(d.id);
         if (so) state = gone ? '품절' : '남은 재고 1개';
-        if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
+        if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '상위 시험에서 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
       }
       R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, off ? '#d0d5de' : '#2a8f9a', 2);
       R(cx + 8, cy + 8, 46, 46, '#eef1f6'); drawGear(k, id, cx + 31, cy + 31, 38, 3);
@@ -132,91 +132,107 @@ const HUBUI = (() => {
   }
 
   // ---- 벽: 시험 일정표 ----
-  function drawBoard(k, r, hv, now) {
-    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
-    R(x, y, w, h, '#c79a62'); R(x + 6, y + 6, w - 12, h - 12, '#fbf9f1');
+  // ---- 벽의 시험 일정표: 벽에 걸린 판 위에 직접 그린다 (400x267, 한 장에 시험 3개) ----
+  const BW = 400, BH = 267;
+  function pager(k, cx, y, page, pages, key, o) { // < 1 / 3 >
+    btn(k, cx - 52, y, 28, 20, '<', page > 0 ? key + ':-1' : null, Object.assign({ off: page <= 0, size: 13 }, o));
+    k.T(`${page + 1} / ${pages}`, cx, y + 10, 12, o.ink, 'center', 800);
+    btn(k, cx + 24, y, 28, 20, '>', page < pages - 1 ? key + ':1' : null, Object.assign({ off: page >= pages - 1, size: 13 }, o));
+  }
+  function drawBoard(k, hv, now) {
+    const { R, T } = k, C = PAL, w = BW, h = BH;
+    R(0, 0, w, h, '#c79a62'); k.b.globalAlpha = 0.5; for (let i = 0; i < 90; i++) R((i * 37) % w, (i * 23) % h, 2, 2, '#b98a54'); k.b.globalAlpha = 1;
+    R(8, 8, w - 16, h - 16, '#fbf9f1');
     const maxAct = CONFIG.tiers[G.unlocked - 1].act; hv.act = Math.max(1, Math.min(maxAct, hv.act || maxAct));
-    R(x + 6, y + 6, w - 12, 22, '#d9473f'); T(`${CONFIG.acts[hv.act - 1]} 시험 일정표`, x + 14, y + 17, 13, C.white, 'left', 800);
-    for (let a = 1; a <= maxAct; a++) btn(k, x + w - 12 - (maxAct - a + 1) * 46, y + 9, 42, 16, `${a}막`, 'act:' + a, { on: a === hv.act, bg: '#8a2a24', col: '#ffffff', fg: '#ffffff', size: 10 });
+    R(8, 8, w - 16, 28, '#d9473f'); T(`${CONFIG.acts[hv.act - 1]} 시험 일정표`, 28, 22, 16, C.white, 'left', 800);
+    if (maxAct > 1) for (let a = 1; a <= maxAct; a++) btn(k, w - 26 - (maxAct - a + 1) * 50, 12, 46, 20, CONFIG.acts[a - 1], 'act:' + a, { on: a === hv.act, bg: '#8a2a24', col: '#ffffff', fg: '#ffffff', size: 12 });
     const rows = CONFIG.tiers.map((t, i) => ({ t, i })).filter(o => o.t.act === hv.act && o.i <= G.unlocked);
-    const top = y + 32, bottom = y + h - 30, rh = 42, per = Math.max(1, Math.floor((bottom - top) / rh)), pages = Math.max(1, Math.ceil(rows.length / per));
+    const top = 41, rh = 63, per = 3, pages = Math.max(1, Math.ceil(rows.length / per));
     if (hv.bpage == null) hv.bpage = Math.floor(rows.findIndex(o => o.i === nextTierIndex()) / per); // 처음엔 다음 시험이 있는 쪽
     hv.bpage = Math.max(0, Math.min(pages - 1, hv.bpage < 0 ? 0 : hv.bpage));
     const nt = nextTierIndex();
     rows.slice(hv.bpage * per, hv.bpage * per + per).forEach(({ t, i }, n) => {
-      const ry = top + n * rh, locked = i > G.unlocked - 1;
-      R(x + 10, ry, w - 20, rh - 4, i === nt ? '#fff3c8' : '#f1ede0'); k.frame(x + 10, ry, w - 20, rh - 4, i === nt ? '#d9a02a' : '#d8d2c0', 1);
-      R(x + 14, ry + 4, 18, 14, '#2b5f8a'); T(String(i + 1), x + 23, ry + 11, 10, C.white, 'center', 800);
-      if (locked) { T('? ? ?', x + 38, ry + 12, 12, '#8a8676', 'left', 800); T('앞 시험에 합격하면 공개', x + 38, ry + 27, 10, '#a09a88', 'left', 700); return; }
-      T(t.name + (t.boss ? ' [보스]' : ''), x + 38, ry + 11, 12, '#2a2838', 'left', 800);
+      const ry = top + n * rh, locked = i > G.unlocked - 1, bw = 112, bx = w - 18 - bw, tw = bx - 54;
+      R(13, ry, w - 26, rh - 5, i === nt ? '#fff3c8' : '#f1ede0'); k.frame(13, ry, w - 26, rh - 5, i === nt ? '#d9a02a' : '#d8d2c0', 1);
+      R(19, ry + 7, 22, 18, '#2b5f8a'); T(String(i + 1), 30, ry + 16, 12, C.white, 'center', 800);
+      if (locked) { T('? ? ?', 48, ry + 17, 15, '#8a8676', 'left', 800); T('앞 시험에 합격하면 공개', 48, ry + 38, 12, '#a09a88', 'left', 700); return; }
+      const name = t.name + (t.boss ? ' [보스]' : ''); T(name, 48, ry + 16, fitText(k, name, tw, 15, 11), '#2a2838', 'left', 800);
       const mech = [...t.mech.filter(m => m !== 'tutorial').map(m => m === 'idcheck' && t.check === 'calc' ? MECH_NAME.calc : MECH_NAME[m]), ...t.sec.map(s => s === 'pulse' && t.pulse ? SEC_NAME[t.pulse] : SEC_NAME[s])];
-      const info = `${t.subject} · ${t.qn * (t.parts ? t.parts.length : 1)}문항` + (mech.length ? ` · 유의: ${mech.join(', ')}` : '');
-      T(info, x + 38, ry + 27, fitText(k, info, w - 280, 10, 7), mech.length ? '#a04a1a' : '#6c6a80', 'left', 700);
-      const fee = examFee(t), ok = G.money >= fee, bw = 124, bx = x + w - 16 - bw;
-      const day = new Date(2026, 10, 19 + i * 9); T(`${day.getMonth() + 1}월 ${day.getDate()}일 시행`, bx - 6, ry + 11, 10, '#6c6a80', 'right', 700);
-      if (G.cleared[i]) { k.b.save(); k.b.translate(bx - 96, ry + 19); k.b.rotate(-0.12); k.frame(-22, -10, 44, 20, '#d0282a', 2); T('합격', 0, 0, 12, '#d0282a', 'center', 800); k.b.restore(); }
-      btn(k, bx, ry + 5, bw, 28, ok ? (G.cleared[i] ? '재응시 접수' : '응시 접수') : '응시료 부족', ok ? 'exam:' + i : null, { off: !ok, bg: '#2b5f8a', col: '#2b5f8a', fg: '#ffffff' });
-      T(fee ? `응시료 ${won(fee)}원` : '응시료 없음', bx - 6, ry + 27, 9, '#6c6a80', 'right', 700);
+      const info = `${t.subject} · ${t.qn * (t.parts ? t.parts.length : 1)}문항`; T(info, 48, ry + 33, fitText(k, info, tw, 12, 9), '#6c6a80', 'left', 700);
+      const fee = examFee(t), ok = G.money >= fee, warn = mech.length ? `유의: ${mech.join(', ')}` : fee ? `응시료 ${won(fee)}원` : '응시료 없음';
+      T(warn, 48, ry + 48, fitText(k, warn, tw, 12, 9), mech.length ? '#a04a1a' : '#6c6a80', 'left', 700);
+      btn(k, bx, ry + 6, bw, 28, ok ? (G.cleared[i] ? '재응시 접수' : '응시 접수') : '응시료 부족', ok ? 'exam:' + i : null, { off: !ok, bg: '#2b5f8a', col: '#2b5f8a', fg: '#ffffff', size: 13 });
+      T(fee ? `응시료 ${won(fee)}원` : '응시료 없음', bx + bw, ry + 47, 11, '#6c6a80', 'right', 700);
+      if (G.cleared[i]) { k.b.save(); k.b.translate(bx - 26, ry + 20); k.b.rotate(-0.12); k.frame(-24, -11, 48, 22, '#d0282a', 2); T('합격', 0, 0, 13, '#d0282a', 'center', 800); k.b.restore(); }
     });
-    btn(k, x + 12, y + h - 26, 74, 18, '< 방으로', 'back', { bg: '#2a2838', col: '#2a2838', fg: '#ffffff' });
-    if (pages > 1) {
-      btn(k, x + w / 2 - 56, y + h - 26, 24, 18, '<', hv.bpage > 0 ? 'bpage:-1' : null, { off: hv.bpage <= 0, bg: '#2a2838', col: '#2a2838', fg: '#ffffff' });
-      T(`${hv.bpage + 1} / ${pages}`, x + w / 2, y + h - 17, 10, '#2a2838', 'center', 800);
-      btn(k, x + w / 2 + 32, y + h - 26, 24, 18, '>', hv.bpage < pages - 1 ? 'bpage:1' : null, { off: hv.bpage >= pages - 1, bg: '#2a2838', col: '#2a2838', fg: '#ffffff' });
-    }
-    T(`합격 기준: ${Math.round(tune.pass_mark * 100)}점 이상 · 부정행위 시 무효`, x + w - 14, y + h - 17, 10, '#6c6a80', 'right', 700);
+    const dk = { bg: '#2a2838', col: '#2a2838', fg: '#ffffff', ink: '#2a2838' };
+    btn(k, 14, h - 34, 84, 22, '< 방으로', 'back', Object.assign({ size: 12 }, dk));
+    if (pages > 1) pager(k, w / 2, h - 33, hv.bpage, pages, 'bpage', dk);
+    T(`합격 기준 ${Math.round(tune.pass_mark * 100)}점`, w - 16, h - 23, 11, '#6c6a80', 'right', 700);
+    paperFx(k, { x: 0, y: 0, w, h });
   }
 
-  // ---- 폰: 알림 · 기록 · 설정 ----
-  function drawPhone(k, L, hv, now, rise) {
-    const { R, T } = k, C = PAL, w = 270, h = 340, x = Math.round(L.W / 2 - w / 2), y = Math.round(10 + (1 - rise) * 360);
-    R(x - 6, y - 6, w + 12, h + 12, '#0a0a0e'); R(x - 4, y - 4, w + 8, h + 8, '#1a1a20'); R(x, y, w, h, '#10131c');
-    R(x, y, w, 20, '#0a0c12'); T(fmtRun(runSecs()), x + 8, y + 10, 10, C.hud, 'left', 800); T(`${won(STATE.shown)}원`, x + w - 8, y + 10, 11, C.gold, 'right', 800);
-    const tw = Math.floor(w / 3), unread = phoneUnread();
+  // ---- 폰: 집어 든 폰의 화면에 직접 그린다 (168x270). 알림 · 기록 · 설정 ----
+  const PW = 168, PH = 270;
+  function drawPhone(k, hv, now) {
+    const { R, T } = k, C = PAL, w = PW, h = PH;
+    R(0, 0, w, h, '#10131c');
+    R(0, 0, w, 20, '#0a0c12'); T(fmtRun(runSecs()), 7, 10.5, 11, C.hud, 'left', 800); T(`${won(STATE.shown)}원`, w - 7, 10.5, 12, C.gold, 'right', 800);
+    const tw = w / 3, unread = phoneUnread(), ty = h - 48, lt = { bg: '#1c2230', col: '#4a5a6a', fg: '#ffffff', ink: '#8fa0b8' };
     PHONE_TABS.forEach(([key, name], i) => {
-      const on = hv.ptab === key, bx = x + i * tw;
-      R(bx, y + h - 26, tw, 26, on ? '#1c2230' : '#0a0c12'); if (on) R(bx, y + h - 26, tw, 2, C.hud);
-      T(key === 'news' && unread ? `${name} ${unread}` : name, bx + tw / 2, y + h - 13, 11, on ? C.white : '#8fa0b8', 'center', 800);
-      btns.push({ x: bx, y: y + h - 26, w: tw, h: 26, key: 'ptab:' + key });
+      const on = hv.ptab === key, bx = i * tw;
+      R(bx, ty, tw, 26, on ? '#1c2230' : '#0a0c12'); if (on) R(bx, ty, tw, 2, C.hud);
+      T(key === 'news' && unread ? `${name} ${unread}` : name, bx + tw / 2, ty + 14, 12, on ? C.white : '#8fa0b8', 'center', 800);
+      btns.push({ x: bx, y: ty, w: tw, h: 26, key: 'ptab:' + key });
     });
-    const top = y + 26, bottom = y + h - 52;
+    btn(k, 5, h - 20, w - 10, 17, '< 방으로', 'back', Object.assign({ size: 11 }, lt));
+    const top = 24, bottom = ty - 2;
     if (hv.ptab === 'news') {
-      const per = 6, list = G.news.slice().reverse(), pages = Math.max(1, Math.ceil(list.length / per)); hv.npage = Math.max(0, Math.min(pages - 1, hv.npage || 0));
-      if (!list.length) T('아직 알림이 없어요', x + w / 2, top + 60, 11, '#8fa0b8', 'center', 700);
+      const per = 2, list = G.news.slice().reverse(), pages = Math.max(1, Math.ceil(list.length / per)); hv.npage = Math.max(0, Math.min(pages - 1, hv.npage || 0));
+      if (!list.length) T('아직 알림이 없어요', w / 2, top + 60, 12, '#8fa0b8', 'center', 700);
       list.slice(hv.npage * per, hv.npage * per + per).forEach((n, i) => {
-        const ry = top + i * 42, col = { bank: '#f5cc4a', tg: '#5eb5f7', reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
-        R(x + 6, ry, w - 12, 38, '#1a1f2c'); R(x + 6, ry, 3, 38, col);
-        T({ bank: '은행', tg: '텔레그램', reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
-        T(fmtRun(n.t), x + w - 12, ry + 9, 9, '#5a6474', 'right', 700);
-        const ls = wrap(k, n.text, w - 28, 10).slice(0, 2); ls.forEach((ln, j) => T(ln, x + 14, ry + 21 + j * 11, 10, C.white, 'left', 700));
+        const ry = top + i * 85, col = { bank: '#f5cc4a', tg: '#5eb5f7', reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
+        R(5, ry, w - 10, 82, '#1a1f2c'); R(5, ry, 3, 82, col);
+        T({ bank: '은행', tg: '텔레그램', reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 일정', bot: '대리 응시' }[n.kind] || '알림', 13, ry + 10, 11, col, 'left', 800);
+        T(fmtRun(n.t), w - 10, ry + 10, 10, '#5a6474', 'right', 700);
+        wrap(k, n.text, w - 24, 11).slice(0, 5).forEach((ln, j) => T(ln, 13, ry + 25 + j * 12.5, 11, C.white, 'left', 700));
       });
-      if (pages > 1) { btn(k, x + 8, bottom + 4, 40, 18, '<', hv.npage > 0 ? 'npage:-1' : null, { off: hv.npage <= 0 }); T(`${hv.npage + 1} / ${pages}`, x + w / 2, bottom + 13, 10, '#8fa0b8', 'center', 700); btn(k, x + w - 48, bottom + 4, 40, 18, '>', hv.npage < pages - 1 ? 'npage:1' : null, { off: hv.npage >= pages - 1 }); }
+      if (pages > 1) pager(k, w / 2, bottom - 22, hv.npage, pages, 'npage', lt);
     } else if (hv.ptab === 'log') {
-      const s = G.stats, recs = loadRecords(); let ry = top + 4;
-      const row = (a, b, col) => { T(a, x + 12, ry, 10, '#8fa0b8', 'left', 700); T(b, x + w - 12, ry, 10, col || C.white, 'right', 800); ry += 15; };
-      T('타임어택', x + 12, ry, 11, C.hud, 'left', 800); ry += 16;
-      row(G.run.done ? '이번 기록 (완주)' : '지금까지 걸린 시간', fmtRun(runSecs()), C.gold);
-      for (let a = 1; a <= 3; a++) { const sp = actSplit(a); row(CONFIG.acts[a - 1], sp.done ? fmtRun(sp.t) : `${sp.n} / ${sp.total}`, sp.done ? C.white : '#8fa0b8'); }
-      row('내 최고 기록', recs.length ? `${recs[0].name} ${fmtRun(recs[0].t)}` : '아직 없음', recs.length ? C.gold : '#8fa0b8');
-      ry += 4; T('기록', x + 12, ry, 11, C.hud, 'left', 800); ry += 16;
-      row('시험 응시', `${s.exams}번`); row('합격 · 불합격 · 적발', `${s.passes} · ${s.fails} · ${s.caught}`); row('수석 합격(만점)', `${s.tops}번`);
-      row('직접 고른 답 · AI가 고른 답', `${s.selfQ} · ${s.aiQ}`); row('낸 응시료', `${won(s.fees)}원`); row('지금까지 번 돈', `${won(s.earned)}원`, C.gold);
-      row('AI 모델', CONFIG.models[G.gear.model].name, C.hud);
-      row('전수조사 의심', `${Math.round(G.heat * 100)}%`, G.heat >= 0.66 ? C.bad : G.heat >= 0.33 ? C.warn : C.white);
-      if (botRate() > 0) row('대리 응시 수입', `초당 ${won(botRate())}원`, C.gold);
+      const s = G.stats, recs = loadRecords(); let ry = top + 8; hv.lpage = Math.max(0, Math.min(1, hv.lpage || 0));
+      const row = (a, b, col) => { const vw = k.TW(b, 11, 800); T(a, 8, ry, fitText(k, a, w - 22 - vw, 11, 8), '#8fa0b8', 'left', 700); T(b, w - 8, ry, 11, col || C.white, 'right', 800); ry += 16; };
+      const head = t => { T(t, 8, ry, 12, C.hud, 'left', 800); ry += 18; };
+      if (hv.lpage === 0) {
+        head('타임어택');
+        row(G.run.done ? '이번 기록 (완주)' : '지금까지', fmtRun(runSecs()), C.gold);
+        for (let a = 1; a <= 3; a++) { const sp = actSplit(a); row(CONFIG.acts[a - 1] + ' 구간', sp.done ? fmtRun(sp.t) : `${sp.n} / ${sp.total}`, sp.done ? C.white : '#8fa0b8'); }
+        row('내 최고 기록', recs.length ? fmtRun(recs[0].t) : '아직 없음', recs.length ? C.gold : '#8fa0b8');
+        ry += 6; head('지금 상태');
+        row('AI 모델', CONFIG.models[G.gear.model].name, C.hud);
+        row('전수조사 의심', `${Math.round(G.heat * 100)}%`, G.heat >= 0.66 ? C.bad : G.heat >= 0.33 ? C.warn : C.white);
+        if (botRate() > 0) row('대리 응시 수입', `초당 ${won(botRate())}원`, C.gold);
+      } else {
+        head('기록');
+        row('시험 응시', `${s.exams}번`); row('합격·불합격·적발', `${s.passes} · ${s.fails} · ${s.caught}`); row('수석 합격(만점)', `${s.tops}번`);
+        row('직접 고른 답', `${s.selfQ}개`); row('AI가 고른 답', `${s.aiQ}개`); row('낸 응시료', `${won(s.fees)}원`); row('지금까지 번 돈', `${won(s.earned)}원`, C.gold);
+      }
+      pager(k, w / 2, bottom - 22, hv.lpage, 2, 'lpage', lt);
     } else {
-      let ry = top + 2; const bw = w - 20, b = (label, key, o) => { btn(k, x + 10, ry, bw, 24, label, key, o); ry += 29; };
+      let ry = top + 2; const b = (label, key, o) => { btn(k, 6, ry, w - 12, 23, label, key, Object.assign({ size: 11 }, o)); ry += 26; };
       b(muted ? '소리 켜기' : '소리 끄기', 'opt:mute');
       if (canFullscreen()) b(isFullscreen() ? '전체 화면 끄기' : '전체 화면 켜기 (F)', 'opt:fs');
-      b(G.opts.timer ? '시험 중 타임어택 시계: 켜짐' : '시험 중 타임어택 시계: 꺼짐', 'opt:timer');
-      b('저장 코드 복사 (다른 기기로 옮기기)', 'save:export');
+      b(G.opts.timer ? '시험 중 시계: 켜짐' : '시험 중 시계: 꺼짐', 'opt:timer');
+      b('저장 코드 복사', 'save:export');
       b('저장 코드 붙여넣기', 'save:import');
-      b(STATE.wipeArm > 0 ? '정말 지울까요? 한 번 더 누르기' : '저장 지우고 처음부터', 'wipe', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da' });
-      T('← → 고개 · Space 스캔 · 1~4 마킹 · P 일시정지 · M 소리', x + w / 2, ry + 8, 9, '#6f7a8c', 'center', 700);
-      T(STATE.standalone ? '홈 화면 앱으로 실행 중' : STATE.ios ? '아이폰: 공유 → 홈 화면에 추가 = 전체 화면' : '', x + w / 2, ry + 22, 9, '#6f7a8c', 'center', 700);
+      b(STATE.wipeArm > 0 ? '한 번 더 누르면 지워요' : '저장 지우고 처음부터', 'wipe', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da' });
+      for (const ln of ['← → 고개 · Space 스캔', '1~4 마킹 · P 정지 · M 소리', STATE.standalone ? '홈 화면 앱으로 실행 중' : STATE.ios ? '공유 → 홈 화면에 추가' : '']) { if (ln && ry + 6 < bottom) T(ln, w / 2, ry + 6, 10, '#6f7a8c', 'center', 700); ry += 12; }
     }
-    btn(k, x + w / 2 - 36, y + 2, 72, 16, '< 방으로', 'back', { bg: '#1c2230', col: '#4a5a6a', fg: '#ffffff', size: 10 });
-    return { x: x - 6, y: y - 6, w: w + 12, h: h + 12 };
+    const g = k.b; g.globalAlpha = 0.07; g.fillStyle = '#000000'; for (let y = 0; y < h; y += 2) g.fillRect(0, y, w, 0.5); // 주사선
+    g.globalAlpha = 1; let gr = g.createLinearGradient(0, 0, w * 0.9, h); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.02)'); gr.addColorStop(0.31, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); // 비스듬한 반사
+  }
+  function surface(view, k, hv, now, hoverXY) { // 3D 표면에 그리는 화면: 노트북 · 일정표 · 폰
+    if (view === 'laptop') return laptop(k, hv, now, hoverXY);
+    btns = []; hover = hoverXY; (view === 'board' ? drawBoard : drawPhone)(k, hv, now); return btns;
   }
 
   function screenFx(k, r, now) { // 모니터 느낌: 주사선, 화소 격자, 비스듬한 반사, 가장자리 어둠, 깜빡임
@@ -248,14 +264,12 @@ const HUBUI = (() => {
     b.imageSmoothingEnabled = true; b.drawImage(STATE.mailImg, -w / 2, -h / 2, w, h); b.imageSmoothingEnabled = false; b.restore();
     return { x, y, w, h };
   }
-  function draw(k, L, hv, now, hoverXY) {
+  function draw(k, L, hv, now, hoverXY) { // 2D 층에 그리는 건 우편뿐. 노트북·일정표·폰은 3D 표면(surface)에 그린다
     btns = []; hover = hoverXY; let rect = null;
     const z = hv.zoom * hv.zoom * (3 - 2 * hv.zoom);
-    if (hv.view === 'laptop') rect = WORLD.hubRect('laptop'); // 노트북은 3D 화면 표면에 그린다 (laptop)
-    else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) { drawBoard(k, rect, hv, now); paperFx(k, rect); } } }
-    else if (hv.view === 'mail') rect = drawMail(k, L, z);
-    else if (hv.view === 'phone') { rect = drawPhone(k, L, hv, now, z); if (z >= 1) screenFx(k, { x: rect.x + 6, y: rect.y + 6, w: rect.w - 12, h: rect.h - 12 }, now); }
+    if (hv.view === 'mail') rect = drawMail(k, L, z);
+    else rect = WORLD.hubRect(hv.view);
     return { btns, rect };
   }
-  return { draw, laptop, LW, LH };
+  return { draw, laptop, surface, LW, LH, BW, BH, PW, PH };
 })();

@@ -426,7 +426,7 @@ const MECH_NAME = { peek: '책상 밑 감시', sticker: '단추 스티커', tuto
 // 장비 효과 문구: lv(그 단계를 가졌을 때)의 효과
 const pct = v => Math.round(v * 100) + '%';
 const GEAR_TEXT = {
-  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초 · ${lv >= tune.glass_level ? '시험지 위에 AI 답이 뜸' : lv >= 2 ? '소매 속 액정으로 답 확인' : '허벅지 폰으로 답 확인'}`,
+  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초 · ${lv >= tune.glass_level ? '시험지 위에 AI 답이 뜸' : lv >= 2 ? '지우개 액정으로 답 확인' : '필통 속 폰으로 답 확인'}`,
   predict: lv => lv >= 3 ? `후방 카메라: 등 뒤 감독관이 렌즈 위쪽에 보임 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초` : lv ? `돌아보는 낌새를 렌즈가 경고 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초${lv >= 3 ? ' · 쳐다보면 빨갛게' : ''}` : '감독관이 돌아볼 낌새를 렌즈 가장자리로',
   stealth: lv => `들킬 때 의심도 ${pct(Math.pow(1 - tune.stealth_cut, lv))} · 입실 검사도 덜 걸림`,
   bot: n => `${n}명 · 초당 ${won(botRateAt(n))}원`,

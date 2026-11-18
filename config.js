@@ -128,7 +128,7 @@ window.CONFIG = {
   title_font: 'default', // 타이틀 글자: default | reatic | reaticwide | reaticnarrow (assets/title-art.js의 그림)
   hub_props: 'box', // 고시원 소품: box(코드로 쌓은 상자) | gen (assets/의 생성 모델)
   ending_model: 'box', // 엔딩의 내 모습: box(코드로 쌓은 상자) | meshy | hf (assets/의 생성 모델)
-  acts: ['1막 대한민국', '2막 글로벌', '3막 뇌절'],
+  acts: ['국내', '해외', '외계'], // 화면에 보이는 구간 이름 (막이라는 말은 화면에 쓰지 않는다)
 
   // 시험 25개. act: 막, staff: 감독관(종류·이름), stand: 서 있는 시간 범위(초), walk: 걷는 시간 범위(초), tell: 돌아보는 낌새(초),
   // watch: 나를 쳐다보는 시간(초), speed: 걷는 속도(통로 길이 비율/초), cross: 반대편으로 건너갈 확률, feint: 돌아보다 마는 확률,
@@ -282,7 +282,7 @@ window.CONFIG = {
   // kind: count(대리 응시: 사람 수만큼), group: glass(안경) · device(안경 밖 AI 기기)
   gear: [
     { id: 'lens', name: '촬영·표시 장비', group: 'glass', unlock: -1, caps: [3, 5, 7], mult: 4, step: 1.5,
-      ladder: ['초소형 카메라', '소매 속 초소형 액정', '중고 AI 안경', '실리콘밸리 시제품 안경', '군용 정찰 렌즈', '스마트 콘택트렌즈', '뇌 임플란트'] },
+      ladder: ['초소형 카메라', '지우개 액정', '중고 AI 안경', '실리콘밸리 시제품 안경', '군용 정찰 렌즈', '스마트 콘택트렌즈', '뇌 임플란트'] },
     { id: 'predict', name: '시선 예측', group: 'glass', unlock: 0, caps: [2, 4, 6], mult: 3, step: 2,
       ladder: ['눈치', '사이드미러 스티커', '후방 카메라', '감독관 동선 AI', '예지몽', '1초 뒤 미래 보기'] },
     { id: 'stealth', name: '스텔스 코팅', group: 'glass', unlock: 1, caps: [2, 4, 6], mult: 3, step: 2,

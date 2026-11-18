@@ -446,7 +446,16 @@ const WORLD = (() => {
     bx(watch, 0.06, 0.012, 0.05, 0x20303a, 0, 0, 0); bx(watch, 0.044, 0.004, 0.036, 0, 0, 0.007, 0, glowMat(0x45e5ee));
     const pen = pivot(sc, MY.x + 0.15, 0.772, MY.z + 0.13); pen.rotation.set(0.3, 0.75, 0);
     if (!HANDS) { bx(pen, 0.009, 0.009, 0.1, 0x24242c, 0, 0, 0); bx(pen, 0.01, 0.01, 0.018, 0xdedee6, 0, 0, -0.058); } // 그림 손은 펜을 쥐고 있다
-    return { paper, paperTex, watch, pen };
+    // 안경 전 단계의 책상 위 소품: 필통 속 폰 · 지우개 액정 (스캔할 때만 열리고 켜진다)
+    const gx = MY.x - 0.25, gz = MY.z - 0.045;
+    const pcase = pivot(sc, gx, 0.744, gz); pcase.rotation.y = 0.14; pcase.visible = false;
+    bx(pcase, 0.15, 0.024, 0.07, 0x2c3a5c, 0, 0.012, 0); bx(pcase, 0.142, 0.002, 0.062, 0x08080b, 0, 0.0245, 0);
+    const caseT = canvasTex(260, 104, true), caseFace = plane(pcase, 0.134, 0.0536, new THREE.MeshBasicMaterial({ map: caseT.t, fog: false }), 0, 0.0262, 0, -Math.PI / 2);
+    const lid = pivot(pcase, 0, 0.026, -0.035); bx(lid, 0.152, 0.008, 0.072, 0x3a4a72, 0, 0.004, 0.036); bx(lid, 0.146, 0.003, 0.004, 0xc9b458, 0, 0.004, 0.071);
+    const eraser = pivot(sc, gx + 0.01, 0.744, gz); eraser.rotation.y = 0.2; eraser.visible = false;
+    bx(eraser, 0.035, 0.026, 0.044, 0xf4f1e8, -0.048, 0.013, 0); bx(eraser, 0.082, 0.028, 0.046, 0x2b5f8a, 0.01, 0.014, 0); bx(eraser, 0.068, 0.002, 0.036, 0x0b0b0e, 0.01, 0.0285, 0);
+    const lcdT = canvasTex(128, 64, false), lcdFace = plane(eraser, 0.062, 0.031, new THREE.MeshBasicMaterial({ map: lcdT.t, fog: false }), 0.01, 0.0298, 0, -Math.PI / 2);
+    return { paper, paperTex, watch, pen, gadget: { pcase, lid, caseT, caseFace, eraser, lcdT, open: 0 } };
   }
   function secDevices(sc, tier, X1, HY, Z0, X0, MY) { // CCTV·탐지 전파 장치·드론
     let cctv = null, pulse = null, drone = null;
@@ -600,7 +609,7 @@ const WORLD = (() => {
     if (tier.staff.some(s => s.type === 'yeomra')) { const b2 = batch(); b2.box(1.6, 0.82, 0.5, 0x4a0e0e, -1.8, 0.41, ROWS[0] - 1.15); b2.box(0.5, 0.06, 0.3, 0xe8d8b0, -1.8, 0.85, ROWS[0] - 1.15); sc.add(b2.mesh()); }
     const cam = new THREE.PerspectiveCamera(40, RW / RH, 0.03, 80); cam.rotation.order = 'YXZ';
     const eye = new THREE.Vector3(MY.x, 1.2, MY.z + 0.42); cam.position.copy(eye);
-    Object.assign(EX, { scene: sc, tier: ti, paper: D.paper, paperTex: D.paperTex, paperSig: '', staff, ...dev, cam, eye, watch: D.watch, pen: D.pen, clock: clockKeep, clockSec: -1,
+    Object.assign(EX, { scene: sc, tier: ti, paper: D.paper, paperTex: D.paperTex, paperSig: '', staff, ...dev, cam, eye, watch: D.watch, pen: D.pen, gadget: D.gadget, clock: clockKeep, clockSec: -1,
       AL: MY.x - 0.9, AR: MY.x + 0.9, zFront: ROWS[0] - 0.75, zBack: ROWS[ROWS.length - 1] + 0.75, my: MY, desks, raise, candle, lamps: glowLamps, views: vd ? VIEWS_VOID : VIEWS_ROOM,
       layout: 'room', floaty: !!R.floaty, glasses: null, X0, frontZ: ROWS[0] });
   }
@@ -787,6 +796,13 @@ const WORLD = (() => {
       const sig = [E.qi, E.part, E.ar, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
       if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
     }
+    if (EX.gadget && !EX.home) { // 책상 위 소품: 스캔하는 동안만 뚜껑이 열리고 화면이 켜진다
+      const G2 = EX.gadget, st = hudStage(E), on = E.start <= 0 && !E.over && !E.caught && (E.scan > 0 || (E.ai && !E.fb));
+      G2.pcase.visible = st === 'case'; G2.eraser.visible = st === 'eraser';
+      G2.open += ((on ? 1 : 0) - G2.open) * 0.3; G2.lid.rotation.x = -G2.open * 1.95; G2.caseFace.visible = G2.open > 0.04;
+      if (st === 'case' && G2.open > 0.04) { drawGadgetScreen(G2.caseT.g, E, now, 'case'); G2.caseT.t.needsUpdate = true; }
+      if (st === 'eraser') { drawGadgetScreen(G2.lcdT.g, E, now, 'eraser'); G2.lcdT.t.needsUpdate = true; }
+    }
     draw(EX.scene, cam, now);
   }
   const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -836,7 +852,7 @@ const WORLD = (() => {
     for (let i = 0; i < 8; i++) B.box(0.035, 0.22 + (i % 3) * 0.02, 0.18, spines[i % spines.length], -0.02 + i * 0.042, 1.585 + (i % 3) * 0.01, -0.58);
     for (let i = 0; i < 4; i++) B.box(0.22, 0.04, 0.3, spines[(i + 2) % spines.length], 0.22, 0.78 + i * 0.04, -0.52, 0, i * 0.12); // 수험서 더미
     B.box(0.05, 0.11, 0.05, 0x2a6ad9, 0.3, 0.815, -0.16); B.box(0.05, 0.11, 0.05, 0x22a058, 0.24, 0.815, -0.24); // 에너지 음료
-    B.box(0.03, 0.34, 0.03, 0x2a2a30, -1.02, 0.93, -0.5); B.box(0.18, 0.08, 0.12, 0x2a2a30, -0.98, 1.1, -0.42); B.box(0.12, 0.02, 0.12, 0x2a2a30, -1.02, 0.77, -0.5); // 스탠드
+    B.box(0.03, 0.34, 0.03, 0x2a2a30, -1.13, 0.93, -0.5); B.box(0.18, 0.08, 0.12, 0x2a2a30, -1.09, 1.1, -0.42); B.box(0.12, 0.02, 0.12, 0x2a2a30, -1.13, 0.77, -0.5); // 스탠드 (일정표를 가리지 않게 책상 왼쪽 끝)
     } else { // [이름, x, 바닥 y, z, 높이, 돌림]
       for (const [n, x, y, z, h, yaw, w] of [['lamp', -1.0, 0.76, -0.5, 0.44, 3.5], ['books', 0.22, 0.76, -0.5, 0.18, 0.25, 0.3], ['cans', 0.3, 0.76, -0.2, 0.125, -0.3], ['shelf', 0.1, 1.475, -0.57, 0.24, 0], ['ramen', -0.72, 0.76, -0.34, 0.14, 0.4], ['mug', -0.15, 0.76, -0.56, 0.15, 0.3], ['strip', 0.06, 0.76, -0.63, 0.09, 1.57], ['tray', -0.88, 0.76, -0.14, 0.11, 0.5]]) { const m = modelMesh(n); if (m) { m.position.set(x, y, z); m.scale.set(w || h, h, w || h); m.rotation.y = yaw; sc.add(m); } } // w: 높이와 따로 주는 가로 크기
     }
@@ -847,9 +863,10 @@ const WORLD = (() => {
     sc.add(B.mesh());
     // 누르는 물건들 (각자 재질을 따로 둬서 마우스를 올리면 밝아진다)
     const hot = { exams: [], gear: [], log: [], go: [], parcel: [] }, hm = (key, color, extra) => { const m = ownMat(color, extra); hot[key].push(m); return m; };
-    const cork = canvasTex(256, 176, false);
+    const cork = canvasTex(256, 176, false), boardT = canvasTex(800, 534, true); // boardT: 다가갔을 때의 진짜 일정표
     const board = pivot(sc, -0.74, 1.12, Z0 + 0.012); bx(board, 0.72, 0.5, 0.02, 0, 0, 0, 0, genProps ? hm('exams', 0xb89a80, { map: genTex('wood', 1, 1), flatShading: false }) : hm('exams', 0x8a6a46));
     const corkFace = plane(board, 0.66, 0.44, hm('exams', 0xffffff, { map: cork.t }), 0, 0, 0.012);
+    const boardFace = plane(board, 0.66, 0.44, new THREE.MeshBasicMaterial({ map: boardT.t, fog: false, color: 0xe6e0d4 }), 0, 0, 0.0128); boardFace.visible = false; // 다가갔을 때만 보이는 진짜 일정표
     const laptop = pivot(sc, -0.42, 0.76, -0.33); bx(laptop, 0.36, 0.02, 0.24, 0, 0, 0, 0, hm('gear', 0x3a3d46));
     if (genProps) plane(laptop, 0.352, 0.232, hm('gear', 0xffffff, { map: genTex('keys', 1, 1), flatShading: false }), 0, 0.0105, 0, -Math.PI / 2); // 자판 면
     const scr = pivot(laptop, 0, 0.0, -0.12); scr.rotation.x = -0.32; bx(scr, 0.36, 0.23, 0.012, 0, 0, 0.115, 0, hm('gear', 0x2c2f38));
@@ -858,6 +875,8 @@ const WORLD = (() => {
     const camLed = glowMat(0x2a1010); bx(scr, 0.01, 0.006, 0.004, 0, 0, 0.222, 0.008, camLed); bx(scr, 0.016, 0.01, 0.003, 0x0a0a0e, 0.016, 0.222, 0.007);
     const phone = pivot(sc, 0.06, 0.765, -0.2); phone.rotation.set(-Math.PI / 2, 0, -0.25); bx(phone, 0.08, 0.15, 0.012, 0, 0, 0, 0, hm('log', 0x1a1a20));
     const phoneT = canvasTex(64, 120, false), phoneFace = plane(phone, 0.07, 0.135, new THREE.MeshBasicMaterial({ map: phoneT.t, fog: false }), 0, 0, 0.0065); hot.log.push(phoneFace.material);
+    const held = pivot(sc, 0, -5, 0); held.visible = false; bx(held, 0.1, 0.16, 0.01, 0, 0, 0, 0, ownMat(0x0c0c10)); // 집어 든 폰: 카메라 앞에 든다
+    const heldT = canvasTex(504, 810, true), heldFace = plane(held, 0.092, 0.148, new THREE.MeshBasicMaterial({ map: heldT.t, fog: false }), 0, 0, 0.0056);
     const door = pivot(sc, 0.84, 1.03, Z0 + 0.03);
     bx(door, 0.82, 2.06, 0.05, 0, 0, 0, 0, genProps ? hm('go', 0xffffff, { map: genTex('door', 1, 1), flatShading: false }) : hm('go', 0x7a5a3c)); bx(door, 0.06, 0.06, 0.08, 0, -0.3, -0.02, 0.05, hm('go', 0xd4b25a));
     const sign = canvasTex(128, 96, false); plane(door, 0.36, 0.27, hm('go', 0xffffff, { map: sign.t }), 0.05, 0.35, 0.03);
@@ -902,7 +921,7 @@ const WORLD = (() => {
     for (let i = 0; i < 8; i++) { const b = pivot(sc, -1.12 + i * 0.11, 1.475, -0.52); bx(b, 0.06, 0.05, 0.05, 0x9aa3b8, 0, 0.04, 0); bx(b, 0.05, 0.02, 0.006, 0, 0, 0.045, 0.026, glowMat(0x7ff6ff)); bx(b, 0.008, 0.03, 0.008, 0x2a2a30, 0, 0.08, 0); bx(b, 0.07, 0.03, 0.06, 0x8a5a32, 0, 0.01, 0); b.visible = false; bots.push(b); }
     const cam = new THREE.PerspectiveCamera(60, RW / RH, 0.02, 30); cam.rotation.order = 'YXZ';
     HUB.mail = mail;
-    Object.assign(HUB, { screenT, scene: sc, cam, hot, cork, corkFace, shop, shopFace, camLed, phoneT, phone, sign, gear, bots, lensM, parcel, lidA, lidB, wallM, winMat, act: 1, sigs: {}, anchors: [
+    Object.assign(HUB, { screenT, boardT, boardFace, held, heldT, heldFace, scene: sc, cam, hot, cork, corkFace, shop, shopFace, camLed, phoneT, phone, sign, gear, bots, lensM, parcel, lidA, lidB, wallM, winMat, act: 1, sigs: {}, anchors: [
       ['exams', new THREE.Vector3(-0.74, 1.4, Z0 + 0.05)],
       ['gear', new THREE.Vector3(-0.42, 1.02, -0.38)],
       ['log', new THREE.Vector3(0.06, 0.84, -0.2)],
@@ -915,7 +934,7 @@ const WORLD = (() => {
     const poseAt = (obj, dist, lift = 0) => { obj.updateMatrixWorld(true); obj.getWorldPosition(c); obj.getWorldQuaternion(q); n.set(0, 0, 1).applyQuaternion(q); const p = c.clone().addScaledVector(n, dist); p.y += lift; return { pos: p, look: c.clone() }; };
     sc.updateMatrixWorld(true);
     HUB.pickables.push(mail);
-    HUB.poses = { mail: { pos: new THREE.Vector3(-0.56, 1.1, 0.26), look: new THREE.Vector3(-0.62, 0.76, -0.02) }, laptop: poseAt(shopFace, 0.24, 0.0), board: poseAt(corkFace, 0.52, 0.0), phone: { pos: new THREE.Vector3(0.0, 1.12, 0.22), look: new THREE.Vector3(0.05, 0.77, -0.2) } };
+    HUB.poses = { mail: { pos: new THREE.Vector3(-0.56, 1.1, 0.26), look: new THREE.Vector3(-0.62, 0.76, -0.02) }, laptop: poseAt(shopFace, 0.24, 0.0), board: (() => { const p = poseAt(corkFace, 0.5, 0.0); return { pos: new THREE.Vector3(p.look.x + 0.07, p.look.y + 0.015, p.look.z + 0.52), look: p.look }; })(), phone: { pos: new THREE.Vector3(0.0, 1.12, 0.22), look: new THREE.Vector3(0.05, 0.77, -0.2) } };
   }
   function drawCork(G) { // 방에서 보이는 일정표: 이번 막에서 합격한 시험과 다음 시험만
     const g = HUB.cork.g, nt = nextTierIndex(G), act = CONFIG.tiers[nt].act;
@@ -985,6 +1004,7 @@ const WORLD = (() => {
     const wantMap = hv && hv.view === 'laptop' ? HUB.screenT.t : HUB.shop.t; // 다가가면 진짜 화면, 멀리서는 작은 그림
     if (HUB.shopFace.material.map !== wantMap) { HUB.shopFace.material.map = wantMap; HUB.shopFace.material.needsUpdate = true; }
     if (hv && hv.view === 'laptop') HUB.screenT.t.needsUpdate = true;
+    HUB.boardFace.visible = !!(hv && hv.view === 'board'); if (HUB.boardFace.visible) HUB.boardT.t.needsUpdate = true; // 일정표도 다가가면 벽의 판 위에 진짜 내용을 그린다
     updateHub(G, now, hover, hv);
     const c = HUB.cam, z = hv ? ease(clamp(hv.zoom, 0, 1)) : 0, target = hv && HUB.poses[hv.view];
     const roomYaw = ROOM_POSE.yaw + Math.sin(now * 0.3) * 0.01, roomPitch = ROOM_POSE.pitch + Math.sin(now * 0.45) * 0.006;
@@ -1000,6 +1020,8 @@ const WORLD = (() => {
       if (c.fov !== ROOM_POSE.fov) { c.fov = ROOM_POSE.fov; c.updateProjectionMatrix(); }
     }
     c.updateMatrixWorld();
+    const ph = !!(hv && hv.view === 'phone'); HUB.held.visible = ph; HUB.phone.visible = !ph; // 폰: 책상의 폰을 집어 눈앞에 든다
+    if (ph) { HUB.heldT.t.needsUpdate = true; _qb.setFromEuler(_e.set(-0.08, 0.07, 0.015, 'YXZ')); HUB.held.quaternion.copy(c.quaternion).multiply(_qb); _p.set(0.003, 0.004 - (1 - z) * 0.22, -0.167).applyQuaternion(c.quaternion); HUB.held.position.copy(c.position).add(_p); HUB.held.updateMatrixWorld(true); }
     draw(HUB.scene, c, now);
   }
   function renderTitle(G, now) { // 밤의 고시원: 책상 위 AI 안경을 천천히 비춘다
@@ -1017,17 +1039,26 @@ const WORLD = (() => {
   }
   function hubRect(view) { // 다가간 노트북 화면·일정표가 화면에서 차지하는 사각형 (640x360 좌표)
     if (!W.ok || !HUB.scene) return null;
-    const face = view === 'laptop' ? HUB.shopFace : view === 'board' ? HUB.corkFace : null; if (!face) return null;
+    const face = view === 'laptop' ? HUB.shopFace : view === 'board' ? HUB.boardFace : view === 'phone' ? HUB.heldFace : null; if (!face) return null;
     const w = face.geometry.parameters.width / 2, h = face.geometry.parameters.height / 2;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [px, py] of [[-w, -h], [w, -h], [w, h], [-w, h]]) { _p.set(px, py, 0); face.localToWorld(_p); _p.project(HUB.cam); const sx = (_p.x + 1) / 2 * RW, sy = (1 - _p.y) / 2 * RH; x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); }
     return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
   }
+  function staffRects() { // 시험장의 감독관들이 화면에서 차지하는 자리 (640x360 좌표). 군용 렌즈의 표적 표시에 쓴다
+    const out = []; if (!W.ok || !EX.staff || !EX.cam) return out;
+    EX.staff.forEach((m, i) => { if (!m || !m.root || !m.root.visible) return;
+      _p.setFromMatrixPosition(m.root.matrixWorld); const fy = _p.y; _p.project(EX.cam); if (_p.z > 1 || Math.abs(_p.x) > 1.3) return; const x = (_p.x + 1) / 2 * RW, y1 = (1 - _p.y) / 2 * RH;
+      _p.setFromMatrixPosition(m.root.matrixWorld); _p.y = fy + 1.72; _p.project(EX.cam); const y0 = (1 - _p.y) / 2 * RH, h = y1 - y0; if (h <= 0) return;
+      out.push({ i, x: x - h * 0.19, y: y0, w: h * 0.38, h }); });
+    return out;
+  }
   function laptopCanvas() { buildHub(); return HUB.screenT.c; }
-  function hubUV(x, y) { // 화면에서 누른 자리 → 노트북 화면 위의 위치(0~1), 화면 밖이면 null
+  function surfaceCanvas(view) { buildHub(); return (view === 'board' ? HUB.boardT : view === 'phone' ? HUB.heldT : HUB.screenT).c; }
+  function hubUV(x, y, view) { // 화면에서 누른 자리 → 노트북 화면 위의 위치(0~1), 화면 밖이면 null
     if (!W.ok || !HUB.scene) return null;
     ndc.set(x / RW * 2 - 1, -(y / RH * 2 - 1)); ray.setFromCamera(ndc, HUB.cam);
-    const hit = ray.intersectObject(HUB.shopFace)[0]; return hit && hit.uv ? [hit.uv.x, 1 - hit.uv.y] : null;
+    const hit = ray.intersectObject(view === 'board' ? HUB.boardFace : view === 'phone' ? HUB.heldFace : HUB.shopFace)[0]; return hit && hit.uv ? [hit.uv.x, 1 - hit.uv.y] : null;
   }
   function pickHub(x, y) {
     if (!W.ok || !HUB.scene) return null;
@@ -1197,5 +1228,5 @@ const WORLD = (() => {
     return FIG.ms.map(f => { _p.set(f.x, f.top ? 2.3 : -0.15, f.z).project(FIG.cam); return { text: f.label, x: (_p.x + 1) / 2 * RW, y: (1 - _p.y) / 2 * RH, pose: f.pose }; });
   }
 
-  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, renderEnding, renderTableau, pickChoice, pickHub, hubLabels, figureLabels, hubRect, hubUV, laptopCanvas, layout: () => EX.layout });
+  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, renderEnding, renderTableau, pickChoice, pickHub, hubLabels, figureLabels, hubRect, hubUV, laptopCanvas, surfaceCanvas, staffRects, layout: () => EX.layout });
 })();

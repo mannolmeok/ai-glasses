@@ -114,7 +114,7 @@ function makeKit(b) {
       c = m; if (TEXT_CACHE.size > 900) TEXT_CACHE.clear(); TEXT_CACHE.set(key, c);
     }
     const w = c.width / S, h = c.height / S;
-    b.drawImage(c, Math.round((align === 'center' ? x - w / 2 : x - 6) * S) / S, Math.round((y - h / 2) * S) / S, w, h);
+    b.drawImage(c, Math.round((align === 'center' ? x - w / 2 : align === 'right' ? x - w + 6 : x - 6) * S) / S, Math.round((y - h / 2) * S) / S, w, h);
     return w - 12;
   };
   K.M = (str, x, y, size, col, align = 'left', weight = 700) => { // 뷰파인더 글자: 고정폭 숫자·영문 + 그림자
@@ -174,13 +174,13 @@ function lensF(lenses, x, y) {
   return f;
 }
 const RIM_CACHE = {};
-function rimFor(key) {
-  if (RIM_CACHE[key]) return RIM_CACHE[key];
+function rimFor(key, grow = 1) { // grow: 렌즈를 키우면 테가 얇아진다
+  const ck = key + '|' + grow; if (RIM_CACHE[ck]) return RIM_CACHE[ck];
   const L = LAYOUTS[key], c = document.createElement('canvas'); c.width = L.W; c.height = L.H;
   const g = c.getContext('2d'), id = g.createImageData(L.W, L.H), d = id.data;
   const c1 = hexRgb(PAL.rim2), c2 = hexRgb(PAL.rim), c3 = hexRgb(PAL.dark);
   for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
-    const f = lensF(L.lenses, x + 0.5, y + 0.5);
+    const f = lensF(L.lenses, x + 0.5, y + 0.5) / grow;
     if (f < 1) continue;
     const cc = f < 1.03 ? c1 : f < 1.13 ? c2 : c3, i = (y * L.W + x) * 4;
     d[i] = cc[0]; d[i + 1] = cc[1]; d[i + 2] = cc[2]; d[i + 3] = 255;
@@ -189,7 +189,7 @@ function rimFor(key) {
   const [bx, bw] = L.bridge;
   g.fillStyle = PAL.rim; g.fillRect(bx, 0, bw, 12); g.fillRect(bx + 8, 12, bw - 16, 4);
   g.fillStyle = PAL.rim2; g.fillRect(bx + 8, 15, bw - 16, 1); g.fillRect(bx + 2, 2, bw - 4, 1);
-  return (RIM_CACHE[key] = c);
+  return (RIM_CACHE[ck] = c);
 }
 
 // ---- 대리 응시 봇 ----
