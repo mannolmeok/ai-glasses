@@ -14,7 +14,7 @@ const STEP = 1 / 60;            // simulation step in seconds; motion is per sec
 const PIXEL = true;             // pixel look: whole-number buffer, no smoothing
 const FONT = FONT_KO;
 const TITLE = 'AI 안경';
-const CONTROLS = ['화면 양옆 꾹 / ← →: 고개 돌리기', '가운데 꾹 / Space: 고개 숙여 AI 스캔', '보기 누르기 / 1~4: 마킹', 'P: 일시정지', 'M: 소리', 'F: 전체 화면'];
+const CONTROLS = ['양옆·위·가운데 톡 / ← → ↑ ↓: 왼쪽·오른쪽·정면·책상 보기', '책상을 꾹 / Space: AI 스캔', '보기 누르기 / 1~4: 마킹', 'P: 일시정지', 'M: 소리', 'F: 전체 화면'];
 const clock = window.GAME_CLOCK || { now: () => performance.now() / 1000 }; // a check may inject one
 const CHEAP = params.get('render') === 'cheap';
 const CHECKED = !!(window.GAME_CLOCK || params.get('manual') || params.get('scene') || navigator.webdriver); // 점검 중에는 전체 화면을 청하지 않는다
@@ -121,7 +121,7 @@ function newGame() {
   const gear = { model: 0 }; for (const g of CONFIG.gear) gear[g.id] = 0;
   return { v: 4, heat: 0, black: null, money: 0, gear, unlocked: 1, cleared: TIERS.map(() => false), best: TIERS.map(() => 0),
     ended: false, endSeen: false, stats: { exams: 0, caught: 0, passes: 0, fails: 0, tops: 0, selfQ: 0, aiQ: 0, playT: 0, earned: 0, fees: 0, scans: 0 },
-    hints: {}, flags: {}, fresh: {}, news: [], seen: 0, run: { t: 0, splits: [], done: false, rec: 0 }, opts: { timer: false }, last: 0 };
+    hints: {}, flags: {}, pending: 0, mail: null, fresh: {}, news: [], seen: 0, run: { t: 0, splits: [], done: false, rec: 0 }, opts: { timer: false }, last: 0 };
 }
 function adopt(s) { // 저장된 값을 새 게임 틀에 얹는다 (빠진 칸은 기본값)
   const g = newGame(), b = newGame();
@@ -129,7 +129,7 @@ function adopt(s) { // 저장된 값을 새 게임 틀에 얹는다 (빠진 칸�
   g.run = Object.assign(b.run, s.run || {}); g.opts = Object.assign(b.opts, s.opts || {});
   for (const k of ['cleared', 'best']) { g[k] = TIERS.map((_, i) => (s[k] && s[k][i]) || b[k][i]); }
   g.fresh = s.fresh || {}; g.news = Array.isArray(s.news) ? s.news : []; g.hints = s.hints || {}; g.flags = s.flags || {}; g.seen = s.seen || 0;
-  g.heat = clamp(Number(s.heat) || 0, 0, 1); g.black = s.black || null;
+  g.pending = Number(s.pending) || 0; g.mail = s.mail || null; g.heat = clamp(Number(s.heat) || 0, 0, 1); g.black = s.black || null;
   g.unlocked = clamp(Math.floor(g.unlocked) || 1, 1, TIERS.length); g.money = Number(g.money) || 0;
   return g;
 }
@@ -286,7 +286,7 @@ canvas.addEventListener('pointerdown', e => {
   startAudio();
   const [x, y] = toBuf(e), W = EXAM_LAYOUT.W, z = EXAM_LAYOUT.zone;
   ptr.taps.push([x, y]);
-  ptrs.set(e.pointerId, { x, y, t0: performance.now() / 1000, moved: 0, zone: x < W * z ? 'L' : x > W * (1 - z) ? 'R' : 'C' });
+  ptrs.set(e.pointerId, { x, y, t0: performance.now() / 1000, moved: 0, zone: x < W * z ? 'L' : x > W * (1 - z) ? 'R' : y < EXAM_LAYOUT.H * 0.2 ? 'T' : 'C' });
   try { canvas.setPointerCapture(e.pointerId); } catch (_) { }
   e.preventDefault();
 });
@@ -307,18 +307,24 @@ addEventListener('blur', () => { down.clear(); ptrs.clear(); });
 function takeTaps() { const t = ptr.taps; ptr.taps = []; return t; }
 function takeReleases() { const r = releases; releases = []; return r; }
 function hitBtn(btns, x, y) { return (btns || []).find(b => x >= b.x && x <= b.x + b.w && y >= b.y - 2 && y <= b.y + b.h + 2); }
-function scanHeld() { return down.has('Space') || down.has('ArrowDown') || down.has('KeyS') || scanPointer(); }
-function lookWanted() { // 평소엔 정면, 양옆을 누르면 그쪽, 가운데를 누르는 동안(과 잠깐 뒤)만 고개를 숙여 시험지
-  if (E.layout === 'table') return 'paper'; // 마주 앉으면 고개 돌릴 곳이 없다
-  const base = E.layout === 'room' ? 'front' : 'paper';
-  if (FORCE_VIEW) return FORCE_VIEW;
-  let best = null;
-  for (const p of ptrs.values()) if ((p.zone === 'L' || p.zone === 'R') && (!best || p.t0 > best.t0)) best = p;
-  if (best) return best.zone === 'L' ? 'left' : 'right';
-  const l = down.has('ArrowLeft') || down.has('KeyA'), r = down.has('ArrowRight') || down.has('KeyD');
-  if (l && r) return lastLookKey || 'left';
-  if (l || r) return l ? 'left' : 'right';
-  return scanHeld() || E.downT > 0 ? 'paper' : base;
+function scanHeld() { return down.has('Space') || scanPointer(); }
+function setView(v) { // 고개를 그쪽으로 돌려 둔다 (다시 바꿀 때까지 그대로)
+  if (!E || v === E.view) return;
+  const side = x => x === 'left' || x === 'right';
+  if (!side(v) && side(E.view) && E.looks > 0) G.hints.back = true;
+  if (v === 'paper') G.hints.desk = true;
+  E.prevView = E.view; E.view = v; E.viewT = 0; sfx.turn();
+  if (side(v)) { E.looks++; G.hints.look = true; E.showZones = false; }
+}
+function viewInput(taps) { // 왼쪽·오른쪽·위·가운데를 톡(또는 ← → ↑ ↓): 왼쪽·오른쪽·정면·책상 보기
+  if (E.layout === 'table') return;
+  const front = E.layout === 'room' ? 'front' : 'paper', W = EXAM_LAYOUT.W, H = EXAM_LAYOUT.H, z = EXAM_LAYOUT.zone;
+  if (FORCE_VIEW) { setView(FORCE_VIEW); return; }
+  for (const [x, y] of taps) setView(x < W * z ? 'left' : x > W * (1 - z) ? 'right' : y < H * 0.2 ? front : 'paper');
+  if (pressed('ArrowLeft') || pressed('KeyA')) setView('left');
+  else if (pressed('ArrowRight') || pressed('KeyD')) setView('right');
+  else if (pressed('ArrowUp') || pressed('KeyW')) setView(front);
+  else if (pressed('ArrowDown') || pressed('KeyS') || pressed('Space')) setView('paper');
 }
 function scanPointer() { for (const p of ptrs.values()) if (p.zone === 'C' || (E && E.layout === 'table')) return true; return false; }
 
@@ -616,7 +622,7 @@ function threat() { // 지금 스캔하면 초당 오르는 의심도와, 스캔
 }
 function markAnswer(i, how) { // 정답인지는 시험이 끝날 때까지 모른다
   if (!E || E.fb || E.caught || E.over || E.start > 0 || E.breakT > 0 || i < 0 || i > 3) return;
-  if (how !== 'auto' && (E.view !== 'paper' || E.viewT < 1)) { if (how === 'key' && E.layout === 'room') E.downT = Math.max(E.downT, tune.down_keep); return; } // 시험지를 보고 있어야 마킹 (숫자 키는 먼저 고개를 숙인다)
+  if (how !== 'auto' && (E.view !== 'paper' || E.viewT < 1)) { if (how === 'key' && E.layout !== 'table') setView('paper'); return; } // 시험지를 보고 있어야 마킹 (숫자 키는 먼저 고개를 숙인다)
   const q = E.qs[E.qi], viaAI = how === 'auto' || (E.ai && i === q.aiPick);
   if (q.final) { if (E.ai && how !== 'auto') finishFinal(i); return; } // 마지막 문제: 무엇을 골라도 채점 없이 엔딩으로
   E.answers[E.qi] = i; E.via[E.qi] = how === 'auto' ? 'auto' : viaAI ? 'ai' : 'self';
@@ -667,31 +673,24 @@ function getCaught() {
 function examHint() { // 첫 시험(모의평가)에서만, 한 번에 하나
   if (E.tier !== 0 || G.stats.exams > 0) return null;
   if (E.rising) return '누가 보고 있어요! 손 떼기';
-  if (!G.hints.look) return '화면 양옆을 꾹: 고개 돌려 감독관 보기 (← →)';
-  if (E.view === 'left' || E.view === 'right') return G.hints.back ? null : '나를 정면으로 보면 위험. 손을 떼면 앞을 본다';
-  if (!E.ai && !G.hints.scan) return E.holding ? null : '안 볼 때 가운데를 꾹: 고개 숙여 스캔 (Space)';
+  if (!G.hints.look) return '화면 양옆을 톡: 고개 돌려 감독관 보기 (← →)';
+  if (E.view === 'left' || E.view === 'right') return G.hints.desk ? null : '가운데를 톡: 책상 보기 (↓) · 위를 톡: 정면 (↑)';
+  if (E.view === 'front') return G.hints.scan ? null : '가운데를 톡: 책상 보기 (↓)';
+  if (!E.ai && !G.hints.scan) return E.holding ? null : '아무도 안 볼 때 책상을 꾹: AI 스캔 (Space). 떼면 처음부터';
   if (E.ai && !E.fb && !G.hints.pick) return E.ar ? 'AI가 고른 보기를 눌러 마킹 (1~4)' : '소매 속 액정의 번호를 보고, 그 보기를 눌러 마킹 (1~4)';
   return null;
 }
 function pickAt(x, y) { return E.layout === 'table' ? arRowAt(E, x, y) : WORLD.pickChoice(x, y); }
 function updateExam(dt) {
   const T = E.T, g = G.gear;
-  takeTaps();
+  const taps = takeTaps();
   if (E.flash) E.flash.t += dt;
   E.runShown = G.opts.timer ? G.run.t : 0;
   if (E.caught || E.over) { E.endT += dt; takeReleases(); if (E.endT > (E.caught ? 2.0 : 0.9)) finishExam(); return; }
   if (pressed('KeyP') || pressed('Escape')) { scene = 'pause'; return; }
   // 고개 돌리기 (돌아보는 것만으로는 의심받지 않는다)
-  const held = E.start <= 0 && !(E.breakT > 0) && scanHeld();
-  if (held) E.downT = Math.max(E.downT, tune.down_keep); else E.downT = Math.max(0, E.downT - dt);
-  if (E.fb || (!E.ai && !held && E.downT > tune.down_keep)) E.downT = Math.min(E.downT, tune.down_keep);
-  const want = E.start > 0 || E.breakT > 0 ? (E.layout === 'room' ? 'front' : 'paper') : lookWanted();
-  if (want !== E.view) {
-    const side = v => v === 'left' || v === 'right';
-    if (!side(want) && side(E.view) && E.looks > 0) G.hints.back = true;
-    E.prevView = E.view; E.view = want; E.viewT = 0; sfx.turn();
-    if (side(want)) { E.looks++; G.hints.look = true; E.showZones = false; }
-  }
+  if (E.start > 0 || E.breakT > 0) { if (E.layout === 'room' && E.view !== 'front' && !FORCE_VIEW) setView('front'); } else viewInput(taps);
+  const held = E.start <= 0 && !(E.breakT > 0) && E.view === 'paper' && E.viewT >= 1 && scanHeld(); // 책상을 보는 채로 꾹 눌러야 스캔
   E.viewT = Math.min(1, E.viewT + dt / tune.look_time);
   const onPaper = E.view === 'paper' && E.viewT >= 1;
   for (const [x, y] of takeReleases()) { const i = pickAt(x, y); if (i >= 0) markAnswer(i, 'tap'); }
@@ -720,7 +719,7 @@ function updateExam(dt) {
   let autoHold = false;
   if (g.autoscan > 0 && !T.noAuto && !listen && !E.ai && !E.fb && !atDesk && !E.staff.some(s => s.phase === 'peek') && (E.view === 'paper' || E.view === 'front')) { // 자동 스캔 칩: 아무도 안 볼 때 알아서 고개를 숙이고 스캔
     const safe = th.r === 0 && !(E.pulse && E.pulse.warn > 0 && E.pulse.warn < 0.45);
-    if (safe) { E.unsafeT = 0; E.downT = Math.max(E.downT, 0.3); } else E.unsafeT += dt;
+    if (safe) { E.unsafeT = 0; if (E.view === 'front') setView('paper'); } else E.unsafeT += dt;
     autoHold = onPaper && (safe || E.unsafeT < autoDelayAt(g.autoscan));
   }
   const hold = (manual || autoHold) && !E.ai && !E.fb;
@@ -731,7 +730,7 @@ function updateExam(dt) {
   }
   const peeker = E.staff.find(s => s.phase === 'peek' && s.peek.stage === 'stare');
   if (peeker && hold) { E.sus = 1; E.source = { how: 'peek', by: peeker }; getCaught(); return; } // 올려다보는 눈과 마주친 채 스캔하면 끝
-  if (!hold && !E.ai && !E.fb && E.scan > 0) E.scan = Math.max(0, E.scan - tune.scan_drop * dt); // 손을 떼면 스캔이 날아간다
+  if (!hold && !E.ai && !E.fb && E.scan > 0) E.scan = tune.scan_drop >= 10 ? 0 : Math.max(0, E.scan - tune.scan_drop * dt); // 손을 떼면 스캔이 처음으로 돌아간다
   E.wasHold = hold; E.holding = hold; E.autoHolding = autoHold && !manual;
   E.rising = (hold && th.r > 0) || th.idle > 0;
   if (hold && th.r > 0) { E.sus += th.r * dt; E.source = th.src; }
@@ -812,24 +811,28 @@ function finishExam() {
       }
     }
   }
-  addMoney(reward); loop('result'); if (reward > 0) loop('reward');
+  G.pending = (G.pending || 0) + reward; loop('result'); if (reward > 0) loop('reward'); // 돈은 고시원에 돌아갈 때 입금 문자로 들어온다
+  if (reward > 0) addNews('bank', `[입금] ${T.pay} ${won(reward)}원${perfect ? ` (수석 x${tune.jackpot_mult})` : ''}`);
+  if (!tut && G.heat - heat0 > 0.01 && !audited) addNews('reg', `수험생 커뮤니티: "${T.name} 고득점자 수상하다" (전수조사 의심 ${Math.round(G.heat * 100)}%)`);
+  if (!tut) G.mail = { tier: E.tier, tierName: T.name, marks, correct, qn, pass, score, caught: E.caught, passed, stamp: audited ? '합격 취소' : E.caught ? '부정행위' : perfect ? '수석 합격' : passed ? '합격' : '불합격' };
   if (final && !G.ended) { G.ended = true; addRecord(); }
   RZ = { tier: E.tier, tierName: T.name, passed, perfect, caught: E.caught, correct, qn, score, pass, reward, bonus, coach, pay: T.pay, fee: E.fee,
     marks, self: E.selfN, ai: E.aiN, heat0, heat: G.heat, audited, tut, unlock, final, next: passed ? (final ? 'end' : E.tier + 1) : null, focus: passed ? 'next' : 'retry', canRetry: true, canNext: true };
   perfect ? sfx.top() : passed ? sfx.pass() : sfx.fail();
   RZ.stamp = audited ? '합격 취소' : E.caught ? '부정행위' : perfect ? '수석 합격' : passed ? '합격' : '불합격';
-  RZ.onPaper = E.layout === 'room'; E.result = RZ; E.holding = false; E.scan = 0; E.rising = false; E.sus = Math.min(E.sus, 0.4);
-  if (RZ.onPaper) { E.prevView = E.view; E.view = 'result'; E.viewT = 0; } // 책상 위 성적 통지표로 본다
+  E.result = RZ; E.holding = false; E.scan = 0; E.rising = false; E.sus = Math.min(E.sus, 0.4); // 가채점은 기기 화면에, 통지표는 우편으로
   events.push({ type: 'result', passed, perfect, caught: E.caught, correct, reward, fee: E.fee });
   save(); scene = 'results';
 }
 
 // ---- 고시원: 방 · 노트북(AI마켓) · 일정표 · 폰 · 택배 ------------------------------------------
+function settle() { if (G.pending > 0) { addMoney(G.pending); G.pending = 0; sfx.news(); save(); } } // 밀린 입금
 function goHub(view) { scene = 'hub'; const hv = STATE.hv; hv.view = 'room'; hv.target = 'room'; hv.zoom = 0; hv.bpage = null; if (view) enterView(view, true); }
 function enterView(v, instant) {
   const hv = STATE.hv; hv.view = v; hv.target = v; hv.zoom = instant ? 1 : 0;
   if (v === 'laptop') { hv.app = 'desk'; hv.page = 0; hv.tab = shopItems('new').length ? 'new' : G.fresh.model ? 'model' : hv.tab === 'new' ? 'glass' : hv.tab; G.hints.shop = true; STATE.shownIds.clear(); }
   if (v === 'board') { hv.act = 0; hv.bpage = null; }
+  if (v === 'mail') { STATE.mailImg = null; }
   if (v === 'phone') { hv.ptab = phoneUnread() ? 'news' : hv.ptab; hv.npage = 0; }
   if (!instant) sfx.zoom();
 }
@@ -837,6 +840,7 @@ function leaveView() { // 방으로 물러난 뒤: 본 신상은 NEW를 떼고, 
   const hv = STATE.hv, v = hv.view;
   if (v === 'laptop') { for (const id of STATE.shownIds) delete G.fresh[id]; STATE.shownIds.clear(); if (hv.order.length && !hv.parcel) hv.parcelT = 0.7; }
   if (v === 'phone') G.seen = G.news.length;
+  if (v === 'mail') G.mail = null; // 읽은 통지표는 치운다
   hv.view = 'room'; save();
 }
 function soldOut(d) { return d.id === 'lens' && G.gear.lens === 0 && !G.flags.cam; } // 초소형 카메라는 품절: 텔레그램 브로커에게서만
@@ -890,6 +894,7 @@ function hubAction(a) { // 방에서 누른 물건
   else if (a === 'exams') enterView('board');
   else if (a === 'gear') enterView('laptop');
   else if (a === 'log') enterView('phone');
+  else if (a === 'mail' && G.mail) enterView('mail');
   else if (a === 'parcel' && hv.parcel && hv.parcel.phase === 'wait') { hv.parcel.phase = 'open'; hv.parcel.t = 0; sfx.open(); }
 }
 function openParcels() { // 상자를 열지 않고 시험 보러 가도 장비는 쓴다
@@ -916,6 +921,7 @@ function updateHub(dt) {
     else if (pressed('Digit1')) hubAction('exams'); else if (pressed('Digit2')) hubAction('gear'); else if (pressed('Digit3')) hubAction('log');
     STATE.hoverAct = STATE.hover ? WORLD.pickHub(STATE.hover[0], STATE.hover[1]) : null;
     if (STATE.hoverAct === 'parcel' && !(hv.parcel && hv.parcel.phase === 'wait')) STATE.hoverAct = null;
+    if (STATE.hoverAct === 'mail' && !G.mail) STATE.hoverAct = null;
   } else {
     STATE.hoverAct = null;
     if (hv.zoom >= 1 && hv.target !== 'room') {
@@ -923,6 +929,7 @@ function updateHub(dt) {
         if (hv.view === 'laptop') { const lp = lapPoint([x, y]); if (!lp) { hv.target = 'room'; sfx.zoom(); continue; } [x, y] = lp; }
         const b = hitBtn(BTNS, x, y);
         if (b) { hubKey(b.key); if (scene !== 'hub' || hv.view === 'room') return; }
+        else if (hv.view === 'mail') { hv.target = 'room'; sfx.flip(); }
         else if (hv.view !== 'laptop' && HUB_RECT && (x < HUB_RECT.x - 6 || x > HUB_RECT.x + HUB_RECT.w + 6 || y < HUB_RECT.y - 6 || y > HUB_RECT.y + HUB_RECT.h + 6)) { hv.target = 'room'; sfx.zoom(); } // 바깥을 누르면 방으로
       }
       if (pressed('Escape') || pressed('Backspace')) hubKey('back');
@@ -971,6 +978,7 @@ function hubLabel(action) {
   if (action === 'gear') return n ? { text: `AI마켓 · 신상 ${n}`, hot: true } : { text: 'AI마켓 (노트북)', hot: !G.hints.shop && G.stats.exams > 0 };
   if (action === 'log') return u ? { text: `폰 · 알림 ${u}`, hot: true } : { text: '폰' };
   if (action === 'go') { const t = TIERS[nextTierIndex()], fee = examFee(t); return { text: `시험 보러 가기: ${t.name}${fee ? ` (${won(fee)}원)` : ''}` }; }
+  if (action === 'mail') return G.mail ? { text: '우편: 성적 통지표', hot: true } : null;
   if (action === 'parcel') return hv.parcel && hv.parcel.phase === 'wait' ? { text: '택배 왔어요! 눌러서 열기', hot: true } : null;
   return null;
 }
@@ -978,23 +986,19 @@ function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 �
   const k = B.k, L = B.L, H = hudSet(), hv = STATE.hv, hover = STATE.hoverAct;
   BTNS = []; HUB_RECT = null;
   if (hv.view === 'room') {
+    const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches; // 터치 기기는 마우스를 올릴 수 없으니 이름표를 계속 보여 준다
     for (const l of WORLD.hubLabels()) {
       const info = l.show && hubLabel(l.action); if (!info) continue;
-      const hot = l.action === hover, bob = info.hot ? Math.round(Math.sin(now * 5) * 2) : 0, w = k.TW(info.text, 10, 800) + 14;
-      const x = Math.round(clamp(l.x, w / 2 + 4, L.W - w / 2 - 4)), y = Math.round(clamp(l.y, 54, L.H - 12)) + bob;
-      k.b.globalAlpha = hot || info.hot ? 0.96 : 0.72; k.R(x - w / 2, y - 8, w, 16, hot ? PAL.hud : info.hot ? '#e8453e' : PAL.dark); k.b.globalAlpha = 1;
+      const hot = l.action === hover; if (!hot && !info.hot && !touch) continue; // 이름표는 마우스를 올렸을 때와 알릴 게 있을 때만
+      const bob = info.hot ? Math.round(Math.sin(now * 5) * 2) : 0, w = k.TW(info.text, 10, 800) + 14;
+      const x = Math.round(clamp(l.x, w / 2 + 4, L.W - w / 2 - 4)), y = Math.round(clamp(l.y, 14, L.H - 12)) + bob;
+      k.b.globalAlpha = hot || info.hot ? 0.96 : 0.6; k.R(x - w / 2, y - 8, w, 16, hot ? PAL.hud : info.hot ? '#e8453e' : PAL.dark); k.b.globalAlpha = 1;
       k.T(info.text, x, y, 10, hot ? PAL.dark : PAL.white, 'center', 800);
     }
-    plate(k, L.W / 2 - 100, 6, 200, 36, H);
-    k.TO(won(STATE.shown) + '원', L.W / 2, 18, 14, PAL.gold);
-    const sub = `${botRate() > 0 ? `대리 응시 초당 ${won(botRate())}원 · ` : ''}${CONFIG.models[G.gear.model].name}`;
-    let ss = 9; while (k.TW(sub, ss, 700) > 190 && ss > 7) ss--;
-    k.T(sub, L.W / 2, 34, ss, H.c2, 'center', 700);
-    if (G.heat > 0.01) { plate(k, L.W - 118, 6, 110, 20, H); k.T(`전수조사 의심 ${Math.round(G.heat * 100)}%`, L.W - 63, 16, 10, G.heat >= 0.66 ? PAL.bad : G.heat >= 0.33 ? PAL.warn : H.c2, 'center', 800); }
-    if (G.run.started || G.run.done) { plate(k, 8, 6, 78, 20, H); k.T(fmtRun(G.run.t), 47, 16, 11, G.run.done ? PAL.gold : H.c, 'center', 800); }
   } else {
     const ui = HUBUI.draw(k, L, hv, now, STATE.hover); if (hv.view !== 'laptop') BTNS = ui.btns; HUB_RECT = ui.rect;
   }
+  if (hv.view === 'mail' && hv.zoom >= 1 && hv.target !== 'room') k.TO('아무 데나 눌러 내려놓기', L.W / 2, L.H - 8, 9, '#c9c4d8');
   for (const p of STATE.pops) if (p.scene === 'hub' && p.t >= 0) k.TO(p.text || ('+' + won(p.v) + '원'), L.W / 2, 62 - p.t * 14, 12, p.col || PAL.gold);
   drawNote(B);
 }
@@ -1029,7 +1033,7 @@ const scenes = {
   },
   hub: {
     update(dt) { updateHub(dt); },
-    draw(B) { if (STATE.hv.view === 'laptop' && WORLD.ok) drawLaptop(); WORLD.renderHub(G, now, STATE.hoverAct, STATE.hv); drawHubHud(B); },
+    draw(B) { if (STATE.hv.view === 'laptop' && WORLD.ok) drawLaptop(); STATE.hv.mail = !!G.mail; WORLD.renderHub(G, now, STATE.hoverAct, STATE.hv); drawHubHud(B); },
   },
   play: {
     update(dt) { state.t += dt; updateExam(dt); },
@@ -1053,7 +1057,7 @@ const scenes = {
     update() {
       takeReleases();
       const act = key => {
-        openParcels();
+        openParcels(); settle();
         if (key === 'retry') { if (!startExam(RZ.tier)) goHub('board'); }
         else if (key === 'next' && RZ.next != null) { if (RZ.final) scene = 'ending'; else if (!startExam(RZ.next)) goHub('board'); }
         else if (key === 'hub') { if (RZ.final && !G.endSeen) scene = 'ending'; else goHub(null); }
@@ -1064,9 +1068,9 @@ const scenes = {
       else if (pressed('Enter') || pressed('Space')) act('hub');
     },
     draw(B) {
-      RZ.canRetry = G.money >= examFee(TIERS[RZ.tier]);
-      RZ.canNext = RZ.next != null && !RZ.final && G.money >= examFee(TIERS[RZ.next]);
-      if (E.result) E.viewT = Math.min(1, E.viewT + 0.03);
+      const have = G.money + (G.pending || 0);
+      RZ.canRetry = have >= examFee(TIERS[RZ.tier]);
+      RZ.canNext = RZ.next != null && !RZ.final && have >= examFee(TIERS[RZ.next]);
       WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); BTNS = drawResultHud(B.k, B.L, RZ, now, hudSet()); drawNote(B);
     },
   },
@@ -1177,8 +1181,9 @@ if (scene === 'ending') { STATE.endT = Number(params.get('t')) || 0; G.stats.sca
 if (scene === 'hub' && params.get('scene')) {
   if (G.stats.exams === 0) G.stats.exams = 1;
   if (params.get('news')) for (let i = 0; i < G.unlocked - 1; i++) unlockNews(i);
-  const v = params.get('hv'); if (['laptop', 'board', 'phone'].includes(v)) { enterView(v, true); if (params.get('tab')) { if (v === 'phone') STATE.hv.ptab = params.get('tab'); else { STATE.hv.tab = params.get('tab'); STATE.hv.app = 'shop'; } }
+  const v = params.get('hv'); if (['laptop', 'board', 'phone', 'mail'].includes(v)) { enterView(v, true); if (params.get('tab')) { if (v === 'phone') STATE.hv.ptab = params.get('tab'); else { STATE.hv.tab = params.get('tab'); STATE.hv.app = 'shop'; } }
     if (params.get('app')) { STATE.hv.app = params.get('app'); if (params.get('sold')) G.flags.sold = true; if (params.get('black')) { G.flags.cam = true; G.gear.lens = Math.max(1, G.gear.lens); G.black = { amount: 6400000, n: 1 }; } } }
+  if (params.get('mail')) G.mail = { tier: 8, tierName: TIERS[8].name, marks: [0,1,2,3,4,5,6,7,8,9].map(i => ({ r: i % 4 === 3 ? 'X' : 'O', via: i % 2 ? 'ai' : 'self' })), correct: 8, qn: 10, pass: 60, score: 80, caught: false, passed: true, stamp: '합격' };
   if (params.get('parcel')) STATE.hv.parcel = { phase: 'wait', t: 0, items: [{ id: 'lens', name: gearName('lens', 1) }] };
   for (let i = 0; i < 6; i++) step(); // 화면 확인용: 방을 한 번 비춘 뒤
 }

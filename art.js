@@ -249,16 +249,11 @@ function drawResultHud(k, L, Rz, now, H) { // 결과 화면: 창 대신 기기 �
   const { R, T, TO } = k, C = PAL, blink = Math.floor(now * 2) % 2 === 0, dark = '#0d2a30';
   if (blink) k.disc(30, 26, 4, C.bad); TO('REC', 40, 26, 11, C.white, 'left', dark);
   TO(`${Rz.tierName} · 채점 수신`, 74, 26, 10, H.c, 'left', dark);
-  if (!Rz.onPaper) { // 책상에 종이가 없는 시험(면접·원격): 결과도 기기 화면에
-    const col = Rz.passed ? C.good : C.bad;
-    TO(Rz.stamp, L.W / 2, 70, 26, col, 'center', dark); TO(Rz.caught ? '0점 처리' : `${Rz.score}점 · 정답 ${Rz.correct}/${Rz.qn} · 합격선 ${Rz.pass}점`, L.W / 2, 98, 12, C.white, 'center', dark);
+  { // 가채점: 내 기기가 답안을 대조한 결과. 정식 통지표는 우편으로, 돈은 입금 문자로 온다
+    const col = Rz.caught ? C.bad : Rz.passed ? C.good : C.warn;
+    TO(Rz.caught ? '적발 · 퇴실' : Rz.audited ? '가채점은 합격인데...' : `가채점 ${Rz.score}점 · ${Rz.passed ? '합격 예상' : '불합격 예상'}`, 26, L.H - 46, 13, col, 'left', dark);
+    TO(Rz.caught ? '이번 시험은 무효 처리된다' : `정답 ${Rz.correct}/${Rz.qn} · 합격선 ${Rz.pass}점 · 통지표는 우편으로`, 26, L.H - 28, 10, H.c, 'left', dark);
   }
-  const lines = [];
-  if (Rz.reward > 0) lines.push([`입금  ${Rz.pay} +${won(Rz.reward)}원${Rz.perfect ? `  (만점 x${tune.jackpot_mult})` : ''}`, C.gold]);
-  if (Rz.fee > 0) lines.push([`출금  응시료 -${won(Rz.fee)}원`, '#d6a0a0']);
-  if (!Rz.tut) { const d = Math.round((Rz.heat - Rz.heat0) * 100); lines.push([Rz.audited ? '전수조사  합격 취소 · 너무 완벽했다' : `전수조사 의심  ${Math.round(Rz.heat * 100)}% (${d >= 0 ? '+' : ''}${d})`, Rz.audited || Rz.heat >= 0.66 ? C.bad : Rz.heat >= 0.33 ? C.warn : H.c]); }
-  if (Rz.unlock) lines.push([`알림  ${Rz.unlock}`, H.c]);
-  lines.forEach(([t, col], i) => { let sz = 10; while (k.TW(t, sz, 800) > 330 && sz > 8) sz--; TO(t, 26, L.H - 28 - (lines.length - 1 - i) * 15, sz, col, 'left', dark); });
   // 오른쪽 아래: 다음에 할 일 (글자만)
   const defs = [['Enter 귀가', 'hub', true]];
   if (Rz.next != null) defs.unshift([Rz.final ? 'N 엔딩' : Rz.canNext ? 'N 다음 시험' : 'N 응시료 부족', 'next', Rz.final || Rz.canNext]);
@@ -323,7 +318,7 @@ function drawTitle(k, L, now, hasSave, info) {
   TO('AI 안경', cx, cy + 2, 46, C.hud);
   T('모의평가부터 인류의 마지막 시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 24, 13, '#d8d3e6', 'center', 700);
   const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : 고개 숙여 AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
-  lines.forEach((s2, i) => T(s2, cx, cy + lh / 2 + 50 + i * 17, 12, '#a9a3bd', 'center', 700));
+  // 조작법은 첫 시험에서 하나씩 알려 준다
   if (info && info.best) T(`내 최고 기록 ${info.best}`, cx, cy + lh / 2 + 106, 12, C.gold, 'center', 800);
   if (info && info.ios) { // 아이폰 사파리: 홈 화면에 추가하면 전체 화면
     const w = 372, x = cx - w / 2, y = L.H - 104;

@@ -37,7 +37,7 @@ window.CONFIG = {
   pulse_gap: { value: 8.5, min: 3, max: 20, step: 0.5 },           // 탐지 전파·드론·화면 검사 평균 간격(초)
   pulse_rate: { value: 1.4, min: 0, max: 5, step: 0.1 },           // 그때 스캔하면 초당 의심도
 
-  scan_drop: { value: 1.5, min: 0, max: 10, step: 0.1 },           // 스캔하다 손을 떼면 초당 날아가는 진행도 (0이면 그대로 이어서)
+  scan_drop: { value: 10, min: 0, max: 10, step: 0.1 },            // 스캔하다 손을 떼면 초당 날아가는 진행도 (10이면 바로 처음부터, 0이면 그대로 이어서)
   peek_gap_min: { value: 10, min: 3, max: 40, step: 0.5 },         // 감독관이 책상 밑에서 올려다보는 간격(초)
   peek_gap_max: { value: 16, min: 3, max: 60, step: 0.5 },
   peek_sneak: { value: 1.1, min: 0.3, max: 3, step: 0.1 },         // 사라져서 책상 밑으로 숨어드는 시간(초): 이때 삐걱 소리가 난다

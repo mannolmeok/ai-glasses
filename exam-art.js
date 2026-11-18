@@ -305,12 +305,12 @@ function drawExamHud(k, L, E, now, H) {
   }
   // 시험마다 다른 장치: 꼭 필요할 때만
   if (live && q && q.kind === 'listen' && !E.ai && !E.fb) {
-    const has = E.gear.earbud > 0, txt = has ? `AI 이어폰이 받아쓰는 중 ${Math.round(E.listen * 100)}%` : '듣기 문항: AI 이어폰이 없어요 · 직접 고르기';
+    const has = E.gear.earbud > 0; if (!has) { /* 이어폰이 없으면 아무 표시도 없다: 방송만 들린다 */ } else { const txt = has ? `AI 이어폰이 받아쓰는 중 ${Math.round(E.listen * 100)}%` : '듣기 문항: AI 이어폰이 없어요 · 직접 고르기';
     const w = k.TW(txt, 11, 800) + 34, x = L.W / 2 - w / 2, y = 50;
     k.b.globalAlpha = 0.8; R(x, y - 9, w, 18, '#06161a'); k.b.globalAlpha = 1; k.frame(x, y - 9, w, 18, has ? H.c : C.warn, 1);
     R(x + 8, y - 3, 4, 6, has ? H.c : C.warn); R(x + 12, y - 5, 3, 10, has ? H.c : C.warn); // 스피커
     T(txt, x + 22, y, 11, has ? H.c : C.warn, 'left', 800);
-    if (has) R(x + 2, y + 7, Math.round((w - 4) * E.listen), 1, H.c);
+    if (has) R(x + 2, y + 7, Math.round((w - 4) * E.listen), 1, H.c); }
   }
   const cam = E.staff.find(s => s.type === 'webcam');
   if (cam && live) { // 원격 감독 웹캠 불
@@ -323,7 +323,6 @@ function drawExamHud(k, L, E, now, H) {
   if (chk && live) { // 감독관이 내 책상 앞에
     const off = E.gear.autooff > 0;
     k.b.globalAlpha = 0.35; R(0, 0, L.W, 26, '#1a0608'); k.b.globalAlpha = 1;
-    TO(tier.check === 'calc' ? '계산기 검사 중! 스캔 금지' : '신분 확인 중! 스캔 금지', L.W / 2, 64, 13, C.bad);
     if (off) T(E.gear.autooff >= 2 ? '자동 소등: 렌즈 꺼짐 · 스캔 멈춤' : '자동 소등: 렌즈 꺼짐', L.W / 2, 80, 10, H.c, 'center', 800);
   }
   if (tier.mech.includes('human') && live) { // 인간 인증: AI 의심도
@@ -332,7 +331,8 @@ function drawExamHud(k, L, E, now, H) {
     R(x - 1, y - 1, w + 2, 6, '#0d0b13'); R(x, y, w, 4, '#3a2a30'); R(x, y, Math.round(w * E.aiSus), 4, E.aiSus > 0.6 ? C.bad : C.warn);
   }
   if (live && E.staff.some(s => s.phase === 'peek' && s.peek.stage === 'sneak') && E.gear.predict >= 2) { k.b.globalAlpha = Math.floor(now * 8) % 2 ? 0.9 : 0.4; TO('발소리가 사라졌다…', L.W / 2, 96, 12, C.warn); k.b.globalAlpha = 1; } // 시선 예측 2단계부터 경고
-  if (E.flash && E.flash.t < 1.6) { const a = E.flash.t < 1.2 ? 1 : (1.6 - E.flash.t) / 0.4; k.b.globalAlpha = a; TO(E.flash.text, L.W / 2, 96, 14, E.flash.col || C.warn); k.b.globalAlpha = 1; }
+  // 떠다니는 안내 글자는 쓰지 않는다: 소리와 화면 속 움직임으로 안다
+  if (false && E.flash) { const a = E.flash.t < 1.2 ? 1 : (1.6 - E.flash.t) / 0.4; k.b.globalAlpha = a; TO(E.flash.text, L.W / 2, 96, 14, E.flash.col || C.warn); k.b.globalAlpha = 1; }
   const sec = Math.max(0, Math.ceil(E.timeLeft));
   TO(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, X.clock[0], X.clock[1], 12, E.timeLeft < 10 ? C.bad : H.c, 'right', '#0d2a30');
   if (tier.parts) T(tier.parts[E.part], X.clock[0] + 2, X.clock[1] + 14, 9, H.c2, 'right', 700);
@@ -354,19 +354,18 @@ function drawExamOverlays(k, L, E, now, H) {
     k.b.globalAlpha = 0.14; R(0, 0, zw, L.H, C.white); R(L.W - zw, 0, zw, L.H, C.white); k.b.globalAlpha = 1;
     if (Math.floor(now * 2) % 2 === 0) { TO('<', zw / 2 + 8, L.H / 2, 22, C.white); TO('>', L.W - zw / 2 - 8, L.H / 2, 22, C.white); }
   }
-  if (E.breakT > 0 && !E.caught) {
-    k.b.globalAlpha = 0.6; R(0, L.H / 2 - 34, L.W, 70, C.dark); k.b.globalAlpha = 1;
-    TO('쉬는 시간', L.W / 2, L.H / 2 - 12, 22, C.white);
-    T(`다음: ${tier.parts[E.part]} · ${Math.ceil(E.breakT)}`, L.W / 2, L.H / 2 + 14, 12, H.c, 'center', 800);
+  if (E.breakT > 0 && !E.caught) { // 쉬는 시간 종소리 뒤의 안내 방송
+    k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, 28, '#000000'); k.b.globalAlpha = 1;
+    T(`${tier.staff[0].name}: "쉬는 시간입니다. 다음은 ${tier.parts[E.part]}."`, L.W / 2, L.H - 48, 12, C.white, 'center', 800);
   }
-  if (E.start > 0) {
-    const notes = E.startNotes || [], h = 66 + notes.length * 16;
-    k.b.globalAlpha = 0.6; R(0, L.H / 2 - 44, L.W, h, C.dark); k.b.globalAlpha = 1;
-    TO(tier.boss ? '보스 시험' : tier.parts ? `시험 시작 · ${tier.parts[E.part]}` : '시험 시작', L.W / 2, L.H / 2 - 22, 22, tier.boss ? C.gold : C.white);
-    T(`${tier.name} · 감독: ${[...new Set(tier.staff.map(s => s.name))].join(' · ')}`, L.W / 2, L.H / 2 + 4, 11, H.c, 'center', 700);
-    notes.forEach((n, i) => T(n.text, L.W / 2, L.H / 2 + 22 + i * 16, 11, n.col || C.warn, 'center', 800));
+  if (E.start > 0) { // 감독관의 안내 방송 (자막)
+    const notes = (E.startNotes || []).map(n => n.text), who = tier.staff[0].name;
+    const l1 = `${who}: "${tier.parts ? tier.parts[E.part] + ', ' : ''}${tier.name}${tier.boss ? '. 마지막 관문입니다' : ''}. 지금부터 시작합니다."`, l2 = notes.length ? `"${notes.join(' · ')}"` : '';
+    k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, l2 ? 44 : 28, '#000000'); k.b.globalAlpha = 1;
+    let s1 = 12; while (k.TW(l1, s1, 800) > L.W - 40 && s1 > 9) s1--; T(l1, L.W / 2, L.H - 48, s1, C.white, 'center', 800);
+    if (l2) { let s2 = 11; while (k.TW(l2, s2, 700) > L.W - 40 && s2 > 8) s2--; T(l2, L.W / 2, L.H - 30, s2, '#d8d3e6', 'center', 700); }
   }
-  if (E.over && !E.caught) TO(E.all ? '답안 제출' : '시험 종료', L.W / 2, L.H / 2, 26, E.all ? C.gold : C.warn);
+  if (E.over && !E.caught) { k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, 28, '#000000'); k.b.globalAlpha = 1; T(`${tier.staff[0].name}: "${E.all ? '답안지 걷겠습니다.' : '시험 종료. 필기구 내려놓으세요.'}"`, L.W / 2, L.H - 48, 12, C.white, 'center', 800); }
   if (E.caught) {
     k.b.globalAlpha = 0.8; R(0, 0, L.W, L.H, '#170810'); k.b.globalAlpha = 1;
     const who = E.caughtBy || tier.staff[0];

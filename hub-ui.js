@@ -107,13 +107,15 @@ const HUBUI = (() => {
         if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
       }
       R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, off ? '#d0d5de' : '#2a8f9a', 2);
-      R(cx + 8, cy + 8, 44, 44, '#eef1f6'); drawGear(k, id, cx + 30, cy + 30, 36, 3);
-      if (isNew) { R(cx + cw - 42, cy + 6, 36, 15, '#e8453e'); T('NEW', cx + cw - 24, cy + 14, 11, C.white, 'center', 800); }
-      if (state) { const sw2 = k.TW(state, 11, 800) + 10; R(cx + 58, cy + 8, sw2, 15, state === '품절' ? '#5a6474' : '#e8453e'); T(state, cx + 58 + sw2 / 2, cy + 16, 11, C.white, 'center', 800); }
-      const nl = wrap(k, name, cw - 16, 15).slice(0, 2); nl.forEach((ln, j) => T(ln, cx + 8, cy + 66 + j * 17, 15, '#1d2433', 'left', 800));
-      let ty = cy + 66 + nl.length * 17;
-      T(sub, cx + 8, ty, fitText(k, sub, cw - 16, 11, 9), '#6a7484', 'left', 700); ty += 15;
-      wrap(k, eff, cw - 16, 11).slice(0, nl.length > 1 ? 1 : 2).forEach((ln, j) => T(ln, cx + 8, ty + j * 14, 11, '#17616a', 'left', 800));
+      R(cx + 8, cy + 8, 46, 46, '#eef1f6'); drawGear(k, id, cx + 31, cy + 31, 38, 3);
+      if (isNew) { R(cx + cw - 42, cy + 4, 38, 14, '#e8453e'); T('NEW', cx + cw - 23, cy + 11, 10, C.white, 'center', 800); }
+      // 이름은 그림 오른쪽에 크게, 구분선 아래 효과는 검은 글씨로 또렷하게, 지금 가진 것은 맨 아래 작게
+      const nl = wrap(k, name, cw - 70, 15).slice(0, 2); nl.forEach((ln, j) => T(ln, cx + 62, cy + (nl.length > 1 ? 24 : 32) + j * 18, 15, '#12161f', 'left', 800));
+      if (state) { const sw2 = k.TW(state, 10, 800) + 10; R(cx + 8, cy + 58, sw2, 14, state === '품절' ? '#5a6474' : '#e8453e'); T(state, cx + 8 + sw2 / 2, cy + 65, 10, C.white, 'center', 800); }
+      R(cx + 8, cy + 60 + (state ? 16 : 0), cw - 16, 1, '#dfe3ea');
+      const ty = cy + 74 + (state ? 16 : 0);
+      wrap(k, eff, cw - 16, 12).slice(0, state ? 1 : 2).forEach((ln, j) => T(ln, cx + 8, ty + j * 15, 12, '#12161f', 'left', 700));
+      T(sub, cx + 8, cy + ch - 40, fitText(k, sub, cw - 16, 10, 8), '#7a8494', 'left', 700);
       btn(k, cx + 6, cy + ch - 30, cw - 12, 24, label, key, { off, bg: '#e8453e', col: '#e8453e', fg: '#ffffff', size: 13 });
     });
     lapFoot(k, hv, '< 바탕화면', '#e3e6ec', pages, 'page');
@@ -146,12 +148,13 @@ const HUBUI = (() => {
       if (locked) { T('? ? ?', x + 38, ry + 12, 12, '#8a8676', 'left', 800); T('앞 시험에 합격하면 공개', x + 38, ry + 27, 10, '#a09a88', 'left', 700); return; }
       T(t.name + (t.boss ? ' [보스]' : ''), x + 38, ry + 11, 12, '#2a2838', 'left', 800);
       const mech = [...t.mech.filter(m => m !== 'tutorial').map(m => m === 'idcheck' && t.check === 'calc' ? MECH_NAME.calc : MECH_NAME[m]), ...t.sec.map(s => s === 'pulse' && t.pulse ? SEC_NAME[t.pulse] : SEC_NAME[s])];
-      const info = `${t.qn * (t.parts ? t.parts.length : 1)}문제 · 감독 ${t.staff.length}명` + (mech.length ? ` · ${mech.join(' · ')}` : '');
+      const info = `${t.subject} · ${t.qn * (t.parts ? t.parts.length : 1)}문항` + (mech.length ? ` · 유의: ${mech.join(', ')}` : '');
       T(info, x + 38, ry + 27, fitText(k, info, w - 280, 10, 7), mech.length ? '#a04a1a' : '#6c6a80', 'left', 700);
       const fee = examFee(t), ok = G.money >= fee, bw = 124, bx = x + w - 16 - bw;
-      T(G.cleared[i] ? `합격 ${G.best[i]}점` : `AI 정답률 ${Math.round(aiAccuracy(t) * 100)}%`, bx - 6, ry + 11, 10, G.cleared[i] ? '#2f8a3a' : '#17616a', 'right', 800);
-      btn(k, bx, ry + 5, bw, 28, ok ? (fee ? `응시 · ${won(fee)}원` : '응시 · 무료') : `응시료 ${won(fee)}원 모자람`, ok ? 'exam:' + i : null, { off: !ok, bg: '#2b5f8a', col: '#2b5f8a', fg: '#ffffff' });
-      T(`문제당 ${won(t.reward * tune.reward_scale)}원`, bx - 6, ry + 27, 9, '#9a7a1a', 'right', 800);
+      const day = new Date(2026, 10, 19 + i * 9); T(`${day.getMonth() + 1}월 ${day.getDate()}일 시행`, bx - 6, ry + 11, 10, '#6c6a80', 'right', 700);
+      if (G.cleared[i]) { k.b.save(); k.b.translate(bx - 96, ry + 19); k.b.rotate(-0.12); k.frame(-22, -10, 44, 20, '#d0282a', 2); T('합격', 0, 0, 12, '#d0282a', 'center', 800); k.b.restore(); }
+      btn(k, bx, ry + 5, bw, 28, ok ? (G.cleared[i] ? '재응시 접수' : '응시 접수') : '응시료 부족', ok ? 'exam:' + i : null, { off: !ok, bg: '#2b5f8a', col: '#2b5f8a', fg: '#ffffff' });
+      T(fee ? `응시료 ${won(fee)}원` : '응시료 없음', bx - 6, ry + 27, 9, '#6c6a80', 'right', 700);
     });
     btn(k, x + 12, y + h - 26, 74, 18, '< 방으로', 'back', { bg: '#2a2838', col: '#2a2838', fg: '#ffffff' });
     if (pages > 1) {
@@ -159,7 +162,7 @@ const HUBUI = (() => {
       T(`${hv.bpage + 1} / ${pages}`, x + w / 2, y + h - 17, 10, '#2a2838', 'center', 800);
       btn(k, x + w / 2 + 32, y + h - 26, 24, 18, '>', hv.bpage < pages - 1 ? 'bpage:1' : null, { off: hv.bpage >= pages - 1, bg: '#2a2838', col: '#2a2838', fg: '#ffffff' });
     }
-    T(`만점이면 상금 x${tune.jackpot_mult} · 합격선 ${Math.round(tune.pass_mark * 100)}점`, x + w - 14, y + h - 17, 10, '#6c6a80', 'right', 700);
+    T(`합격 기준: ${Math.round(tune.pass_mark * 100)}점 이상 · 부정행위 시 무효`, x + w - 14, y + h - 17, 10, '#6c6a80', 'right', 700);
   }
 
   // ---- 폰: 알림 · 기록 · 설정 ----
@@ -179,9 +182,9 @@ const HUBUI = (() => {
       const per = 6, list = G.news.slice().reverse(), pages = Math.max(1, Math.ceil(list.length / per)); hv.npage = Math.max(0, Math.min(pages - 1, hv.npage || 0));
       if (!list.length) T('아직 알림이 없어요', x + w / 2, top + 60, 11, '#8fa0b8', 'center', 700);
       list.slice(hv.npage * per, hv.npage * per + per).forEach((n, i) => {
-        const ry = top + i * 42, col = { tg: '#5eb5f7', reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
+        const ry = top + i * 42, col = { bank: '#f5cc4a', tg: '#5eb5f7', reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
         R(x + 6, ry, w - 12, 38, '#1a1f2c'); R(x + 6, ry, 3, 38, col);
-        T({ tg: '텔레그램', reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
+        T({ bank: '은행', tg: '텔레그램', reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
         T(fmtRun(n.t), x + w - 12, ry + 9, 9, '#5a6474', 'right', 700);
         const ls = wrap(k, n.text, w - 28, 10).slice(0, 2); ls.forEach((ln, j) => T(ln, x + 14, ry + 21 + j * 11, 10, C.white, 'left', 700));
       });
@@ -197,6 +200,8 @@ const HUBUI = (() => {
       row('시험 응시', `${s.exams}번`); row('합격 · 불합격 · 적발', `${s.passes} · ${s.fails} · ${s.caught}`); row('수석 합격(만점)', `${s.tops}번`);
       row('직접 고른 답 · AI가 고른 답', `${s.selfQ} · ${s.aiQ}`); row('낸 응시료', `${won(s.fees)}원`); row('지금까지 번 돈', `${won(s.earned)}원`, C.gold);
       row('AI 모델', CONFIG.models[G.gear.model].name, C.hud);
+      row('전수조사 의심', `${Math.round(G.heat * 100)}%`, G.heat >= 0.66 ? C.bad : G.heat >= 0.33 ? C.warn : C.white);
+      if (botRate() > 0) row('대리 응시 수입', `초당 ${won(botRate())}원`, C.gold);
     } else {
       let ry = top + 2; const bw = w - 20, b = (label, key, o) => { btn(k, x + 10, ry, bw, 24, label, key, o); ry += 29; };
       b(muted ? '소리 켜기' : '소리 끄기', 'opt:mute');
@@ -233,11 +238,20 @@ const HUBUI = (() => {
     b.restore(); b.globalAlpha = 1;
     for (const px of [x + 16, x + w - 16]) { k.disc(px + 1, y + 9, 5, 'rgba(0,0,0,0.35)'); k.disc(px, y + 8, 5, '#c0392b'); k.disc(px - 1, y + 7, 2, '#f08a7a'); }
   }
+  function drawMail(k, L, z) { // 우편으로 온 성적 통지표를 집어 들어 본다
+    if (!G.mail) return null;
+    if (!STATE.mailImg) { const c = document.createElement('canvas'); c.width = PAPER_W; c.height = PAPER_H; drawResultPaper(c.getContext('2d'), G.mail); STATE.mailImg = c; }
+    const h = 336, w = Math.round(h * PAPER_W / PAPER_H), x = Math.round(L.W / 2 - w / 2), y = Math.round(12 + (1 - z) * 360), b = k.b;
+    b.save(); b.translate(x + w / 2, y + h / 2); b.rotate(-0.025); b.fillStyle = 'rgba(0,0,0,0.4)'; b.fillRect(-w / 2 + 5, -h / 2 + 6, w, h);
+    b.imageSmoothingEnabled = true; b.drawImage(STATE.mailImg, -w / 2, -h / 2, w, h); b.imageSmoothingEnabled = false; b.restore();
+    return { x, y, w, h };
+  }
   function draw(k, L, hv, now, hoverXY) {
     btns = []; hover = hoverXY; let rect = null;
     const z = hv.zoom * hv.zoom * (3 - 2 * hv.zoom);
     if (hv.view === 'laptop') rect = WORLD.hubRect('laptop'); // 노트북은 3D 화면 표면에 그린다 (laptop)
     else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) { drawBoard(k, rect, hv, now); paperFx(k, rect); } } }
+    else if (hv.view === 'mail') rect = drawMail(k, L, z);
     else if (hv.view === 'phone') { rect = drawPhone(k, L, hv, now, z); if (z >= 1) screenFx(k, { x: rect.x + 6, y: rect.y + 6, w: rect.w - 12, h: rect.h - 12 }, now); }
     return { btns, rect };
   }
