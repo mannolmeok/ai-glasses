@@ -1,0 +1,110 @@
+<!doctype html>
+<!-- PROTOTYPE - NOT FOR PRODUCTION -->
+<!-- Question: 감독관 눈치를 보며 AI 안경으로 스캔하는 긴장감이, 장비와 시험이 함께 커지는 성장과 맞물려 엔딩까지 재밌나? -->
+<!-- Date: 2026-11-17 -->
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>AI 안경</title>
+<style>
+  :root { --bg: #16131f; --card: #211c2c; --line: #3a3248; --hud: #45e5ee; --gold: #f5cc4a; --txt: #ecebf2; --dim: #b4aec6; --bad: #ea4540; --warn: #f6a234; --good: #62d84a; }
+  html, body { margin: 0; height: 100%; background: #0d0b13; color: var(--txt); overflow: hidden;
+    font-family: "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", "Noto Sans CJK KR", sans-serif; font-variant-numeric: tabular-nums; }
+  #app { display: flex; height: 100%; height: 100dvh; }
+  #stage { flex: 1; min-width: 0; min-height: 0; display: flex; align-items: center; justify-content: center; background: #0d0b13; }
+  #screen { position: relative; }
+  #screen canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #world { image-rendering: pixelated; }
+  canvas { display: block; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  /* 방 안 물건을 누르면 뜨는 창 (오른쪽 패널 대신) */
+  #sheet { position: fixed; inset: 0; z-index: 5; display: flex; align-items: center; justify-content: center; background: rgba(5, 4, 10, 0.55); }
+  #sheet[hidden] { display: none; }
+  #panel { width: min(760px, 94vw); height: min(640px, 90vh); height: min(640px, 90dvh); background: var(--bg); border: 2px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5); }
+  .head { display: flex; align-items: center; gap: 12px; padding: 12px 14px 10px; border-bottom: 2px solid var(--line); }
+  #pTitle { font-size: 15px; color: var(--hud); font-weight: 800; flex: 1; }
+  #sheetClose { min-width: 72px; min-height: 40px; border: 2px solid var(--line); background: #1a1624; color: var(--txt); font: inherit; font-size: 15px; font-weight: 800; border-radius: 8px; cursor: pointer; }
+  #sheetClose:hover { border-color: var(--hud); }
+  .wallet { padding: 10px 16px 8px; border-bottom: 2px solid var(--line); display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .wl { font-size: 14px; color: var(--dim); }
+  #pMoney { font-size: 24px; color: var(--gold); letter-spacing: -0.5px; }
+  #pRate { font-size: 14px; color: var(--hud); }
+  .tabs { display: flex; gap: 6px; padding: 10px 12px 0; }
+  .tabs[hidden] { display: none; }
+  .tabs button { flex: 1; height: 44px; border: 2px solid var(--line); border-bottom: 0; background: #1a1624; color: var(--dim); font: inherit; font-size: 16px; font-weight: 800; border-radius: 8px 8px 0 0; cursor: pointer; }
+  .tabs button.on { background: var(--card); color: var(--txt); border-color: var(--hud); }
+  #pBody { flex: 1; overflow: auto; padding: 12px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); align-content: start; gap: 10px; -webkit-overflow-scrolling: touch; }
+  #pBody .grp { grid-column: 1 / -1; }
+  .card { background: var(--card); border: 2px solid var(--line); border-radius: 10px; padding: 12px 14px; font-size: 15px; line-height: 1.45; }
+  .card p { margin: 6px 0; }
+  .card.locked { opacity: 0.55; }
+  .card.next { border-color: var(--hud); box-shadow: 0 0 0 2px rgba(69, 229, 238, 0.15); }
+  .card.gear { display: grid; grid-template-columns: 52px 1fr; gap: 4px 12px; align-items: start; }
+  .card.gear .buy { grid-column: 1 / -1; }
+  .card.gear.afford { border-color: #4c6e74; }
+  .card.gear.first { border-color: var(--gold); animation: glow 1s steps(2) infinite; }
+  @keyframes glow { 50% { box-shadow: 0 0 0 3px rgba(245, 204, 74, 0.35); } }
+  .ico { width: 48px; height: 48px; image-rendering: pixelated; background: #14111c; border: 2px solid var(--line); border-radius: 8px; }
+  .gn { font-size: 17px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .gd { font-size: 14px; color: var(--dim); }
+  .ge { font-size: 15px; margin-top: 2px; }
+  .lv { font-size: 14px; color: var(--hud); }
+  .no { display: inline-grid; place-items: center; min-width: 26px; height: 26px; border-radius: 6px; background: var(--hud); color: #0d0b13; font-size: 15px; }
+  .badge { font-size: 14px; color: #0d0b13; background: var(--good); border-radius: 6px; padding: 1px 8px; }
+  .grp { font-size: 14px; font-weight: 800; color: var(--hud); margin: 4px 2px -2px; letter-spacing: 0.5px; }
+  .gold { color: var(--gold); } .warn { color: var(--warn); } .dim { color: var(--dim); }
+  .row { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; padding: 3px 0; border-bottom: 1px dashed #2e2839; }
+  .row span { color: var(--dim); flex: none; }
+  .row b { text-align: right; }
+  button.buy, button.go { width: 100%; min-height: 46px; margin-top: 8px; border: 2px solid var(--hud); background: #0f3238; color: #dcfdff; font: inherit; font-size: 16px; font-weight: 800; border-radius: 8px; cursor: pointer; }
+  button.buy:disabled { border-color: var(--line); background: #1a1624; color: #7d7690; cursor: default; }
+  button.buy:not(:disabled):hover, button.go:hover { background: #17505a; }
+  button.go.danger { border-color: var(--bad); background: #2a1218; color: #ffd6da; }
+  button.go:disabled { border-color: var(--line); background: #1a1624; color: #7d7690; cursor: default; }
+  /* 키가 작은 가로 화면(가로로 돌린 휴대폰): 창을 촘촘하게 */
+  @media (max-height: 520px) {
+    #panel { width: 96vw; height: 94vh; height: 94dvh; }
+    .head { padding: 6px 10px; } #sheetClose { min-height: 34px; }
+    .wallet { padding: 6px 12px; } #pMoney { font-size: 18px; } .wl, #pRate { font-size: 12px; }
+    .tabs { padding: 6px 8px 0; } .tabs button { height: 34px; font-size: 14px; }
+    #pBody { padding: 8px; gap: 6px; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); } .card { padding: 8px 10px; font-size: 13px; } .gn { font-size: 15px; } .gd, .ge, .row { font-size: 13px; }
+    button.buy, button.go { min-height: 38px; font-size: 14px; margin-top: 6px; }
+    .ico { width: 40px; height: 40px; } .card.gear { grid-template-columns: 44px 1fr; }
+  }
+  /* 휴대폰을 세로로 들면: 가로로 돌려 달라고 한다 (게임은 멈춤) */
+  #rotate { display: none; position: fixed; inset: 0; z-index: 10; background: #0d0b13; color: var(--txt); flex-direction: column; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 24px; }
+  #rotate b { font-size: 22px; } #rotate span { font-size: 15px; color: var(--dim); }
+  #rotate svg { width: 96px; height: 96px; animation: tilt 2.4s ease-in-out infinite; }
+  @keyframes tilt { 0%, 30% { transform: rotate(0deg); } 60%, 100% { transform: rotate(-90deg); } }
+  @media (orientation: portrait) and (pointer: coarse) { #rotate { display: flex; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <main id="stage"><div id="screen"><canvas id="world" aria-hidden="true"></canvas><canvas id="game" aria-label="AI 안경: 1인칭 화면"></canvas></div></main>
+</div>
+<div id="sheet" hidden>
+  <section id="panel" role="dialog" aria-label="시험 접수 · 장비몰 · 기록">
+    <div class="head"><span id="pTitle"></span><button id="sheetClose">닫기</button></div>
+    <div class="wallet"><span class="wl">내 통장</span><b id="pMoney">0원</b><span id="pRate"></span></div>
+    <div class="tabs" id="pTabs" role="tablist">
+      <button data-tab="exams" role="tab">시험 접수</button><button data-tab="gear" role="tab">AI 장비몰</button><button data-tab="log" role="tab">기록</button>
+    </div>
+    <div id="pBody"></div>
+  </section>
+</div>
+<div id="rotate" role="alert">
+  <svg viewBox="0 0 48 48" aria-hidden="true"><rect x="14" y="4" width="20" height="40" rx="3" fill="none" stroke="#45e5ee" stroke-width="3"/><rect x="21" y="38" width="6" height="2" fill="#45e5ee"/></svg>
+  <b>가로로 돌려 주세요</b><span>AI 안경은 휴대폰을 가로로 들고 해요.<br>양손 엄지로 화면 양옆을 눌러 고개를 돌려요.</span>
+</div>
+<script>window.BUILD = '1';</script>
+<script src="build-info.js?v=1"></script>
+<script src="config.js?v=1"></script>
+<script src="data.js?v=1"></script>
+<script src="art.js?v=1"></script>
+<script src="exam-art.js?v=1"></script>
+<script src="vendor/three.js?v=0.186.1"></script>
+<script src="world3d.js?v=1"></script>
+<script src="game.js?v=1"></script>
+</body>
+</html>

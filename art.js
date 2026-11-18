@@ -1,0 +1,297 @@
+// PROTOTYPE - NOT FOR PRODUCTION
+// Question: 감독관 눈치를 보며 AI 안경으로 스캔하는 긴장감이, 장비와 시험이 함께 커지는 성장과 맞물려 엔딩까지 재밌나?
+// Date: 2026-11-17
+// 2D 층: 도트 도구(사각형만 씀), 안경테, 장비 아이콘·대리 응시 봇(패널용), 결과·타이틀·엔딩 화면.
+// 세상은 world3d.js(3D), 시험 중 안경 HUD는 exam-art.js. 이 층은 640x360 버퍼에 그리고 3D 위에 겹친다.
+'use strict';
+
+const FONT_KO = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR","Noto Sans CJK KR","NanumGothic",sans-serif';
+const PAL = {
+  ol: '#1c1726', white: '#ffffff', dark: '#0d0b13',
+  skin: '#f3caa1', skin2: '#d9a57c',
+  paper: '#fbf9f1', paper2: '#e2dcc8', ink: '#2a2838', ink2: '#6c6a80',
+  desk: '#c98e59', desk2: '#b07645', desk3: '#93603a', deskHi: '#e2ab76',
+  uni: '#4c6194', uni2: '#3b4c77', chair: '#7a5a3c', chair2: '#5e4430',
+  warn: '#f6a234', bad: '#ea4540', good: '#62d84a', gold: '#f5cc4a',
+  rim: '#2a2434', rim2: '#5a5168',
+  hud: '#45e5ee', hud2: '#2a8f9a', hud3: '#0f3238',
+};
+
+// ---- 화면 배치: 가로 한 가지 (모바일도 가로로 돌려서). 안경테 모양만 여기, 시험 화면 배치는 exam-art.js ----
+const LAYOUTS = {
+  land: {
+    W: 640, H: 360,
+    lenses: [{ cx: 165, cy: 184, aL: 163, aR: 225, b: 181 }, { cx: 475, cy: 184, aL: 225, aR: 163, b: 181 }], bridge: [284, 72],
+  },
+};
+
+// ---- 도트 도구 ----
+const TEXT_CACHE = new Map();
+function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+function mix(h1, h2, k) { const a = hexRgb(h1), z = hexRgb(h2); return '#' + a.map((v, i) => Math.round(v + (z[i] - v) * k).toString(16).padStart(2, '0')).join(''); }
+
+function makeKit(b) {
+  const K = { b };
+  K.R = (x, y, w, h, c) => { b.fillStyle = c; b.fillRect(Math.round(x), Math.round(y), Math.round(w), Math.round(h)); };
+  K.disc = (cx, cy, r, c) => {
+    b.fillStyle = c; cx = Math.round(cx); cy = Math.round(cy); r = Math.round(r);
+    for (let dy = -r; dy <= r; dy++) { const w = Math.floor(Math.sqrt(r * r - dy * dy + r * 0.6)); b.fillRect(cx - w, cy + dy, w * 2 + 1, 1); }
+  };
+  K.ring = (cx, cy, r, c) => {
+    b.fillStyle = c; cx = Math.round(cx); cy = Math.round(cy); r = Math.round(r);
+    let x = r, y = 0, e = 1 - r;
+    while (x >= y) {
+      for (const [p, q] of [[x, y], [y, x], [-y, x], [-x, y], [-x, -y], [-y, -x], [y, -x], [x, -y]]) b.fillRect(cx + p, cy + q, 1, 1);
+      y++; if (e < 0) e += 2 * y + 1; else { x--; e += 2 * (y - x) + 1; }
+    }
+  };
+  K.poly = (pts, c) => {
+    b.fillStyle = c;
+    let y0 = Infinity, y1 = -Infinity;
+    for (const p of pts) { y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); }
+    y0 = Math.ceil(y0); y1 = Math.floor(y1);
+    for (let y = y0; y <= y1; y++) {
+      let xl = Infinity, xr = -Infinity; const yc = y + 0.5;
+      for (let i = 0; i < pts.length; i++) {
+        const [ax, ay] = pts[i], [bx, by] = pts[(i + 1) % pts.length];
+        if ((yc >= ay && yc < by) || (yc >= by && yc < ay)) { const x = ax + (yc - ay) * (bx - ax) / (by - ay); xl = Math.min(xl, x); xr = Math.max(xr, x); }
+      }
+      if (xl <= xr) b.fillRect(Math.round(xl), y, Math.max(1, Math.round(xr) - Math.round(xl)), 1);
+    }
+  };
+  K.line = (x0, y0, x1, y1, c, t = 1) => {
+    b.fillStyle = c; x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+    const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1;
+    let e = dx + dy; const o = t >> 1;
+    for (let n = 0; n < 3000; n++) {
+      b.fillRect(x0 - o, y0 - o, t, t);
+      if (x0 === x1 && y0 === y1) break;
+      const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; }
+    }
+  };
+  K.polyEdge = (pts, c) => { for (let i = 0; i < pts.length; i++) { const a = pts[i], z = pts[(i + 1) % pts.length]; K.line(a[0], a[1], z[0], z[1], c, 1); } };
+  K.frame = (x, y, w, h, c, t = 1) => { K.R(x, y, w, t, c); K.R(x, y + h - t, w, t, c); K.R(x, y, t, h, c); K.R(x + w - t, y, t, h, c); };
+  K.dither = (hex, alpha) => {
+    const p = document.createElement('canvas'); p.width = 2; p.height = 2;
+    const g = p.getContext('2d'); g.globalAlpha = alpha; g.fillStyle = hex; g.fillRect(0, 0, 1, 1); g.fillRect(1, 1, 1, 1);
+    return b.createPattern(p, 'repeat');
+  };
+  // 글자: 시스템 한글 글꼴을 버퍼 크기로 찍고 반투명 경계를 잘라 도트 글자로
+  K.T = (str, x, y, size, col, align = 'left', weight = 700) => {
+    str = String(str);
+    const key = str + '|' + size + '|' + col + '|' + weight;
+    let c = TEXT_CACHE.get(key);
+    if (!c) {
+      const m = document.createElement('canvas'), g = m.getContext('2d');
+      const f = `${weight} ${size}px ${FONT_KO}`; g.font = f;
+      const w = Math.max(1, Math.ceil(g.measureText(str).width) + 4), h = Math.ceil(size * 1.5);
+      m.width = w; m.height = h;
+      g.font = f; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(str, 2, h / 2);
+      const id = g.getImageData(0, 0, w, h), d = id.data, [r, gg, bb] = hexRgb(col);
+      for (let i = 0; i < d.length; i += 4) {
+        if (d[i + 3] > 100) { d[i] = r; d[i + 1] = gg; d[i + 2] = bb; d[i + 3] = 255; } else d[i + 3] = 0;
+      }
+      g.putImageData(id, 0, 0);
+      c = m; if (TEXT_CACHE.size > 900) TEXT_CACHE.clear(); TEXT_CACHE.set(key, c);
+    }
+    const dx = align === 'center' ? x - c.width / 2 : align === 'right' ? x - c.width + 2 : x - 2;
+    b.drawImage(c, Math.round(dx), Math.round(y - c.height / 2));
+    return c.width - 4;
+  };
+  K.TW = (str, size, weight = 700) => { // 글자 폭만 잼
+    const g = K._m || (K._m = document.createElement('canvas').getContext('2d'));
+    g.font = `${weight} ${size}px ${FONT_KO}`; return Math.ceil(g.measureText(String(str)).width);
+  };
+  K.TO = (str, x, y, size, col, align = 'center', oc = PAL.ol) => {
+    for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, 1], [1, -1], [-1, 1], [0, 2], [1, 2], [-1, 2]]) K.T(str, x + ox, y + oy, size, oc, align, 800);
+    return K.T(str, x, y, size, col, align, 800);
+  };
+  K.glyphAt = (seed, x, y, s, col) => {
+    for (const [x0, y0, x1, y1] of glyph(seed)) {
+      if (x0 === x1 && y0 === y1) K.R(x + x0 * s - 1, y + y0 * s - 1, 2, 2, col);
+      else K.line(x + x0 * s, y + y0 * s, x + x1 * s, y + y1 * s, col, 2);
+    }
+  };
+  K.alienRow = (seed, n, x, y, s, col) => { alienWord(seed, n).forEach((g, i) => K.glyphAt(g, x + i * (s + 5), y, s, col)); };
+  K.shape = (id, cx, cy, s, col) => { // 외계 신호 모양 6종
+    const r = Math.round(s / 2);
+    if (id === 0) { K.ring(cx, cy, r, col); K.ring(cx, cy, r - 1, col); }
+    else if (id === 1) K.poly([[cx, cy - r], [cx + r, cy + r], [cx - r, cy + r]], col);
+    else if (id === 2) { K.frame(cx - r, cy - r, r * 2, r * 2, col, 2); }
+    else if (id === 3) K.poly([[cx, cy - r], [cx + r, cy], [cx, cy + r], [cx - r, cy]], col);
+    else if (id === 4) { K.R(cx - r, cy - 1, r * 2, 3, col); K.R(cx - 1, cy - r, 3, r * 2, col); }
+    else { for (let i = -1; i <= 1; i++) K.R(cx - r, cy + i * Math.round(r * 0.7) - 1, r * 2, 2, col); }
+  };
+  K.button = (x, y, w, h, label, hot, col = PAL.hud) => {
+    K.R(x, y + 2, w, h, PAL.dark); K.R(x, y, w, h, hot ? col : '#26212f'); K.frame(x, y, w, h, hot ? PAL.white : col, 1);
+    K.T(label, x + w / 2, y + h / 2, 12, hot ? PAL.dark : PAL.white, 'center', 800);
+    return { x, y, w, h };
+  };
+  return K;
+}
+
+// ---- 안경테 (배치마다 한 번 계산) ----
+function lensF(lenses, x, y) {
+  let f = Infinity;
+  for (const L of lenses) {
+    const ax = x < L.cx ? L.aL : L.aR, dx = (x - L.cx) / ax, dy = (y - L.cy) / L.b;
+    f = Math.min(f, dx * dx * dx * dx + dy * dy * dy * dy);
+  }
+  return f;
+}
+const RIM_CACHE = {};
+function rimFor(key) {
+  if (RIM_CACHE[key]) return RIM_CACHE[key];
+  const L = LAYOUTS[key], c = document.createElement('canvas'); c.width = L.W; c.height = L.H;
+  const g = c.getContext('2d'), id = g.createImageData(L.W, L.H), d = id.data;
+  const c1 = hexRgb(PAL.rim2), c2 = hexRgb(PAL.rim), c3 = hexRgb(PAL.dark);
+  for (let y = 0; y < L.H; y++) for (let x = 0; x < L.W; x++) {
+    const f = lensF(L.lenses, x + 0.5, y + 0.5);
+    if (f < 1) continue;
+    const cc = f < 1.03 ? c1 : f < 1.13 ? c2 : c3, i = (y * L.W + x) * 4;
+    d[i] = cc[0]; d[i + 1] = cc[1]; d[i + 2] = cc[2]; d[i + 3] = 255;
+  }
+  g.putImageData(id, 0, 0);
+  const [bx, bw] = L.bridge;
+  g.fillStyle = PAL.rim; g.fillRect(bx, 0, bw, 12); g.fillRect(bx + 8, 12, bw - 16, 4);
+  g.fillStyle = PAL.rim2; g.fillRect(bx + 8, 15, bw - 16, 1); g.fillRect(bx + 2, 2, bw - 4, 1);
+  return (RIM_CACHE[key] = c);
+}
+
+// ---- 대리 응시 봇 ----
+function drawBot(k, x, y, t, i) {
+  const { R } = k, C = PAL, bob = (Math.floor(t * 3 + i) % 2);
+  R(x - 9, y + 6, 18, 9, C.ol); R(x - 8, y + 7, 16, 7, '#8a5a32'); R(x - 6, y + 5, 9, 3, C.paper);
+  R(x - 7, y - 8 + bob, 14, 13, C.ol); R(x - 6, y - 7 + bob, 12, 11, '#9aa3b8'); R(x - 5, y - 6 + bob, 10, 6, '#13202e');
+  R(x - 4, y - 4 + bob, 2, 2, '#7ff6ff'); R(x + 2, y - 4 + bob, 2, 2, '#7ff6ff'); R(x - 1, y - 11 + bob, 2, 4, C.ol); R(x - 2, y - 13 + bob, 4, 2, PAL.bad);
+  const arm = Math.floor(t * 8 + i) % 2;
+  R(x + 5, y + 2 + arm, 4, 2, '#6c7590'); R(x + 3 - arm, y + 4, 2, 3, '#f2c13a');
+}
+
+// ---- 장비 그림 (상점 아이콘·허브 진열·HUD 공용) ----
+function drawGear(k, id, cx, cy, s, lv) {
+  const { R, disc, ring, line, poly } = k, C = PAL, u = s / 24;
+  const X = v => Math.round(cx + v * u), Y = v => Math.round(cy + v * u), S = v => Math.max(1, Math.round(v * u));
+  if (id === 'lens' || id === 'stealth') {
+    const tint = id === 'stealth' ? '#6b4fa0' : ['#bfe8ff', '#9fe0ff', '#7fd6ff', '#5fe0e8', '#45e5ee'][Math.min(4, Math.floor(lv / 2))];
+    for (const sx of [-6, 6]) { disc(X(sx), Y(0), S(6), C.ol); disc(X(sx), Y(0), S(5), tint); R(X(sx - 3), Y(-3), S(2), S(1), C.white); }
+    R(X(-1), Y(-1), S(2), S(1), C.ol); R(X(-12), Y(-2), S(2), S(1), C.ol); R(X(11), Y(-2), S(2), S(1), C.ol);
+    if (id === 'stealth') { R(X(-9), Y(-9), S(1), S(3), C.white); R(X(-10), Y(-8), S(3), S(1), C.white); }
+  } else if (id === 'model') {
+    R(X(-8), Y(-8), S(16), S(16), C.ol); R(X(-7), Y(-7), S(14), S(14), '#203040');
+    for (let i = -6; i <= 6; i += 4) { R(X(i), Y(-10), S(1), S(2), C.gold); R(X(i), Y(9), S(1), S(2), C.gold); R(X(-10), Y(i), S(2), S(1), C.gold); R(X(9), Y(i), S(2), S(1), C.gold); }
+    k.T('AI', X(0), Y(0), Math.max(8, S(8)), '#7ff6ff', 'center', 800);
+  } else if (id === 'predict') {
+    poly([[X(-10), Y(0)], [X(0), Y(-6)], [X(10), Y(0)], [X(0), Y(6)]], C.ol); poly([[X(-8), Y(0)], [X(0), Y(-5)], [X(8), Y(0)], [X(0), Y(5)]], '#fdfdf2');
+    disc(X(0), Y(0), S(3), '#2a8f9a'); R(X(-1), Y(-1), S(1), S(1), C.white);
+    line(X(4), Y(-10), X(10), Y(-10), C.warn, S(1)); line(X(10), Y(-10), X(10), Y(-5), C.warn, S(1));
+  } else if (id === 'watch') {
+    R(X(-4), Y(-11), S(8), S(22), C.ol); R(X(-3), Y(-11), S(6), S(22), '#3a3248');
+    R(X(-7), Y(-6), S(14), S(12), C.ol); R(X(-6), Y(-5), S(12), S(10), '#0c2228'); k.T('AI', X(0), Y(0), Math.max(7, S(7)), '#7ff6ff', 'center', 800);
+  } else if (id === 'earbud') {
+    disc(X(-2), Y(-3), S(7), C.ol); disc(X(-2), Y(-3), S(6), '#f4f4f6'); R(X(-1), Y(2), S(4), S(9), C.ol); R(X(0), Y(2), S(2), S(8), '#e2e2ea');
+    disc(X(-3), Y(-4), S(2), '#45e5ee');
+    for (let i = 0; i < 3; i++) ring(X(4), Y(-4), S(8 + i * 3), i === 1 ? '#45e5ee' : '#2a8f9a');
+    R(X(4), Y(-14), S(10), S(22), 'rgba(0,0,0,0)');
+  } else if (id === 'bot') {
+    drawBot(k, X(0), Y(-2), 0, 0);
+  } else if (id === 'autoscan') {
+    R(X(-10), Y(-8), S(20), S(16), C.ol); R(X(-9), Y(-7), S(18), S(14), '#1f6b3a');
+    line(X(-7), Y(-4), X(-2), Y(-4), C.gold, S(1)); line(X(-2), Y(-4), X(-2), Y(3), C.gold, S(1)); line(X(2), Y(-5), X(7), Y(4), C.gold, S(1));
+    R(X(1), Y(-2), S(6), S(5), '#111'); R(X(-9), Y(1), S(18), S(1), '#7ff6ff');
+  } else if (id === 'wide') { // 광각 렌즈: 넓적한 렌즈 두 개
+    for (const sx of [-6, 6]) { R(X(sx - 6), Y(-4), S(12), S(9), C.ol); R(X(sx - 5), Y(-3), S(10), S(7), '#7fd6ff'); R(X(sx - 4), Y(-2), S(3), S(1), C.white); }
+    R(X(-1), Y(-1), S(2), S(1), C.ol); line(X(-11), Y(7), X(11), Y(7), '#45e5ee', S(1));
+  } else if (id === 'coach') { // AI 면접 코치: 태블릿과 말풍선
+    R(X(-9), Y(-6), S(14), S(16), C.ol); R(X(-8), Y(-5), S(12), S(14), '#2f7a5a'); R(X(-6), Y(-2), S(8), S(1), '#c9f6e0'); R(X(-6), Y(1), S(6), S(1), '#c9f6e0');
+    R(X(2), Y(-11), S(10), S(7), C.ol); R(X(3), Y(-10), S(8), S(5), C.white); R(X(4), Y(-4), S(2), S(2), C.white);
+  } else if (id === 'cctvjam' || id === 'jammer') {
+    if (id === 'cctvjam') { R(X(-9), Y(-5), S(16), S(9), C.ol); R(X(-8), Y(-4), S(14), S(7), '#d4d6de'); R(X(6), Y(-3), S(5), S(5), '#9b9eac'); R(X(-6), Y(-2), S(3), S(3), C.bad); }
+    else { R(X(-7), Y(-2), S(14), S(11), C.ol); R(X(-6), Y(-1), S(12), S(9), '#3a3f4a'); line(X(0), Y(-2), X(0), Y(-11), C.ol, S(2)); disc(X(0), Y(-11), S(2), C.bad); ring(X(0), Y(-11), S(5), '#45e5ee'); }
+    line(X(-11), Y(9), X(11), Y(-9), C.bad, S(2));
+  }
+}
+
+// ======================= 공용 판 =======================
+function plate(k, x, y, w, h, H) {
+  k.b.globalAlpha = 0.74; k.R(x, y, w, h, PAL.dark); k.b.globalAlpha = 1;
+  k.frame(x, y, w, h, H.c3, 1); k.R(x, y, 6, 1, H.c); k.R(x, y, 1, 6, H.c);
+}
+
+// ======================= 결과 · 허브 · 타이틀 · 엔딩 · figures =======================
+function drawResults(k, L, Rz, now, H) {
+  const extras = (Rz.perfect ? 1 : 0) + (Rz.coach > 1 ? 1 : 0) + (Rz.bonus > 0 ? 1 : 0);
+  const { R, T, TO } = k, C = PAL, w = Math.min(L.W - 40, 420), x = (L.W - w) / 2;
+  const h = 138 + (Rz.fee > 0 ? 18 : 0) + 19 + (extras ? 16 : 0) + 16 + (Rz.unlock ? 16 : 0) + 50, y = Math.round((L.H - h) / 2);
+  k.b.globalAlpha = 0.6; R(0, 0, L.W, L.H, PAL.dark); k.b.globalAlpha = 1;
+  const edge = Rz.caught ? C.bad : Rz.perfect ? C.gold : Rz.passed ? C.good : C.warn;
+  R(x, y + 3, w, h, PAL.dark); R(x, y, w, h, '#1d1926'); k.frame(x, y, w, h, edge, 2);
+  TO(Rz.caught ? '적발!' : Rz.perfect ? '수석 합격!' : Rz.passed ? '합격!' : '불합격', L.W / 2, y + 26, 28, edge);
+  T(Rz.tierName, L.W / 2, y + 52, 12, '#c9c4d8', 'center', 700);
+  // 채점표: 문항마다 O·X, 파란 밑줄은 AI가 고른 답
+  const n = Rz.marks.length, cw = Math.min(30, Math.floor((w - 40) / n)), mx = L.W / 2 - (n * cw) / 2, my = y + 86;
+  Rz.marks.forEach((m, i) => {
+    const cx = mx + i * cw + cw / 2;
+    T(String(i + 1), cx, my - 15, 9, '#8f89a3', 'center', 700);
+    const col = Rz.caught || m.r === '-' ? '#6b6680' : m.r === 'O' ? C.good : C.bad;
+    TO(m.r, cx, my, 16, col, 'center');
+    if (m.via === 'ai' || m.via === 'auto') R(cx - 6, my + 12, 12, 2, H.c);
+  });
+  T(Rz.caught ? '적발 · 0점 처리' : `정답 ${Rz.correct}/${Rz.qn} · ${Rz.score}점 (합격선 ${Rz.pass}점)`, L.W / 2, y + 116, 13, C.white, 'center', 800);
+  let ly = y + 138;
+  if (Rz.fee > 0) { T(`응시료 -${won(Rz.fee)}원`, L.W / 2, ly, 11, '#d6a0a0', 'center', 700); ly += 18; }
+  T(Rz.reward > 0 ? `${Rz.pay} +${won(Rz.reward)}원` : '보상 없음', L.W / 2, ly, 15, Rz.reward > 0 ? C.gold : '#8f89a3', 'center', 800); ly += 19;
+  const extra = [];
+  if (Rz.perfect) extra.push(`만점 x${tune.jackpot_mult}`);
+  if (Rz.coach > 1) extra.push(`면접 x${Rz.coach.toFixed(2)}`);
+  if (Rz.bonus > 0) extra.push(`시간 x${(1 + Rz.bonus).toFixed(2)}`);
+  if (extra.length) { T(extra.join(' · '), L.W / 2, ly, 11, H.c, 'center', 700); ly += 16; }
+  T(`직접 고른 답 ${Rz.self} · AI가 고른 답 ${Rz.ai}`, L.W / 2, ly, 11, '#c9c4d8', 'center', 700); ly += 16;
+  if (Rz.unlock) T(Rz.unlock, L.W / 2, ly, 12, H.c, 'center', 800);
+  const btns = [], by = y + h - 38, gap = 8;
+  const defs = [[Rz.canRetry ? 'R 다시 응시' : '응시료 부족', 'retry', Rz.canRetry]];
+  if (Rz.next != null) defs.push([Rz.final ? 'N 엔딩 보기' : Rz.canNext ? 'N 다음 시험' : '응시료 부족', 'next', Rz.final || Rz.canNext]);
+  defs.push(['Enter 장비 사러', 'hub', true]);
+  const bw = Math.floor((w - 24 - gap * (defs.length - 1)) / defs.length);
+  defs.forEach(([label, key, ok], i) => { const b = k.button(x + 12 + i * (bw + gap), by, bw, 26, label, ok && key === Rz.focus, ok ? PAL.hud : '#5a5468'); if (ok) btns.push({ ...b, key }); });
+  return btns;
+}
+
+function drawTitle(k, L, now, hasSave) {
+  const { R, T, TO } = k, C = PAL;
+  k.b.globalAlpha = 0.45; R(0, 0, L.W, L.H, '#0b0910'); k.b.globalAlpha = 1; // 뒤로 밤의 고시원 3D가 비친다
+  const cx = L.W / 2, cy = L.H * 0.33, lw = 86, lh = 52, gx = 56;
+  for (const sx of [-1, 1]) {
+    k.R(cx + sx * gx - lw / 2 - 4, cy - lh / 2 - 4, lw + 8, lh + 8, C.ol); k.R(cx + sx * gx - lw / 2 - 2, cy - lh / 2 - 2, lw + 4, lh + 4, '#3a3248');
+    k.R(cx + sx * gx - lw / 2, cy - lh / 2, lw, lh, '#0f3238');
+    k.b.globalAlpha = 0.5; for (let y = 0; y < lh; y += 3) k.R(cx + sx * gx - lw / 2, cy - lh / 2 + y, lw, 1, C.hud); k.b.globalAlpha = 1;
+  }
+  k.R(cx - gx + lw / 2, cy - lh / 2 + 4, 2 * gx - lw, 6, C.ol); k.R(cx - gx + lw / 2, cy - lh / 2 + 5, 2 * gx - lw, 3, '#3a3248');
+  TO('AI 안경', cx, cy + 2, 46, C.hud);
+  T('대학 중간고사부터 변호사시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 26, 13, '#d8d3e6', 'center', 700);
+  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리'];
+  lines.forEach((s2, i) => T(s2, cx, cy + lh / 2 + 54 + i * 18, 12, '#a9a3bd', 'center', 700));
+  const label = hasSave ? 'Enter · 탭  이어서 하기' : 'Enter · 탭  첫 시험 보기';
+  const bw = 200, b = k.button(cx - bw / 2, L.H - 60, bw, 30, label, Math.floor(now * 2) % 2 === 0);
+  return [{ ...b, key: 'start' }];
+}
+
+function drawEnding(k, L, G, now, H) {
+  const { R, T, TO } = k, C = PAL, cx = L.W / 2;
+  R(0, 0, L.W, L.H, '#07060d');
+  for (let i = 0; i < 70; i++) { const x = (i * 131) % L.W, y = (i * 71 + Math.floor(now * (1 + i % 3) * 6)) % L.H; R(x, y, 1 + (i % 2), 1 + (i % 2), i % 5 ? '#c9c4d8' : C.hud); }
+  const st = G.stats, mins = Math.floor(st.playT / 60), secs = Math.floor(st.playT % 60);
+  let y = L.H * 0.17;
+  TO('변호사시험 합격!', cx, y, 28, C.gold); y += 34;
+  T('대학 중간고사부터 변호사시험까지 전부 통과했다.', cx, y, 12, C.white, 'center', 700); y += 26;
+  const rows = [`걸린 시간 ${mins}분 ${secs}초`, `시험 응시 ${st.exams}번 · 수석 ${st.tops}번 · 적발 ${st.caught}번`, `번 돈 ${won(st.earned)}원 · 낸 응시료 ${won(st.fees)}원`];
+  rows.forEach(r => { T(r, cx, y, 12, '#c9c4d8', 'center', 700); y += 18; });
+  y += 10;
+  TO(`내가 직접 고른 답 ${st.selfQ}개`, cx, y, 14, C.white); y += 22;
+  TO(`AI가 고른 답 ${st.aiQ}개`, cx, y, 14, C.hud); y += 28;
+  T('...이제 안경을 벗으면, 나는 뭘 풀 수 있을까?', cx, y, 12, '#a9a3bd', 'center', 700);
+  const bw = 150, by = L.H - 56;
+  const b1 = k.button(cx - bw - 6, by, bw, 28, 'Enter 계속하기', Math.floor(now * 2) % 2 === 0);
+  const b2 = k.button(cx + 6, by, bw, 28, 'X 처음부터 새로', false, C.warn);
+  return [{ ...b1, key: 'continue' }, { ...b2, key: 'wipe' }];
+}
