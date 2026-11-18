@@ -130,7 +130,8 @@ const HUBUI = (() => {
     if (STATE.note) { // 품절 같은 알림은 화면 안의 창으로 뜬다
       const w = 230, h = 104, x = (LW - w) / 2, y = (LH - h) / 2 - 6; b.globalAlpha = 0.45; k.R(0, 0, LW, LH, '#000000'); b.globalAlpha = 1;
       k.R(x + 3, y + 4, w, h, 'rgba(0,0,0,0.35)'); k.R(x, y, w, h, '#f4f5f7'); k.frame(x, y, w, h, '#8a93a3', 1); k.R(x, y, w, 22, '#dfe3ea'); k.T('AI마켓 안내', x + 10, y + 11, 12, '#3a4252', 'left', 800); k.T('×', x + w - 12, y + 11, 13, '#6a7282', 'center', 800);
-      k.T(STATE.note.text, LW / 2, y + 47, fitText(k, STATE.note.text, w - 24, 15, 10), '#1d2433', 'center', 800);
+      k.T(STATE.note.text, LW / 2, y + (STATE.note.sub ? 40 : 47), fitText(k, STATE.note.text, w - 24, 15, 10), '#1d2433', 'center', 800);
+      if (STATE.note.sub) k.T(STATE.note.sub, LW / 2, y + 57, fitText(k, STATE.note.sub, w - 20, 10, 8), '#5a6474', 'center', 700);
       btn(k, LW / 2 - 40, y + h - 34, 80, 24, '확인', 'noteok', { bg: '#1d2433', col: '#1d2433', fg: '#ffffff', size: 13 });
     }
     if (hover) { const [mx, my] = hover; k.poly([[mx, my], [mx, my + 13], [mx + 4, my + 10], [mx + 10, my + 10]], '#101018'); k.poly([[mx + 1, my + 2], [mx + 1, my + 10], [mx + 3, my + 8], [mx + 7, my + 8]], '#ffffff'); }

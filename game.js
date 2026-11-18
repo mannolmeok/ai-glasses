@@ -790,7 +790,7 @@ function updateExam(dt) {
     if (E.scan >= 1) completeScan();
     else if (Math.floor(E.scan * 3 + 1e-6) > before) sfx.elim();
   }
-  if (E.ai && !E.fb && g.earbud > 0 && !T.noAuto && q.conf >= earbudNeedAt(g.earbud)) { E.earbudT += dt; if (E.earbudT >= tune.earbud_delay) markAnswer(q.aiPick, 'auto'); }
+  if (E.ai && !E.fb && g.lens >= 7 && !T.noAuto && !essay && q.conf >= tune.earbud_threshold) { /* 자동 마킹은 뇌 임플란트부터: 그 전에는 답을 직접 고른다 */ E.earbudT += dt; if (E.earbudT >= tune.earbud_delay) markAnswer(q.aiPick, 'auto'); }
   if (E.fb) { E.fb.t += dt; if (E.fb.t >= 0.35 && !E.caught) nextQuestion(); }
   if (E.sus > 0.3) { E.beat -= dt; if (E.beat <= 0) { E.beat = 1 - 0.55 * E.sus; sfx.beat(0.08 + 0.12 * E.sus); } } else E.beat = 0;
   E.hint = examHint();
@@ -907,7 +907,7 @@ function buyGear(id, viaBroker) {
   G.money -= cost; G.gear[id]++; delete G.fresh[id];
   const name = d.kind === 'count' ? `${botName(G.gear[id])} (대리 응시 ${G.gear[id]}명)` : gearName(id, G.gear[id]);
   hv.order.push({ id, name }); hv.hidden[id] = true;
-  sfx.buy(); STATE.pops.push({ v: 0, t: 0, scene: 'hub', text: `주문 완료: ${name}`, col: PAL.hud });
+  sfx.buy(); STATE.note = { text: '주문이 완료되었습니다', sub: `${name} · ${won(cost)}원 · 곧 도착`, t: 0 }; // 노트북 화면 안의 창으로 알린다
   if (d.kind === 'count' && CONFIG.bot_milestones.includes(G.gear[id])) addNews('bot', `대리 응시 ${G.gear[id]}명 돌파! 수입 x2 · 이제 "${botName(G.gear[id])}"`);
   events.push({ type: 'buy', id, lv: G.gear[id] }); save();
 }
@@ -916,7 +916,7 @@ function buyModel() {
   if (!modelOpen(i) || G.money < modelCost(i)) { sfx.no(); return; }
   G.money -= modelCost(i); G.gear.model = i; delete G.fresh.model;
   if (modelOpen(i + 1)) G.fresh.model = true;
-  sfx.buy(); STATE.pops.push({ v: 0, t: 0, scene: 'hub', text: `구독 시작: ${CONFIG.models[i].name}`, col: '#b89cff' });
+  sfx.buy(); STATE.note = { text: '구독이 시작되었습니다', sub: `${CONFIG.models[i].name} · 바로 적용`, t: 0 };
   events.push({ type: 'buy', id: 'model', lv: i }); save();
 }
 function hubKey(key) { // 다가간 화면에서 누른 칸
@@ -1028,8 +1028,8 @@ function drawNote(B) { // 화면 아래 짧은 알림 (응시료 부족, 자리 
   const msg = STATE.note ? STATE.note.text : STATE.away && scene === 'hub' ? `자리 비운 동안 대리 응시가 ${won(STATE.away.gain)}원 벌었어요` : null;
   if (!msg) return;
   const k = B.k, L = B.L, w = k.TW(msg, 12, 800) + 24, y = L.H - 26, col = STATE.note ? PAL.warn : PAL.gold;
-  k.R(L.W / 2 - w / 2, y - 11, w, 22, PAL.dark); k.frame(L.W / 2 - w / 2, y - 11, w, 22, col, 1);
-  k.T(msg, L.W / 2, y, 12, col, 'center', 800);
+  k.b.globalAlpha = 0.66; k.R(L.W / 2 - w / 2, y - 11, w, 22, '#0a0a0e'); k.b.globalAlpha = 1;
+  k.T(msg, L.W / 2, y, 12, PAL.white, 'center', 700);
 }
 function hubLabel(action) {
   const hv = STATE.hv, n = shopNewCount(), u = phoneUnread();
@@ -1044,6 +1044,7 @@ function hubLabel(action) {
 }
 function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 시계. 다가가면 그 물건의 화면
   const k = B.k, L = B.L, H = hudSet(), hv = STATE.hv, hover = STATE.hoverAct;
+  if (params.get('hud') === '0') return; // check only
   if (!surfDim(hv.view)) BTNS = []; // 노트북·일정표·폰의 버튼은 drawLaptop이 채운 것을 그대로 쓴다
   HUB_RECT = null;
   if (hv.view === 'room') {
@@ -1053,14 +1054,15 @@ function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 �
       const hot = l.action === hover; if (!hot && !info.hot && !touch) continue; // 이름표는 마우스를 올렸을 때와 알릴 게 있을 때만
       const bob = info.hot ? Math.round(Math.sin(now * 5) * 2) : 0, w = k.TW(info.text, 10, 800) + 14;
       const x = Math.round(clamp(l.x, w / 2 + 4, L.W - w / 2 - 4)), y = Math.round(clamp(l.y, 14, L.H - 12)) + bob;
-      k.b.globalAlpha = hot || info.hot ? 0.96 : 0.6; k.R(x - w / 2, y - 8, w, 16, hot ? PAL.hud : info.hot ? '#e8453e' : PAL.dark); k.b.globalAlpha = 1;
-      k.T(info.text, x, y, 10, hot ? PAL.dark : PAL.white, 'center', 800);
+      const dw = info.hot ? 9 : 0; k.b.globalAlpha = hot ? 0.78 : 0.6; k.R(x - w / 2 - dw / 2, y - 9, w + dw, 18, '#0a0a0e'); k.b.globalAlpha = 1; // 이름표: 반투명 검정에 흰 글씨, 알릴 게 있으면 빨간 점
+      if (info.hot) k.disc(x - w / 2 + 4, y, 2.5, '#ff5a4d');
+      k.T(info.text, x + dw / 2, y, 10, PAL.white, 'center', 700);
     }
   } else {
     const ui = HUBUI.draw(k, L, hv, now, STATE.hover); if (!surfDim(hv.view)) BTNS = ui.btns; HUB_RECT = ui.rect;
   }
   if (hv.view === 'mail' && hv.zoom >= 1 && hv.target !== 'room') k.TO('아무 데나 눌러 내려놓기', L.W / 2, L.H - 8, 9, '#c9c4d8');
-  for (const p of STATE.pops) if (p.scene === 'hub' && p.t >= 0) k.TO(p.text || ('+' + won(p.v) + '원'), L.W / 2, 62 - p.t * 14, 12, p.col || PAL.gold);
+  for (const p of STATE.pops) if (p.scene === 'hub' && p.t >= 0) { const tx = p.text || ('+' + won(p.v) + '원'), pw = k.TW(tx, 11, 700) + 20, py = 58 - p.t * 12; k.b.globalAlpha = 0.6 * Math.max(0, Math.min(1, (1.4 - p.t) / 0.3)); k.R(L.W / 2 - pw / 2, py - 9, pw, 18, '#0a0a0e'); k.b.globalAlpha = 1; k.T(tx, L.W / 2, py, 11, PAL.white, 'center', 700); }
   drawNote(B);
 }
 function drawNo3D(B) { // WebGL을 못 쓰는 기기
@@ -1109,9 +1111,7 @@ const scenes = {
     draw(B) {
       WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet());
       const k = B.k, L = B.L;
-      k.b.globalAlpha = 0.7; k.R(0, 0, L.W, L.H, PAL.dark); k.b.globalAlpha = 1;
-      k.TO('일시정지', L.W / 2, L.H / 2 - 14, 28, PAL.white);
-      k.T('P · 탭: 계속', L.W / 2, L.H / 2 + 18, 12, PAL.hud, 'center', 700);
+      drawLensScreen(k, L, now, { col: '#74ff8e', glow: '#0a4018', tint: '#061e0e', big: '일시정지', lines: ['LENS-OS 0.9b', '시험 ......... 멈춤', '감독관 ....... 멈춤'], sub: '화면을 누르면 계속 [P]' });
     },
   },
   results: {
@@ -1240,6 +1240,7 @@ if (scene === 'play' || scene === 'pause' || scene === 'results') {
   if (params.get('essay')) { E.qi = E.qs.length - 1; E.start = 0; E.view = 'paper'; E.prevView = 'paper'; E.viewT = 1; E.es = { q: E.qs[E.qi], done: 2, r: 0, w: 0.55, mem: params.get('essay') === '2' ? 0 : 3.2 }; if (params.get('essay') === '2') E.es.r = 0.6; } // check only
   if (params.get('intro')) { if (E.intro) E.intro.t = Number(params.get('intro')); } else if (E.intro) { E.intro = null; if (E.deadNext) { E.dead = E.deadNext; E.deadNext = null; } } // check only: 입실 장면의 그 순간 / 건너뛰기
   if (params.get('dead')) E.dead = params.get('dead');
+  if (params.get('caught')) { E.start = 0; E.sus = 1; getCaught(); }
   if (params.get('fire')) { E.start = 0; E.pulse.warn = params.get('fire') === '1' ? 0.8 : 0; E.pulse.active = params.get('fire') === '1' ? 0 : 0.35; }
   if (params.get('peek')) { const st = E.staff[0]; st.phase = 'peek'; st.peek = { stage: 'stare', t: 0.5 }; E.view = 'paper'; E.viewT = 1; }
   if (params.get('final')) { E.qi = E.qs.length - 2; E.start = 0; E.answers[E.qi] = 0; nextQuestion(); if (params.get('final') === '2') { E.view = 'paper'; E.viewT = 1; completeScan(); } }
@@ -1252,7 +1253,7 @@ if (scene === 'hub' && params.get('scene')) {
   const v = params.get('hv'); if (['laptop', 'board', 'phone', 'mail'].includes(v)) { enterView(v, true); if (params.get('tab')) { if (v === 'phone') STATE.hv.ptab = params.get('tab'); else { STATE.hv.tab = params.get('tab'); STATE.hv.app = 'shop'; } }
     if (params.get('app')) { STATE.hv.app = params.get('app'); if (params.get('sold')) G.flags.sold = true; if (params.get('black')) { G.flags.cam = true; G.gear.lens = Math.max(1, G.gear.lens); G.black = { amount: 6400000, n: 1 }; } } }
   if (params.get('mail')) G.mail = { tier: 8, tierName: TIERS[8].name, marks: [0,1,2,3,4,5,6,7,8,9].map(i => ({ r: i % 4 === 3 ? 'X' : 'O', via: i % 2 ? 'ai' : 'self' })), correct: 8, qn: 10, pass: 60, score: 80, caught: false, passed: true, stamp: '합격' };
-  if (params.get('note')) STATE.note = { text: '품절되었습니다', t: 0 }; // check only
+  if (params.get('note')) STATE.note = params.get('note') === '2' ? { text: '주문이 완료되었습니다', sub: '지우개 액정 · 1,200원 · 곧 도착', t: 0 } : { text: '품절되었습니다', t: 0 }; // check only
   if (params.get('parcel')) STATE.hv.parcel = { phase: 'wait', t: 0, items: [{ id: 'lens', name: gearName('lens', 1) }] };
   for (let i = 0; i < 6; i++) step(); // 화면 확인용: 방을 한 번 비춘 뒤
 }

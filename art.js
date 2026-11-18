@@ -346,7 +346,7 @@ function drawResults(k, L, Rz, now, H) {
 }
 
 const TITLE_FONT = '"Black Han Sans","Do Hyeon",' + FONT_KO, BOOT_FONT = '"VT323","SF Mono","Menlo","Consolas",monospace,' + FONT_KO;
-if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
+if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기 적발 일시정지'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
 function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 내 책상을 안경 너머로 본다. 초점이 잡히고 답이 뜬 순간 (시안 F 그대로)
   const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e';
   if (new URLSearchParams(location.search).get('hud') === '0') return []; // check only: 배경만
@@ -369,6 +369,17 @@ function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 �
   b.globalAlpha = on ? 0.16 : 0.06; R(bx, by, bw, bh, G1); b.globalAlpha = 1; k.frame(bx, by, bw, bh, G1, 1.5); text(label, bx + bw / 2, by + bh / 2 + 5, `400 16px ${BOOT_FONT}`, G1, 'center', 'rgba(116,255,142,0.5)');
   b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
   return [{ x: 0, y: 0, w: W, h: HH, key: 'start' }];
+}
+function drawLensScreen(k, L, now, o) { // 타이틀과 같은 안경 화면: 적발(빨강) · 일시정지(초록). o: col, glow, tint, lines, big, y
+  const b = k.b, W = L.W, HH = L.H, R = k.R;
+  const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
+  b.globalAlpha = 0.55; R(0, 0, W, HH, o.tint); b.globalAlpha = 0.13; for (let y = 0; y < HH; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = 1;
+  o.lines.forEach((ln, i) => text(ln, 65, 60 + i * 15.6, `400 12.5px ${BOOT_FONT}`, o.col, 'left', o.glow));
+  const jit = (now * 0.29) % 1 < 0.05 ? Math.round(Math.sin(now * 90) * 3) : 0, f = `400 75px ${TITLE_FONT}`, y = o.y || 178;
+  text(o.big, W / 2 + 2.5 + jit, y, f, 'rgba(255,60,60,0.45)', 'center'); text(o.big, W / 2 - 2 + jit, y, f, 'rgba(60,160,255,0.4)', 'center'); text(o.big, W / 2 + jit, y, f, o.col, 'center', o.glow);
+  b.globalAlpha = 0.35; R(0, 165, W, 5, o.col); b.globalAlpha = 0.3; R(0, 260, W, 2, o.col); b.globalAlpha = 1;
+  if (o.sub) text(o.sub, W / 2, y + 62, `400 13px ${BOOT_FONT}`, o.col, 'center', o.glow);
+  b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
 }
 function drawTitleOut(k, L, now, a) { // 타이틀에서 시험으로: 안경 화면이 지직거리며 꺼진다 (a: 1 → 0)
   const b = k.b, G1 = '#74ff8e'; b.globalAlpha = Math.min(1, a * 1.4); b.drawImage(rimFor('land'), 0, 0);

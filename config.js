@@ -304,7 +304,8 @@ window.CONFIG = {
     { id: 'coach', name: '면접 코치', group: 'device', unlock: 6, caps: [2, 3, 4], mult: 4, step: 3, ladder: ['면접 유튜브', '취업 컨설턴트', '헤드헌터 AI', '인사팀장 분신'] },
     { id: 'autooff', name: '자동 소등 칩', group: 'glass', unlock: 7, caps: [2, 2, 2], mult: 3, step: 1, ladder: ['자동 소등 칩', '자동 소등 칩 개량형'] },
     { id: 'jammer', name: '전파 위장기', group: 'device', unlock: 9, caps: [1, 2, 3], mult: 4, step: 2.5, ladder: ['와이파이 위장', '드론 교란기', '전파 블랙홀'] },
-    { id: 'autoscan', name: '자동 스캔 칩', group: 'glass', unlock: 10, caps: [0, 1, 2], mult: 6, step: 4, ladder: ['매크로 칩', '습관 학습 칩', '무의식 스캔'] },
+    { id: 'autoscan', name: '자동 스캔 칩', group: 'glass', unlock: 20, caps: [0, 0, 2], // 외계 구간에서만: 손이 필요 없어지는 건 맨 끝
+      mult: 6, step: 4, ladder: ['매크로 칩', '습관 학습 칩', '무의식 스캔'] },
     { id: 'glasscase', name: '안경 방수', group: 'glass', unlock: 13, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['생활 방수 코팅', '완전 방수 실링'] },
     { id: 'gazefix', name: '시선 보정 렌즈', group: 'glass', unlock: 14, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['시선 보정 렌즈', '눈 맞춤 합성 렌즈'] },
     { id: 'eyedrop', name: '인공눈물 칩', group: 'device', unlock: 15, caps: [0, 2, 2], mult: 3, step: 1, ladder: ['인공눈물 칩', '안구 냉각 칩'] },
@@ -319,6 +320,6 @@ window.CONFIG = {
     { id: 'offbeat', name: '엇박자 칩', group: 'glass', unlock: 23, caps: [0, 0, 2], mult: 3, step: 0.5, ladder: ['엇박자 칩', '무작위 신경 칩'] },
   ],
   // 대리 응시는 사람 수에 따라 이름이 바뀐다: [몇 명부터, 이름]
-  bot_names: [[1, '아는 형'], [10, '로봇청소기 개조'], [25, '대리 응시 안드로이드'], [50, '내 클론'], [100, '평행우주의 나']],
+  bot_names: [[1, '대리 응시 챗봇'], [10, '로봇청소기 개조'], [25, '대리 응시 안드로이드'], [50, '내 클론'], [100, '평행우주의 나']],
   bot_milestones: [10, 25, 50, 100], // 대리 응시가 이 인원을 넘을 때마다 수입 x2
 };

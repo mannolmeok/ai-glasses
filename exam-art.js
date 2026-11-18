@@ -557,6 +557,7 @@ function drawExamHud(k, L, E, now, H) {
   const sec = Math.max(0, Math.ceil(E.timeLeft));
   if (deadHud) drawDeadHud(k, L, E, now, ST, sec); else if (ST !== 'none') drawStageHud(k, L, E, now, ST, INK, sec, pl, live, q);
   drawCounterFx(k, L, E, now, live);
+  if (live && E.ai && !E.fb && E.gear.earbud > 0 && !E.dead && q && !q.final && q.kind !== 'essay' && Math.floor(now * 0.8) % 3 !== 2) k.SUB(`(이어폰) “…${q.aiPick + 1}번…”`, L.W / 2, L.H - 70, 10, '#e8e4da', 'center'); // AI 이어폰: 어디를 보고 있어도 답이 들린다
   if (E.runShown) T(fmtRun(E.runShown), 48, 40, 10, H.c2, 'left', 700);
   if (ST === 'used') k.b.drawImage(rimFor('land'), 0, 0); else if (ST === 'proto') k.b.drawImage(rimFor('land', 1.16), 0, 0); // 안경테: 중고는 두껍고 시제품은 얇다. 렌즈·임플란트는 테가 없다
   drawExamOverlays(k, L, E, now, H);
@@ -589,13 +590,12 @@ function drawExamOverlays(k, L, E, now, H) {
     if (l2) { let s2 = 11; while (k.TW(l2, s2, 700) > L.W - 40 && s2 > 8) s2--; T(l2, L.W / 2, L.H - 30, s2, '#d8d3e6', 'center', 700); }
   }
   if (E.over && !E.caught) {  k.SUB(`${tier.staff[0].name}: "${E.all ? '답안지 걷겠습니다.' : '시험 종료. 필기구 내려놓으세요.'}"`, L.W / 2, L.H - 48, 12, C.white, 'center', 800); }
-  if (E.caught) {
-    k.b.globalAlpha = 0.8; R(0, 0, L.W, L.H, '#170810'); k.b.globalAlpha = 1;
+  if (E.caught) { // 적발: 타이틀과 같은 안경 화면이 빨갛게 바뀐다
     const who = E.caughtBy || tier.staff[0];
-    TO(E.T.mech.includes('tutorial') ? '걸렸다!' : '적발!', L.W / 2, L.H / 2 - 50, 44, C.bad);
-    TO(E.caughtHow === 'alert' ? '"방금 울린 거, 수험생 폰이죠?"' : CAUGHT_LINE[who.type] || CAUGHT_LINE.dean, L.W / 2, L.H / 2 + 2, 15, C.white);
     const why = { peek: '책상 밑에서 올려다보던 눈과 마주침', alert: '재난문자에 폰이 울림', emp: 'EMP에 기기가 드러남', cctv: 'CCTV에 찍힘', pulse: 'AI 탐지 전파에 걸림', drone: '드론 전파에 걸림', screen: '화면 검사에 걸림', check: '책상 앞 검사에 걸림',
       webcam: '웹캠에 찍힘', ai: 'AI 사용이 감지됨', omega: 'Ω가 스캔 박자를 읽음' }[E.caughtHow] || `${who.name}에게 걸림`;
-    T(E.T.mech.includes('tutorial') ? `${why} · 혼나고 끝 (모의고사라 다행)` : `${why} · 이번 시험 0점`, L.W / 2, L.H / 2 + 30, 12, '#d6d2e0', 'center', 700);
+    drawLensScreen(k, L, now, { col: '#ff5a5a', glow: '#4a0a0a', tint: '#28060a', big: '적발', lines: ['LENS-OS 0.9b', `${who.name} ....... 정면 주시`, '장비 ......... 노출됨', '연결 ......... 끊김'], sub: E.T.mech.includes('tutorial') ? '혼나고 끝 (모의고사라 다행)' : '이번 시험 0점 처리' });
+    k.SUB(`${who.name}: ${E.caughtHow === 'alert' ? '"방금 울린 거, 수험생 폰이죠?"' : CAUGHT_LINE[who.type] || CAUGHT_LINE.dean}`, L.W / 2, L.H - 62, 13, '#ffffff', 'center');
+    k.SUB(why, L.W / 2, L.H - 42, 9, '#e8e4da', 'center');
   }
 }

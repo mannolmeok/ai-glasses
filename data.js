@@ -437,11 +437,11 @@ const MECH_NAME = { peek: '책상 밑 감시', sticker: '단추 스티커', tuto
 // 장비 효과 문구: lv(그 단계를 가졌을 때)의 효과
 const pct = v => Math.round(v * 100) + '%';
 const GEAR_TEXT = {
-  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초 · ${lv >= tune.glass_level ? '시험지 위에 AI 답이 뜸' : lv >= 2 ? '지우개 액정으로 답 확인' : '필통 속 폰으로 답 확인'}`,
+  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초 · ${lv >= tune.glass_level ? '시험지 위에 AI 답이 뜸' : lv >= 2 ? '지우개 액정으로 답 확인' : '필통 속 폰으로 답 확인'}${lv >= 7 ? ' · 확신이 높으면 알아서 마킹' : ''}`,
   predict: lv => lv >= 3 ? `후방 카메라: 등 뒤 감독관이 렌즈 위쪽에 보임 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초` : lv ? `돌아보는 낌새를 렌즈가 경고 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초${lv >= 3 ? ' · 쳐다보면 빨갛게' : ''}` : '감독관이 돌아볼 낌새를 렌즈 가장자리로',
   stealth: lv => `들킬 때 의심도 ${pct(Math.pow(1 - tune.stealth_cut, lv))} · 입실 검사도 덜 걸림`,
   bot: n => `${n}명 · 초당 ${won(botRateAt(n))}원`,
-  earbud: lv => lv ? `듣기 문항 받아쓰기 · 신뢰도 ${earbudNeedAt(lv)}% 이상 자동 제출` : '듣기 문항을 AI가 받아쓰고 답을 대신 냄',
+  earbud: lv => '듣기 문항 받아쓰기 · 답을 귓속말로 (마킹은 직접)',
   deepcam: lv => `웹캠 감시 ${pct(gearCut(lv))}`,
   watch: lv => `시험 시간 +${Math.round(lv * tune.watch_bonus)}초`,
   wide: lv => `한 번 스캔에 ${lv + 1}문제`,
@@ -465,7 +465,7 @@ const GEAR_TEXT = {
 const GEAR_BLURB = {
   lens: '시험지를 찍고 답을 보는 장비. 단추 카메라에서 AI 안경, 그 너머까지', predict: '감독관이 돌아볼 낌새를 알려 주고, 3단계부터는 등 뒤도 보여 준다',
   stealth: '렌즈 빛 반사를 줄여 들켜도 덜 수상하다', bot: '통과한 시험을 대신 쳐서 돈을 번다 (자리 비운 동안에도)',
-  earbud: '귓속말로 답을 불러 주고, 방송으로 나오는 문제도 받아쓴다', deepcam: '원격 감독 웹캠에 성실한 내 얼굴을 대신 보여 준다',
+  earbud: '귓속말로 답을 불러 줘서 시험지를 안 봐도 답을 안다. 방송으로 나오는 문제도 받아쓴다', deepcam: '원격 감독 웹캠에 성실한 내 얼굴을 대신 보여 준다',
   watch: '손목에서 시험 시간을 늘려 주는 수상한 시계', wide: '시야가 넓은 렌즈로 다음 문제까지 한꺼번에 읽는다',
   cctvjam: '교실 CCTV 화면에서 내 자리만 지운다', coach: '합격 뒤 면접에서 귀띔해서 장학금·연봉이 오른다',
   autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: '탐지 전파와 드론으로부터 내 기기를 숨긴다. 최고 단계는 EMP도 버틴다',
@@ -478,7 +478,7 @@ const GEAR_BLURB = {
 };
 const GEAR_REVIEW = {
   lens: '감독관한테 안 걸렸어요 ★★★★★', predict: '뒤통수에 눈이 생긴 느낌 ★★★★☆', stealth: '반짝임이 하나도 없어요 ★★★★★',
-  bot: '형이 대신 쳐 줌 ★★★☆☆', earbud: '귀에서 정답이 들려요 ★★★★★', deepcam: '감독관이 제 사진만 봤어요 ★★★★☆',
+  bot: '봇이 대신 쳐 줌 ★★★☆☆', earbud: '귀에서 정답이 들려요 ★★★★★', deepcam: '감독관이 제 사진만 봤어요 ★★★★☆',
   watch: '시간이 늘어난 기분 ★★★★☆', wide: '한 번에 두 문제씩 ★★★★★', cctvjam: 'CCTV에 제 자리만 비어요 ★★★★★',
   coach: '면접관이 울었어요 ★★★★★', autooff: '불이 알아서 꺼져요 ★★★★☆', jammer: '드론이 그냥 지나감 ★★★★★',
   autoscan: '손 놓고 있어도 됨 ★★★★★', glasscase: '물그릇에서 건져도 켜져요 ★★★★★', gazefix: '교수님이 제 눈빛에 감동 ★★★★★',
