@@ -103,6 +103,10 @@ function drawPaperTexture(g, E, now) {
     for (let i = 0; i < 9; i++) { const h = Math.abs(Math.sin(i * 12.9898 + Math.floor(now * 14) * 78.233) * 43758.5453) % 1; g.globalAlpha = 0.5; g.fillStyle = i % 3 ? cyan : '#ff3a8a'; g.fillRect(0, Math.floor(h * PAPER_H), PAPER_W, 3 + Math.floor(((h * 7) % 1) * 14)); } g.globalAlpha = 1;
     return;
   }
+  if (E.clear && !E.fb && q.answer >= 0 && q.kind !== 'alien') { // 계단을 뛰고 와서 머리가 맑다: AI 없이도 답이 보인다 (연필로 친 동그라미)
+    const y = PAPER_ROW(q.answer); g.font = `700 ${cs}px ${F}`; const w = g.measureText(text(q.choices[q.answer])).width;
+    g.save(); g.translate(140 + w / 2 - 20, y - 22); g.rotate(-0.04); g.strokeStyle = 'rgba(40,52,90,0.75)'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.ellipse(0, 0, w / 2 + 62, 44, 0, 0.25, 6.7); g.stroke(); g.restore();
+  }
   if (!E.ar) return; // 안경 전 단계: 시험지 위에는 아무것도 뜨지 않는다 (답은 소매 속 액정에)
   // 안경이 종이 위에 비추는 AR. 장비 단계마다 모양이 다르다 (hudStage)
   const st = hudStage(E), col = HUD_INK[st] || cyan, row = i => PAPER_ROW(i), tw = i => { g.font = `700 ${cs}px ${F}`; return q.kind === 'alien' ? 300 : g.measureText(text(q.choices[i])).width; };
@@ -158,34 +162,53 @@ function drawPaperTexture(g, E, now) {
 }
 
 // ---- 성적 통지표: 시험이 끝나면 책상 위 시험지가 채점된 종이로 바뀐다 ----
-function drawResultPaper(g, Rz) {
-  const F = FONT_BODY, ink = '#2a2838', red = '#d0282a';
-  g.textBaseline = 'alphabetic'; g.fillStyle = '#f6f2e6'; g.fillRect(0, 0, PAPER_W, PAPER_H);
-  g.fillStyle = ink; g.textAlign = 'center'; g.font = `800 44px ${F}`; g.fillText('성 적 통 지 표', PAPER_W / 2, 78);
-  let ns = 34; g.font = `700 ${ns}px ${F}`; while (g.measureText(Rz.tierName).width > PAPER_W - 100 && ns > 22) { ns -= 2; g.font = `700 ${ns}px ${F}`; }
-  g.fillText(Rz.tierName, PAPER_W / 2, 128); g.fillRect(40, 150, PAPER_W - 80, 4);
-  // 문항별 채점: 빨간 색연필 동그라미와 빗금. 밑줄은 AI가 고른 답
-  const n = Rz.marks.length, per = n > 20 ? 12 : n > 10 ? 9 : n, rows = Math.ceil(n / per), cw = Math.min(64, (PAPER_W - 100) / per), x0 = PAPER_W / 2 - cw * per / 2;
-  Rz.marks.forEach((m, i) => {
-    const cx = x0 + (i % per) * cw + cw / 2, cy = 214 + Math.floor(i / per) * 92;
-    g.fillStyle = '#6c6a80'; g.font = `700 20px ${F}`; g.fillText(String(i + 1), cx, cy - 26);
-    g.lineWidth = 6; g.strokeStyle = Rz.caught ? '#8a8676' : red; g.lineCap = 'round';
-    if (m.r === 'O' && !Rz.caught) { g.beginPath(); g.ellipse(cx, cy + 6, 20, 17, -0.3, 0.2, 6.6); g.stroke(); }
-    else if (m.r === 'X' || Rz.caught) { g.beginPath(); g.moveTo(cx - 16, cy + 22); g.lineTo(cx + 16, cy - 10); g.stroke(); }
-    else { g.fillStyle = '#8a8676'; g.fillRect(cx - 10, cy + 4, 20, 4); }
-    if (m.via === 'ai' || m.via === 'auto') { g.fillStyle = '#2fd3dd'; g.fillRect(cx - 18, cy + 34, 36, 5); }
-  });
-  let y = 214 + rows * 92 + 30;
-  g.fillStyle = ink; g.font = `800 40px ${F}`; g.fillText(Rz.caught ? '부정행위 · 0점 처리' : `정답 ${Rz.correct} / ${Rz.qn}   합격선 ${Rz.pass}점`, PAPER_W / 2, y); y += 40;
-  if (!Rz.caught) { g.fillStyle = red; g.font = `800 120px ${F}`; g.save(); g.translate(PAPER_W / 2 + 180, y + 70); g.rotate(-0.12); g.fillText(String(Rz.score), 0, 0); g.fillRect(-90, 14, 180, 6); g.fillRect(-90, 26, 180, 6); g.restore(); }
-  // 도장
-  g.save(); g.translate(PAPER_W / 2 - 150, y + 60); g.rotate(-0.16); g.strokeStyle = Rz.passed ? red : '#3a3a48'; g.fillStyle = g.strokeStyle; g.lineWidth = 8; g.globalAlpha = 0.85;
-  const st = Rz.stamp, sw = st.length > 3 ? 300 : 210; g.strokeRect(-sw / 2, -52, sw, 96); g.font = `800 ${st.length > 5 ? 46 : 64}px ${F}`; g.fillText(st, 0, 18); g.restore(); g.globalAlpha = 1;
-  // 아래는 진짜 통지표처럼: 수험번호와 발급 기관만. 돈과 뉴스는 종이에 적히지 않는다
-  y = PAPER_H - 150; g.fillStyle = ink; g.fillRect(40, y - 40, PAPER_W - 80, 2);
-  g.textAlign = 'left'; g.font = `700 24px ${F}`; g.fillStyle = '#4a4860'; g.fillText(`수험번호  ${31000000 + Rz.tier * 1234567}`, 56, y); g.fillText('성      명  김수험', 56, y + 34);
-  g.textAlign = 'center'; g.font = `700 22px ${F}`; g.fillText('위와 같이 채점 결과를 통지합니다.', PAPER_W / 2, y + 84);
-  g.font = `800 26px ${F}`; g.fillStyle = ink; g.fillText('시 험 관 리 위 원 회', PAPER_W / 2, y + 122);
+function drawResultPaper(g, Rz) { // 기관에서 발급한 공문서처럼: 문서번호, 인적 사항 표, 성적 표, 문항별 채점표, 발급 문구, 직인
+  const F = FONT_BODY, ink = '#22212c', sub = '#5a586a', line = '#3a3948', red = '#c8242a', W = PAPER_W, H = PAPER_H, t = CONFIG.tiers[Rz.tier] || {};
+  const fit = (str, x, y, maxW, size, weight = 700, min = 14) => { g.font = `${weight} ${size}px ${F}`; while (g.measureText(str).width > maxW && size > min) { size -= 1; g.font = `${weight} ${size}px ${F}`; } g.fillText(str, x, y); };
+  g.textBaseline = 'alphabetic'; g.fillStyle = '#f3f2ec'; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = 0.045; g.fillStyle = '#2b5f8a'; g.font = `800 30px ${F}`; g.textAlign = 'center'; g.translate(W / 2, H / 2); g.rotate(-0.5); // 바탕 무늬: 비스듬히 깔린 기관명
+  for (let yy = -700; yy <= 700; yy += 78) for (let xx = -700; xx <= 700; xx += 300) g.fillText('시험관리위원회', xx + (Math.round(yy / 78) % 2) * 150, yy);
+  g.restore();
+  g.save(); g.globalAlpha = 0.07; g.strokeStyle = '#2b5f8a'; g.lineWidth = 2; for (let r = 60; r <= 200; r += 14) { g.beginPath(); g.arc(W / 2, 520, r, 0, 7); g.stroke(); } g.restore(); // 가운데 은은한 동심원
+  g.strokeStyle = line; g.lineWidth = 4; g.strokeRect(26, 26, W - 52, H - 52); g.lineWidth = 1.5; g.strokeRect(34, 34, W - 68, H - 68);
+  const day = new Date(2026, 10, 19 + Rz.tier * 9 + 3), no = `제 2026-${String(1000 + Rz.tier * 137).padStart(5, '0')} 호`;
+  g.fillStyle = sub; g.textAlign = 'left'; g.font = `700 17px ${F}`; g.fillText(no, 52, 66); g.textAlign = 'right'; g.fillText('(수험생 보관용)', W - 52, 66);
+  g.fillStyle = ink; g.textAlign = 'center'; fit(`2026년도 ${Rz.tierName}`, W / 2, 112, W - 140, 26, 700, 18);
+  g.font = `800 52px ${F}`; g.fillText('성 적 통 지 표', W / 2, 172); g.fillRect(W / 2 - 170, 186, 340, 3); g.fillRect(W / 2 - 170, 192, 340, 1);
+  const table = (x, y, cols, rows, rh, head) => { // 칸 너비 배열과 줄 배열로 표를 그린다
+    const tw = cols.reduce((p, c) => p + c, 0); g.lineWidth = 1.5; g.strokeStyle = line;
+    rows.forEach((r, j) => { let cx = x; r.forEach((cell, i) => { const hd = head(i, j); if (hd) { g.fillStyle = '#e2e3e0'; g.fillRect(cx, y + j * rh, cols[i], rh); }
+      g.strokeRect(cx, y + j * rh, cols[i], rh); g.fillStyle = cell && cell.col || ink; g.textAlign = 'center'; fit(String(cell && cell.t != null ? cell.t : cell), cx + cols[i] / 2, y + j * rh + rh / 2 + (cell && cell.s ? cell.s * 0.36 : 8), cols[i] - 12, cell && cell.s || (hd ? 19 : 22), hd ? 700 : (cell && cell.w) || 700); cx += cols[i]; }); });
+    g.lineWidth = 3; g.strokeRect(x, y, tw, rows.length * rh);
+  };
+  const X0 = 56, TW = W - 112;
+  table(X0, 214, [110, 194, 110, 194], [['수험번호', String(31000000 + Rz.tier * 1234567), '성 명', '김 수 험'], ['시 험 명', Rz.tierName, '응시 영역', t.subject || '-']], 44, i => i % 2 === 0);
+  const verdict = Rz.caught ? '무효' : Rz.passed ? '합격' : Rz.stamp === '합격 취소' ? '취소' : '불합격', vcol = Rz.passed && !Rz.caught ? '#1c5a9a' : red;
+  g.fillStyle = ink; g.textAlign = 'left'; g.font = `800 21px ${F}`; g.fillText('1. 성적', X0, 336);
+  table(X0, 348, [152, 96, 96, 110, 78, 76], [['구 분', '문항 수', '정답 수', '합격 기준', '득 점', '판 정'], [t.subject || '-', Rz.qn, Rz.caught ? '-' : Rz.correct, `${Rz.pass}점 이상`, { t: Rz.caught ? 0 : Rz.score, s: 30, w: 800 }, { t: verdict, col: vcol, w: 800 }]], 50, (i, j) => j === 0);
+  g.fillStyle = ink; g.textAlign = 'left'; g.font = `800 21px ${F}`; g.fillText('2. 문항별 채점 결과', X0, 486); g.fillStyle = sub; g.font = `700 15px ${F}`; g.textAlign = 'right'; g.fillText('○ 정답  × 오답  - 무응답', X0 + TW, 486);
+  const n = Rz.marks.length, per = n > 24 ? 12 : n > 10 ? Math.ceil(n / Math.ceil(n / 12)) : Math.max(n, 5), rows = Math.ceil(n / per), cw = TW / per, rh = rows > 2 ? 30 : 36; let y = 498;
+  for (let r = 0; r < rows; r++) { g.fillStyle = '#e2e3e0'; g.fillRect(X0, y, TW, rh); g.lineWidth = 1.5; g.strokeStyle = line;
+    for (let c = 0; c < per; c++) { const i = r * per + c, cx = X0 + c * cw; g.strokeRect(cx, y, cw, rh); g.strokeRect(cx, y + rh, cw, rh + 6); if (i >= n) continue; const m = Rz.marks[i];
+      g.fillStyle = sub; g.textAlign = 'center'; g.font = `700 17px ${F}`; g.fillText(String(i + 1), cx + cw / 2, y + rh / 2 + 6);
+      const ok = m.r === 'O' && !Rz.caught, bad = m.r === 'X' || Rz.caught; g.fillStyle = ok ? ink : bad ? red : sub; g.font = `800 ${rh > 30 ? 26 : 22}px ${F}`; g.fillText(ok ? '○' : bad ? '×' : '-', cx + cw / 2, y + rh + (rh + 6) / 2 + 9);
+      if (m.via === 'ai' || m.via === 'auto') { g.globalAlpha = 0.55; g.fillStyle = '#4a6a8a'; g.fillRect(cx + cw / 2 - 12, y + rh * 2 + 1, 24, 2.5); g.globalAlpha = 1; } } // 연필 밑줄: AI가 고른 답 (내가 표시해 둔 것)
+    y += rh * 2 + 6; }
+  g.lineWidth = 3; g.strokeStyle = line; g.strokeRect(X0, 498, TW, y - 498);
+  y = Math.max(y + 52, 700); g.fillStyle = ink; g.textAlign = 'center'; g.font = `700 22px ${F}`;
+  if (Rz.caught) { g.fillText('위 사람은 시험 중 부정행위가 적발되어 해당 시험을 무효로 처리하고', W / 2, y); g.fillText('관계 규정에 따라 이를 통지합니다.', W / 2, y + 32); }
+  else { fit(`위 사람은 ${Rz.tierName}에 응시하여`, W / 2, y, TW - 20, 22, 700, 16); g.font = `700 22px ${F}`; g.fillText('위와 같은 성적을 취득하였음을 통지합니다.', W / 2, y + 32); }
+  g.font = `700 21px ${F}`; g.fillText(`${day.getFullYear()}년 ${day.getMonth() + 1}월 ${day.getDate()}일`, W / 2, y + 84);
+  g.font = `800 31px ${F}`; g.fillText('시 험 관 리 위 원 회 위 원 장', W / 2 - 34, y + 142);
+  g.save(); g.translate(W / 2 + 232, y + 130); g.rotate(0.04); g.globalAlpha = 0.82; g.strokeStyle = red; g.fillStyle = red; g.lineWidth = 5; g.strokeRect(-41, -41, 82, 82); g.lineWidth = 1.5; g.strokeRect(-35, -35, 70, 70); // 직인
+  g.font = `800 25px ${F}`; g.textAlign = 'center'; [['위', -17, -6], ['원', 17, -6], ['장', -17, 26], ['인', 17, 26]].forEach(([ch, dx, dy]) => g.fillText(ch, dx, dy)); g.restore();
+  g.save(); g.translate(W - 170, Math.max(y - 78, 630)); g.rotate(-0.2); g.globalAlpha = 0.8; const st = Rz.stamp, good = Rz.passed && !Rz.caught, sc = good ? red : '#3a3a48'; g.strokeStyle = sc; g.fillStyle = sc; g.textAlign = 'center'; // 판정 도장
+  if (st.length <= 2) { g.lineWidth = 7; g.beginPath(); g.arc(0, 0, 58, 0, 7); g.stroke(); g.lineWidth = 2; g.beginPath(); g.arc(0, 0, 49, 0, 7); g.stroke(); g.font = `800 46px ${F}`; g.fillText(st, 0, 17); }
+  else { const sw = st.length > 4 ? 250 : 200; g.lineWidth = 7; g.strokeRect(-sw / 2, -40, sw, 80); g.lineWidth = 2; g.strokeRect(-sw / 2 + 8, -32, sw - 16, 64); g.font = `800 ${st.length > 4 ? 40 : 46}px ${F}`; g.fillText(st, 0, 16); }
+  g.restore(); g.globalAlpha = 1;
+  g.fillStyle = ink; for (let i = 0, x = 56; x < 250; i++) { const w = 1 + ((i * 7 + Rz.tier * 3) % 4); g.fillRect(x, H - 92, w, 34); x += w + 1 + ((i * 5) % 3); } // 바코드
+  g.fillStyle = sub; g.textAlign = 'left'; g.font = `700 13px ${F}`; g.fillText(String(31000000 + Rz.tier * 1234567) + '-' + String(2026000 + Rz.tier * 137), 56, H - 44);
+  g.textAlign = 'right'; g.font = `700 13px ${F}`; g.fillText('※ 재발급되지 않으며, 위·변조 시 법령에 따라 처벌받습니다.', W - 52, H - 64); g.fillText('※ 상금은 등록된 계좌로 입금됩니다.', W - 52, H - 44);
 }
 
 // ---- 토플 홈에디션: 고시원 노트북 화면 ----
@@ -276,7 +299,7 @@ function lensGlow(side, hex) {
 
 // ---- 장비 단계별 HUD: 장비가 바뀌면 화면이 바뀐다 ----
 // case(필통 속 폰) · eraser(지우개 액정): 맨눈이라 HUD가 없다. used(중고 안경)부터 안경 HUD.
-function hudStage(E) { const lv = E.gear.lens; if (!E.ar) return lv >= 2 ? 'eraser' : 'case'; return lv >= 7 ? 'brain' : lv >= 6 ? 'contact' : lv >= 5 ? 'mil' : lv >= 4 ? 'proto' : 'used'; }
+function hudStage(E) { if (E.stageForce) return E.stageForce; const lv = E.gear.lens; if (!E.ar) return lv >= 2 ? 'eraser' : 'case'; return lv >= 7 ? 'brain' : lv >= 6 ? 'contact' : lv >= 5 ? 'mil' : lv >= 4 ? 'proto' : 'used'; }
 const HUD_INK = { used: '#74ff8e', proto: '#7fe9ff', mil: '#ffb23a', contact: '#7fe9ff', brain: '#ffd678' };
 function choiceConf(q) { // 보기 네 개의 확신도 (고른 보기는 q.conf, 나머지는 남은 몫을 나눈다)
   const rest = 100 - q.conf, w = [0, 1, 2, 3].map(i => i === q.aiPick ? 0 : (q.elim.includes(i) ? 1 : 3) + ((i * 7 + q.aiPick * 3) % 3)), sum = w.reduce((a, b) => a + b, 0) || 1;
@@ -337,6 +360,22 @@ function drawStageHud(k, L, E, now, ST, INK, sec, pl, live, q) {
     k.poly([[px - 12, y], [px - 6, y - 8 - sus * 8], [px - 3, y], [px, y + 9 + sus * 6], [px + 4, y - 4], [px + 8, y], [px + 8, y + 1.5], [px - 12, y + 1.5]], '#ff5a5a'); k.b.globalAlpha = 1;
     if (live && picked && !E.finalQ) k.SUB(q.conf >= 70 ? `…${q.aiPick + 1}번이다. 왜인지는 모르겠다.` : `…${q.aiPick + 1}번인 것 같다.`, W / 2, HH - 34, 13, '#ffffff', 'center');
     else if (live && scanning) k.SUB('…'.repeat(1 + Math.floor(E.scan * 3)), W / 2, HH - 34, 13, '#ffffff', 'center');
+  }
+}
+// ---- LEET 쉬는 시간: 계단 질주 ----
+function drawStairsHud(k, L, E, now) {
+  const S = E.stairs, W = L.W, HH = L.H, M = k.M, R = k.R, b = k.b;
+  if (S.phase === 'intro') {
+    k.SUB(S.t < 2.2 ? '쉬는 시간이다.' : '…계단이 있다. 한번 뛰어 볼까?', W / 2, HH - 48, 13, '#ffffff', 'center');
+    if (S.t > 2.2) { const tx = '왼쪽·오른쪽을 번갈아 빠르게 누르기 (← →)', tw = k.TW(tx, 11, 700) + 20; b.globalAlpha = 0.5; R(W / 2 - tw / 2, 47, tw, 18, '#0a0c0e'); b.globalAlpha = 1; k.T(tx, W / 2, 56, 11, '#f4f1e8', 'center', 700); }
+  } else if (S.phase === 'run') {
+    const next = S.last === 'L' ? 'R' : 'L', f = Math.max(0, S.left / tune.stairs_time), bw = 200;
+    M(`${S.steps} 계단`, W / 2, 30, 15, '#ffffff', 'center', 700); b.globalAlpha = 0.35; R(W / 2 - bw / 2, 44, bw, 3, '#f4f1e8'); b.globalAlpha = 1; R(W / 2 - bw / 2, 44, Math.round(bw * f), 3, f < 0.25 ? '#ff6a6a' : '#f4f1e8');
+    for (const [side, x, al] of [['L', 40, 'left'], ['R', W - 40, 'right']]) { const on = next === side; b.globalAlpha = on ? 1 : 0.4; M(side === 'L' ? '◀ 왼발' : '오른발 ▶', x, HH - 40, on ? 14 : 11, S.stumble > 0 && !on ? '#ff6a6a' : '#ffffff', al, 700); b.globalAlpha = 1; }
+    const sp = Math.min(1, S.steps / Math.max(1, tune.stairs_need)); b.globalAlpha = 0.12 * sp; R(0, 0, 70, HH, '#ffffff'); R(W - 70, 0, 70, HH, '#ffffff'); b.globalAlpha = 1; // 빨라질수록 양옆이 하얗게 흐른다
+  } else {
+    const a = Math.min(1, S.t / 0.4); if (S.result === 'clear') { b.globalAlpha = 0.5 * (1 - Math.min(1, S.t / 1.6)); R(0, 0, W, HH, '#ffffff'); b.globalAlpha = 1; }
+    b.globalAlpha = a; k.SUB(S.result === 'clear' ? '머리가 맑아졌다…!' : S.result === 'tired' ? '…숨만 차다. 들어가자.' : '…그냥 들어가자.', W / 2, HH - 48, 14, '#ffffff', 'center'); b.globalAlpha = 1;
   }
 }
 // ---- 책상 위 소품의 화면: 필통 속 폰(260x104) · 지우개 액정(128x64) ----
@@ -461,6 +500,7 @@ function drawExamOverlays(k, L, E, now, H) {
     else { k.b.globalAlpha = 0.14; R(0, 0, zw, L.H, C.white); R(L.W - zw, 0, zw, L.H, C.white); k.b.globalAlpha = 1;
     if (Math.floor(now * 2) % 2 === 0) { TO('<', zw / 2 + 8, L.H / 2, 22, C.white); TO('>', L.W - zw / 2 - 8, L.H / 2, 22, C.white); } }
   }
+  if (E.clear && E.qi === 0 && E.start <= 0 && !E.fb && !E.over && !E.caught) k.SUB('…글이 한눈에 들어온다.', L.W / 2, L.H - 48, 12, C.white, 'center');
   if (E.breakT > 0 && !E.caught) { // 쉬는 시간 종소리 뒤의 안내 방송
     
     k.SUB(`${tier.staff[0].name}: "쉬는 시간입니다. 다음은 ${tier.parts[E.part]}."`, L.W / 2, L.H - 48, 12, C.white, 'center', 800);

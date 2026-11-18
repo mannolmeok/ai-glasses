@@ -127,6 +127,12 @@ const HUBUI = (() => {
     (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, hv, now);
     const b = k.b; b.globalAlpha = 0.06; b.fillStyle = '#000000'; for (let y = 0; y < LH; y += 2) b.fillRect(0, y, LW, 0.5); // 주사선
     b.globalAlpha = 0.05; b.fillStyle = '#ffffff'; b.fillRect(0, ((now * 30) % (LH + 60)) - 30, LW, 18); b.globalAlpha = 1;
+    if (STATE.note) { // 품절 같은 알림은 화면 안의 창으로 뜬다
+      const w = 230, h = 104, x = (LW - w) / 2, y = (LH - h) / 2 - 6; b.globalAlpha = 0.45; k.R(0, 0, LW, LH, '#000000'); b.globalAlpha = 1;
+      k.R(x + 3, y + 4, w, h, 'rgba(0,0,0,0.35)'); k.R(x, y, w, h, '#f4f5f7'); k.frame(x, y, w, h, '#8a93a3', 1); k.R(x, y, w, 22, '#dfe3ea'); k.T('AI마켓 안내', x + 10, y + 11, 12, '#3a4252', 'left', 800); k.T('×', x + w - 12, y + 11, 13, '#6a7282', 'center', 800);
+      k.T(STATE.note.text, LW / 2, y + 47, fitText(k, STATE.note.text, w - 24, 15, 10), '#1d2433', 'center', 800);
+      btn(k, LW / 2 - 40, y + h - 34, 80, 24, '확인', 'noteok', { bg: '#1d2433', col: '#1d2433', fg: '#ffffff', size: 13 });
+    }
     if (hover) { const [mx, my] = hover; k.poly([[mx, my], [mx, my + 13], [mx + 4, my + 10], [mx + 10, my + 10]], '#101018'); k.poly([[mx + 1, my + 2], [mx + 1, my + 10], [mx + 3, my + 8], [mx + 7, my + 8]], '#ffffff'); }
     return btns;
   }
@@ -256,13 +262,10 @@ const HUBUI = (() => {
     b.restore(); b.globalAlpha = 1;
     for (const px of [x + 16, x + w - 16]) { k.disc(px + 1, y + 9, 5, 'rgba(0,0,0,0.35)'); k.disc(px, y + 8, 5, '#c0392b'); k.disc(px - 1, y + 7, 2, '#f08a7a'); }
   }
-  function drawMail(k, L, z) { // 우편으로 온 성적 통지표를 집어 들어 본다
+  function drawMail(k, L, z) { // 우편으로 온 성적 통지표: 집어 든 종이(3D) 위에 그린다
     if (!G.mail) return null;
-    if (!STATE.mailImg) { const c = document.createElement('canvas'); c.width = PAPER_W; c.height = PAPER_H; drawResultPaper(c.getContext('2d'), G.mail); STATE.mailImg = c; }
-    const h = 336, w = Math.round(h * PAPER_W / PAPER_H), x = Math.round(L.W / 2 - w / 2), y = Math.round(12 + (1 - z) * 360), b = k.b;
-    b.save(); b.translate(x + w / 2, y + h / 2); b.rotate(-0.025); b.fillStyle = 'rgba(0,0,0,0.4)'; b.fillRect(-w / 2 + 5, -h / 2 + 6, w, h);
-    b.imageSmoothingEnabled = true; b.drawImage(STATE.mailImg, -w / 2, -h / 2, w, h); b.imageSmoothingEnabled = false; b.restore();
-    return { x, y, w, h };
+    if (STATE.mailImg !== G.mail) { const m = WORLD.mailTex(); drawResultPaper(m.g, G.mail); m.t.needsUpdate = true; STATE.mailImg = G.mail; }
+    return WORLD.hubRect('mail');
   }
   function draw(k, L, hv, now, hoverXY) { // 2D 층에 그리는 건 우편뿐. 노트북·일정표·폰은 3D 표면(surface)에 그린다
     btns = []; hover = hoverXY; let rect = null;

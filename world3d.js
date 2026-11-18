@@ -793,7 +793,7 @@ const WORLD = (() => {
     const sec = Math.floor(now) % 60; if (sec !== EX.clockSec) { EX.clockSec = sec; drawClockFace(sec); }
     if (EX.paperTex) {
       const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
-      const sig = [E.qi, E.part, E.ar, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
+      const sig = [E.qi, E.part, E.ar, E.clear, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
       if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
     }
     if (EX.gadget && !EX.home) { // 책상 위 소품: 스캔하는 동안만 뚜껑이 열리고 화면이 켜진다
@@ -876,6 +876,8 @@ const WORLD = (() => {
     const phone = pivot(sc, 0.06, 0.765, -0.2); phone.rotation.set(-Math.PI / 2, 0, -0.25); bx(phone, 0.08, 0.15, 0.012, 0, 0, 0, 0, hm('log', 0x1a1a20));
     const phoneT = canvasTex(64, 120, false), phoneFace = plane(phone, 0.07, 0.135, new THREE.MeshBasicMaterial({ map: phoneT.t, fog: false }), 0, 0, 0.0065); hot.log.push(phoneFace.material);
     const held = pivot(sc, 0, -5, 0); held.visible = false; bx(held, 0.1, 0.16, 0.01, 0, 0, 0, 0, ownMat(0x0c0c10)); // 집어 든 폰: 카메라 앞에 든다
+    const heldMail = pivot(sc, 0, -5, 0); heldMail.visible = false; // 집어 든 성적 통지표
+    const mailT = canvasTex(PAPER_W, PAPER_H, true), mailFace = plane(heldMail, 0.118, 0.164, new THREE.MeshBasicMaterial({ map: mailT.t, fog: false, color: 0xe6e0d2 }), 0, 0, 0); bx(heldMail, 0.118, 0.164, 0.0006, 0x2a2620, 0.003, -0.004, -0.004);
     const heldT = canvasTex(504, 810, true), heldFace = plane(held, 0.092, 0.148, new THREE.MeshBasicMaterial({ map: heldT.t, fog: false }), 0, 0, 0.0056);
     const door = pivot(sc, 0.84, 1.03, Z0 + 0.03);
     bx(door, 0.82, 2.06, 0.05, 0, 0, 0, 0, genProps ? hm('go', 0xffffff, { map: genTex('door', 1, 1), flatShading: false }) : hm('go', 0x7a5a3c)); bx(door, 0.06, 0.06, 0.08, 0, -0.3, -0.02, 0.05, hm('go', 0xd4b25a));
@@ -921,7 +923,7 @@ const WORLD = (() => {
     for (let i = 0; i < 8; i++) { const b = pivot(sc, -1.12 + i * 0.11, 1.475, -0.52); bx(b, 0.06, 0.05, 0.05, 0x9aa3b8, 0, 0.04, 0); bx(b, 0.05, 0.02, 0.006, 0, 0, 0.045, 0.026, glowMat(0x7ff6ff)); bx(b, 0.008, 0.03, 0.008, 0x2a2a30, 0, 0.08, 0); bx(b, 0.07, 0.03, 0.06, 0x8a5a32, 0, 0.01, 0); b.visible = false; bots.push(b); }
     const cam = new THREE.PerspectiveCamera(60, RW / RH, 0.02, 30); cam.rotation.order = 'YXZ';
     HUB.mail = mail;
-    Object.assign(HUB, { screenT, boardT, boardFace, held, heldT, heldFace, scene: sc, cam, hot, cork, corkFace, shop, shopFace, camLed, phoneT, phone, sign, gear, bots, lensM, parcel, lidA, lidB, wallM, winMat, act: 1, sigs: {}, anchors: [
+    Object.assign(HUB, { screenT, boardT, boardFace, heldMail, mailT, mailFace, held, heldT, heldFace, scene: sc, cam, hot, cork, corkFace, shop, shopFace, camLed, phoneT, phone, sign, gear, bots, lensM, parcel, lidA, lidB, wallM, winMat, act: 1, sigs: {}, anchors: [
       ['exams', new THREE.Vector3(-0.74, 1.4, Z0 + 0.05)],
       ['gear', new THREE.Vector3(-0.42, 1.02, -0.38)],
       ['log', new THREE.Vector3(0.06, 0.84, -0.2)],
@@ -1022,6 +1024,7 @@ const WORLD = (() => {
     c.updateMatrixWorld();
     const ph = !!(hv && hv.view === 'phone'); HUB.held.visible = ph; HUB.phone.visible = !ph; // 폰: 책상의 폰을 집어 눈앞에 든다
     if (ph) { HUB.heldT.t.needsUpdate = true; _qb.setFromEuler(_e.set(-0.08, 0.07, 0.015, 'YXZ')); HUB.held.quaternion.copy(c.quaternion).multiply(_qb); _p.set(0.003, 0.004 - (1 - z) * 0.22, -0.167).applyQuaternion(c.quaternion); HUB.held.position.copy(c.position).add(_p); HUB.held.updateMatrixWorld(true); }
+    const ml = !!(hv && hv.view === 'mail'); HUB.heldMail.visible = ml; if (ml) { HUB.mail.visible = false; _qb.setFromEuler(_e.set(-0.1, -0.06, -0.035, 'YXZ')); HUB.heldMail.quaternion.copy(c.quaternion).multiply(_qb); _p.set(0, 0.002 - (1 - z) * 0.24, -0.19).applyQuaternion(c.quaternion); HUB.heldMail.position.copy(c.position).add(_p); HUB.heldMail.updateMatrixWorld(true); }
     draw(HUB.scene, c, now);
   }
   function renderTitle(G, now) { // 밤의 고시원: 책상 위 AI 안경을 천천히 비춘다
@@ -1039,7 +1042,7 @@ const WORLD = (() => {
   }
   function hubRect(view) { // 다가간 노트북 화면·일정표가 화면에서 차지하는 사각형 (640x360 좌표)
     if (!W.ok || !HUB.scene) return null;
-    const face = view === 'laptop' ? HUB.shopFace : view === 'board' ? HUB.boardFace : view === 'phone' ? HUB.heldFace : null; if (!face) return null;
+    const face = view === 'laptop' ? HUB.shopFace : view === 'board' ? HUB.boardFace : view === 'phone' ? HUB.heldFace : view === 'mail' ? HUB.mailFace : null; if (!face) return null;
     const w = face.geometry.parameters.width / 2, h = face.geometry.parameters.height / 2;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (const [px, py] of [[-w, -h], [w, -h], [w, h], [-w, h]]) { _p.set(px, py, 0); face.localToWorld(_p); _p.project(HUB.cam); const sx = (_p.x + 1) / 2 * RW, sy = (1 - _p.y) / 2 * RH; x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); }
@@ -1053,6 +1056,7 @@ const WORLD = (() => {
       out.push({ i, x: x - h * 0.19, y: y0, w: h * 0.38, h }); });
     return out;
   }
+  function mailTex() { buildHub(); return HUB.mailT; }
   function laptopCanvas() { buildHub(); return HUB.screenT.c; }
   function surfaceCanvas(view) { buildHub(); return (view === 'board' ? HUB.boardT : view === 'phone' ? HUB.heldT : HUB.screenT).c; }
   function hubUV(x, y, view) { // 화면에서 누른 자리 → 노트북 화면 위의 위치(0~1), 화면 밖이면 null
@@ -1199,6 +1203,39 @@ const WORLD = (() => {
     draw(END.scene, END.cam, now, 1.4);
   }
 
+  // ---------- 계단: LEET 쉬는 시간에 전력으로 오르내리는 계단 ----------
+  const ST = { scene: null, i: 0, yaw: 0, pitch: 0 }, ST_N = 14, ST_H = 0.17, ST_D = 0.3;
+  function buildStairs() {
+    if (ST.scene) return;
+    const sc = new THREE.Scene(); sc.background = new THREE.Color(0x9aa0a8); sc.fog = new THREE.Fog(0x9aa0a8, 3, 12);
+    sc.add(new THREE.AmbientLight(0xffffff, 1.0)); sc.add(new THREE.HemisphereLight(0xeef4ff, 0x6a6258, 1.1));
+    const sun = new THREE.DirectionalLight(0xfff0d0, 1.6); sun.position.set(2, 6, -3); sc.add(sun);
+    const B = batch(), top = ST_N * ST_H, zt = -ST_N * ST_D;
+    for (let i = 0; i < ST_N; i++) { const h = (i + 1) * ST_H; B.box(1.7, h, ST_D, i % 2 ? 0xb4afa2 : 0xc2bdb0, 0, h / 2, -i * ST_D); B.box(1.7, 0.012, 0.035, 0x3e3e46, 0, h + 0.006, -i * ST_D + ST_D / 2 - 0.02); }
+    B.box(1.7, 0.1, 2.4, 0x8f8a7e, 0, -0.05, 1.3); B.box(1.7, top, 1.8, 0xb4afa2, 0, top / 2, zt - 0.75); // 아래·위 층계참
+    B.box(0.1, 8, 12, 0xdcd8cc, -0.9, 3, -2); B.box(0.1, 8, 12, 0xd2cec2, 0.9, 3, -2); B.box(0.12, 8, 12, 0x5a7a5a, -0.84, -2.9, -2); B.box(0.12, 8, 12, 0x5a7a5a, 0.84, -2.9, -2); // 벽과 아래쪽 초록 띠
+    B.box(1.9, 8, 0.1, 0xd6d2c6, 0, 3, zt - 1.7); B.box(1.9, 8, 0.1, 0xd6d2c6, 0, 3, 2.5); B.box(1.9, 0.1, 12, 0xe6e2d8, 0, 5.2, -2);
+    for (let i = 0; i <= ST_N; i += 2) B.box(0.04, 0.9, 0.04, 0x4a4a52, 0.78, i * ST_H + 0.6, -i * ST_D + 0.1); // 난간 기둥
+    sc.add(B.mesh());
+    plane(sc, 0.9, 1.1, new THREE.MeshBasicMaterial({ color: 0xfff6d8, fog: false }), 0, top + 1.9, zt - 1.64); // 층계참 창문
+    const sign = canvasTex(128, 64, false); { const g = sign.g; g.fillStyle = '#2b5f8a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.font = `800 34px ${FONT}`; g.textAlign = 'center'; g.fillText('3F', 64, 44); sign.t.needsUpdate = true; }
+    plane(sc, 0.4, 0.2, new THREE.MeshBasicMaterial({ map: sign.t, fog: false }), -0.84, top + 1.9, zt - 0.6, 0, Math.PI / 2);
+    const exit = canvasTex(128, 64, false); { const g = exit.g; g.fillStyle = '#1c8a4a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.font = `800 22px ${FONT}`; g.textAlign = 'center'; g.fillText('2F 고사실', 64, 40); exit.t.needsUpdate = true; }
+    plane(sc, 0.5, 0.25, new THREE.MeshBasicMaterial({ map: exit.t, fog: false }), 0, 2.2, 2.44, 0, Math.PI);
+    const cam = new THREE.PerspectiveCamera(72, RW / RH, 0.03, 30); cam.rotation.order = 'YXZ';
+    Object.assign(ST, { scene: sc, cam });
+  }
+  function renderStairs(S, now) {
+    if (!W.ok) return; buildStairs();
+    const m = S.steps % (2 * ST_N), up = m < ST_N, i = m <= ST_N ? m : 2 * ST_N - m; // 끝까지 오르면 돌아서 내려온다
+    ST.i += (i - ST.i) * 0.35; ST.yaw += ((up ? 0 : Math.PI) - ST.yaw) * 0.22; ST.pitch += ((up ? 0.02 : -0.62) - ST.pitch) * 0.2;
+    const run = S.phase === 'run', bob = run ? Math.abs(Math.sin(S.steps * Math.PI / 2 + now * 9)) * 0.035 : Math.sin(now * 1.4) * 0.006, c = ST.cam;
+    c.position.set((S.last === 'L' ? -0.05 : 0.05) * (run ? 1 : 0) + (S.stumble > 0 ? Math.sin(now * 60) * 0.03 : 0), ST.i * ST_H + 1.52 + bob, -ST.i * ST_D + 0.55);
+    c.rotation.set(ST.pitch + (S.stumble > 0 ? -0.12 : 0), ST.yaw, run ? (S.last === 'L' ? 0.035 : -0.035) : 0);
+    const fov = run ? 78 : 70; if (Math.abs(c.fov - fov) > 0.5) { c.fov += (fov - c.fov) * 0.2; c.updateProjectionMatrix(); }
+    c.updateMatrixWorld(); draw(ST.scene, c, now);
+  }
+
   // ---------- figures: 감독관 줄 세우기 ----------
   const FIG = { scene: null };
   const FIG_TYPES = [['homeroom', 'dean', 'suneung', 'agent', 'robot', 'ta', 'prof', 'teacher'], ['cnproctor', 'don', 'don2', 'banker', 'alien', 'reaper', 'yeomra', 'omega']];
@@ -1228,5 +1265,5 @@ const WORLD = (() => {
     return FIG.ms.map(f => { _p.set(f.x, f.top ? 2.3 : -0.15, f.z).project(FIG.cam); return { text: f.label, x: (_p.x + 1) / 2 * RW, y: (1 - _p.y) / 2 * RH, pose: f.pose }; });
   }
 
-  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, renderEnding, renderTableau, pickChoice, pickHub, hubLabels, figureLabels, hubRect, hubUV, laptopCanvas, surfaceCanvas, staffRects, layout: () => EX.layout });
+  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, renderEnding, renderTableau, pickChoice, pickHub, hubLabels, figureLabels, hubRect, hubUV, laptopCanvas, surfaceCanvas, staffRects, mailTex, renderStairs, layout: () => EX.layout });
 })();

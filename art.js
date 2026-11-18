@@ -282,24 +282,27 @@ function plate(k, x, y, w, h, H) {
 }
 
 // ======================= 결과 · 허브 · 타이틀 · 엔딩 · figures =======================
-function drawResultHud(k, L, Rz, now, H) { // 결과 화면: 창 대신 기기 화면에 뜨는 글자. 녹화 중인 카메라처럼 구석에만
-  const { R, T, TO } = k, C = PAL, blink = Math.floor(now * 2) % 2 === 0, dark = '#0d2a30';
-  if (blink) k.disc(30, 26, 4, C.bad); TO('REC', 40, 26, 11, C.white, 'left', dark);
-  TO(`${Rz.tierName} · 채점 수신`, 74, 26, 10, H.c, 'left', dark);
-  { // 가채점: 내 기기가 답안을 대조한 결과. 정식 통지표는 우편으로, 돈은 입금 문자로 온다
-    const col = Rz.caught ? C.bad : Rz.passed ? C.good : C.warn;
-    TO(Rz.caught ? '적발 · 퇴실' : Rz.audited ? '가채점은 합격인데...' : `가채점 ${Rz.score}점 · ${Rz.passed ? '합격 예상' : '불합격 예상'}`, 26, L.H - 46, 13, col, 'left', dark);
-    TO(Rz.caught ? '이번 시험은 무효 처리된다' : `정답 ${Rz.correct}/${Rz.qn} · 합격선 ${Rz.pass}점 · 통지표는 우편으로`, 26, L.H - 28, 10, H.c, 'left', dark);
-  }
-  // 오른쪽 아래: 다음에 할 일 (글자만)
-  const defs = [['Enter 귀가', 'hub', true]];
-  if (Rz.next != null) defs.unshift([Rz.final ? 'N 엔딩' : Rz.canNext ? 'N 다음 시험' : 'N 응시료 부족', 'next', Rz.final || Rz.canNext]);
-  defs.unshift([Rz.canRetry ? 'R 재응시' : 'R 응시료 부족', 'retry', Rz.canRetry]);
-  const btns = []; let x = L.W - 24;
-  for (let i = defs.length - 1; i >= 0; i--) { const [label, key, ok] = defs[i], w = k.TW(label, 11, 800) + 14, bx = x - w, by = L.H - 38, focus = ok && key === Rz.focus;
-    if (focus && blink) R(bx, by + 21, w, 1, H.c);
-    TO(label, bx + w / 2, by + 11, 11, !ok ? '#6b6680' : focus ? C.white : H.c, 'center', dark);
-    if (ok) btns.push({ x: bx, y: by - 4, w, h: 30, key }); x = bx - 8; }
+function drawResultHud(k, L, Rz, now, H) { // 결과 화면: 위에는 연동해 둔 AI(답안봇)의 문자 알림, 아래에는 자막 글씨의 다음 할 일
+  const { R, T } = k, C = PAL, b = k.b, W = L.W, blink = Math.floor(now * 2) % 2 === 0;
+  if (Rz.shownAt == null || now < Rz.shownAt) Rz.shownAt = now;
+  const a = Math.min(1, (now - Rz.shownAt) / 0.35), e = 1 - (1 - a) * (1 - a), cw = 300, ch = 62, cx = W / 2 - cw / 2, cy = -ch + (ch + 16) * e;
+  let gr = b.createLinearGradient(0, 0, 0, L.H); gr.addColorStop(0, 'rgba(0,0,0,0.28)'); gr.addColorStop(0.35, 'rgba(0,0,0,0)'); gr.addColorStop(0.65, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.6)'); b.fillStyle = gr; b.fillRect(0, 0, W, L.H);
+  const rr = (x, y, w, h, r, col) => { b.fillStyle = col; b.beginPath(); if (b.roundRect) b.roundRect(x, y, w, h, r); else b.rect(x, y, w, h); b.fill(); };
+  rr(cx + 1, cy + 4, cw, ch, 12, 'rgba(0,0,0,0.35)'); rr(cx, cy, cw, ch, 12, 'rgba(28,30,38,0.94)'); rr(cx + 11, cy + 10, 24, 24, 6, '#5eb5f7');
+  T('답안봇', cx + 45, cy + 14, 8.5, '#9aa3b4', 'left', 700); T('지금', cx + cw - 12, cy + 14, 8.5, '#9aa3b4', 'right', 700);
+  const good = Rz.passed && !Rz.caught, col = Rz.caught ? '#ff8a8a' : good ? '#8dffa8' : '#ffcf7a';
+  const head = Rz.caught ? '적발 · 퇴실' : Rz.audited ? '가채점은 합격인데...' : `가채점 ${Rz.score}점 · `, tail = Rz.caught || Rz.audited ? '' : Rz.passed ? '합격 예상' : '불합격 예상';
+  const hw = k.TW(head, 14, 800); T(head, cx + 45, cy + 31, 14, Rz.caught ? col : '#ffffff', 'left', 800); if (tail) T(tail, cx + 45 + hw, cy + 31, 14, col, 'left', 800);
+  T(Rz.caught ? '이번 시험은 무효 처리돼요.' : `정답 ${Rz.correct}/${Rz.qn} · 합격선 ${Rz.pass}점. 통지표는 우편으로 갑니다.`, cx + 45, cy + 48, 9.5, '#c9d0dc', 'left', 700);
+  // 아래: 다음에 할 일 (자막 글씨)
+  const defs = [[Rz.canRetry ? '재응시' : '응시료 부족', 'R', 'retry', Rz.canRetry]];
+  if (Rz.next != null) defs.push([Rz.final ? '엔딩' : Rz.canNext ? '다음 시험' : '응시료 부족', 'N', 'next', Rz.final || Rz.canNext]);
+  defs.push(['귀가', 'Enter', 'hub', true]);
+  const btns = [], gap = 118, x0 = W / 2 - gap * (defs.length - 1) / 2, y = L.H - 30;
+  defs.forEach(([label, keyName, key, ok], i) => { const x = x0 + i * gap, focus = ok && key === Rz.focus;
+    const w = k.SUB(label, x - 8, y, focus ? 13 : 12, !ok ? '#8a8698' : focus ? '#ffffff' : '#d8d4c8', 'center'); k.M(keyName, x - 8 + w / 2 + 6, y + 1, 7, !ok ? '#8a8698' : '#c9c4d8', 'left', 500);
+    if (focus) R(x - 8 - w / 2, y + 11, w, 1.5, blink ? '#ffffff' : 'rgba(255,255,255,0.5)');
+    if (ok) btns.push({ x: x - gap / 2 + 4, y: y - 18, w: gap - 8, h: 36, key }); });
   return btns;
 }
 function drawResults(k, L, Rz, now, H) {
@@ -342,32 +345,36 @@ function drawResults(k, L, Rz, now, H) {
   return btns;
 }
 
-function drawTitle(k, L, now, hasSave, info) {
-  const { R, T, TO } = k, C = PAL;
-  k.b.globalAlpha = 0.45; R(0, 0, L.W, L.H, '#0b0910'); k.b.globalAlpha = 1; // 뒤로 밤의 고시원 3D가 비친다
-  const cx = L.W / 2, cy = L.H * 0.3, lw = 86, lh = 52, gx = 56;
-  for (const sx of [-1, 1]) {
-    k.R(cx + sx * gx - lw / 2 - 4, cy - lh / 2 - 4, lw + 8, lh + 8, C.ol); k.R(cx + sx * gx - lw / 2 - 2, cy - lh / 2 - 2, lw + 4, lh + 4, '#3a3248');
-    k.R(cx + sx * gx - lw / 2, cy - lh / 2, lw, lh, '#0f3238');
-    k.b.globalAlpha = 0.5; for (let y = 0; y < lh; y += 3) k.R(cx + sx * gx - lw / 2, cy - lh / 2 + y, lw, 1, C.hud); k.b.globalAlpha = 1;
-  }
-  k.R(cx - gx + lw / 2, cy - lh / 2 + 4, 2 * gx - lw, 6, C.ol); k.R(cx - gx + lw / 2, cy - lh / 2 + 5, 2 * gx - lw, 3, '#3a3248');
-  const tf = new URLSearchParams(location.search).get('font') || CONFIG.title_font, ta = window.TITLE_ART && window.TITLE_ART[tf];
-  if (ta && ta.img.complete && ta.img.naturalWidth) { const h = 50, w = h * ta.w / ta.h; k.b.imageSmoothingEnabled = true; k.b.drawImage(ta.img, cx - w / 2, cy + 2 - h / 2, w, h); } // 리틱체로 그려 둔 제목 그림
-  else TO('AI 안경', cx, cy + 2, 46, C.hud);
-  T('모의평가부터 인류의 마지막 시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 24, 13, '#d8d3e6', 'center', 700);
-  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : 고개 숙여 AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
-  // 조작법은 첫 시험에서 하나씩 알려 준다
-  if (info && info.best) T(`내 최고 기록 ${info.best}`, cx, cy + lh / 2 + 106, 12, C.gold, 'center', 800);
-  if (info && info.ios) { // 아이폰 사파리: 홈 화면에 추가하면 전체 화면
-    const w = 372, x = cx - w / 2, y = L.H - 104;
-    k.b.globalAlpha = 0.85; R(x, y, w, 34, '#101822'); k.b.globalAlpha = 1; k.frame(x, y, w, 34, C.hud2, 1);
-    T('아이폰은 공유 버튼 → "홈 화면에 추가"로 열면 전체 화면이에요', cx, y + 11, 11, C.white, 'center', 800);
-    T('진행 상황은 폰 → 설정 → 저장 코드로 옮겨요', cx, y + 25, 10, '#a9a3bd', 'center', 700);
-  }
-  const label = hasSave ? 'Enter · 탭  이어서 하기' : 'Enter · 탭  첫 시험 보기';
-  const bw = 200, b = k.button(cx - bw / 2, L.H - 60, bw, 30, label, Math.floor(now * 2) % 2 === 0);
-  return [{ ...b, key: 'start' }];
+const TITLE_FONT = '"Black Han Sans","Do Hyeon",' + FONT_KO, BOOT_FONT = '"VT323","SF Mono","Menlo","Consolas",monospace,' + FONT_KO;
+if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
+function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 내 책상을 안경 너머로 본다. 초점이 잡히고 답이 뜬 순간 (시안 F 그대로)
+  const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e';
+  if (new URLSearchParams(location.search).get('hud') === '0') return []; // check only: 배경만
+  const fx = 165, fy = 132, fw = 210, fh = 150; // 초점 틀: 보기 네 개가 있는 자리
+  const wc = typeof worldCanvas !== 'undefined' && worldCanvas; // 초점 밖은 흐리고 어둡게: 3D 화면을 흐리게 다시 그리고, 초점 안만 뚫어 둔다
+  if (wc && wc.width && 'filter' in b) { try { b.save(); b.filter = 'blur(2.5px) brightness(0.6)'; b.drawImage(wc, 0, 0, W, HH); b.restore(); b.clearRect(fx, fy, fw, fh); } catch (e) { b.restore(); } }
+  else { b.globalAlpha = 0.4; R(0, 0, W, fy, '#000000'); R(0, fy + fh, W, HH - fy - fh, '#000000'); R(0, fy, fx, fh, '#000000'); R(fx + fw, fy, W - fx - fw, fh, '#000000'); b.globalAlpha = 1; }
+  b.globalAlpha = 0.38; R(0, 0, W, HH, '#061e0e'); b.globalAlpha = 1;
+  b.globalAlpha = 0.13; for (let y = 0; y < HH; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = 1;
+  const pulse = Math.max(0, 0.3 - (now % 3.6)) / 0.3, gx = pulse * 26, gy = pulse * 18, l = 20, x0 = fx - gx, y0 = fy - gy, x1 = fx + fw + gx, y1 = fy + fh + gy; // 3.6초마다 초점을 다시 잡는다
+  for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) { R(sx > 0 ? cx : cx - l, sy > 0 ? cy : cy - 2, l, 2, G1); R(sx > 0 ? cx : cx - 2, sy > 0 ? cy : cy - l, 2, l, G1); }
+  const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
+  const n = Math.min(4, 1 + Math.floor((now % 14) / 0.4));
+  ['LENS-OS 0.9b', '초점 ......... 고정', '정답 ......... 수신', '감독관 ....... 등 돌림'].slice(0, n).forEach((ln, i) => text(ln, 65, 60 + i * 15.6, `400 12.5px ${BOOT_FONT}`, G1, 'left', '#0a4018'));
+  const tx = W - 65, tf = `400 46px ${TITLE_FONT}`, jit = (now * 0.29) % 1 < 0.035 ? Math.round(Math.sin(now * 90) * 3) : 0;
+  [['AI 안경으로', 106], ['살아남기', 156]].forEach(([str, y]) => { text(str, tx + 2.5 + jit, y, tf, 'rgba(255,60,60,0.45)', 'right'); text(str, tx - 2 + jit, y, tf, 'rgba(60,160,255,0.4)', 'right'); text(str, tx + jit, y, tf, G1, 'right', '#0a4018'); });
+  if (info && info.best) text(`내 최고 기록 ${info.best}`, tx, 180, `400 11px ${BOOT_FONT}`, '#d8f8e0', 'right', '#0a4018');
+  if (info && info.ios) text('아이폰은 공유 → "홈 화면에 추가"로 열면 전체 화면', W / 2, HH - 24, `400 10px ${BOOT_FONT}`, '#d8f8e0', 'center', '#0a4018');
+  const label = hasSave ? '▶ 이어서 하기 [ENTER]' : '▶ 시험 시작 [ENTER]'; b.font = `400 16px ${BOOT_FONT}`; const bw = Math.ceil(b.measureText(label).width) + 30, bh = 28, bx = tx - bw, by = HH - 60 - bh, on = Math.floor(now * 2) % 2 === 0;
+  b.globalAlpha = on ? 0.16 : 0.06; R(bx, by, bw, bh, G1); b.globalAlpha = 1; k.frame(bx, by, bw, bh, G1, 1.5); text(label, bx + bw / 2, by + bh / 2 + 5, `400 16px ${BOOT_FONT}`, G1, 'center', 'rgba(116,255,142,0.5)');
+  b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
+  return [{ x: 0, y: 0, w: W, h: HH, key: 'start' }];
+}
+function drawTitleOut(k, L, now, a) { // 타이틀에서 시험으로: 안경 화면이 지직거리며 꺼진다 (a: 1 → 0)
+  const b = k.b, G1 = '#74ff8e'; b.globalAlpha = Math.min(1, a * 1.4); b.drawImage(rimFor('land'), 0, 0);
+  b.globalAlpha = 0.45 * a; k.R(0, 0, L.W, L.H, '#04140a');
+  for (let i = 0; i < 14; i++) { const h = Math.abs(Math.sin(i * 12.9898 + Math.floor(now * 24) * 78.233) * 43758.5453) % 1; b.globalAlpha = 0.5 * a; k.R(0, Math.floor(h * L.H), L.W, 1 + Math.floor(((h * 7) % 1) * 4), G1); }
+  b.globalAlpha = a; if (a > 0.35) k.M('LENS-OS ... 신호 끊김', 62, 44, 8.5, G1, 'left', 700); b.globalAlpha = 1;
 }
 
 const END_SHOTS = [ // 엔딩 앞 장면: CCTV에 찍힌 세상

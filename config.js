@@ -73,6 +73,8 @@ window.CONFIG = {
   glow_rate: { value: 0.35, min: 0, max: 2, step: 0.05 },          // 책상 앞에서 AI 답이 렌즈에 떠 있으면 (주시의 몇 배)
   calc_sus: { value: 0.3, min: 0, max: 0.9, step: 0.05 },          // 계산기 검사에 걸리면 오르는 의심도
   long_scan: { value: 1.5, min: 1, max: 3, step: 0.05 },           // LEET 긴 지문: 스캔 시간 배율
+  stairs_time: { value: 10, min: 4, max: 20, step: 1 },             // LEET 쉬는 시간 계단 질주: 뛰는 시간(초)
+  stairs_need: { value: 34, min: 10, max: 80, step: 2 },            // 이만큼 계단을 밟으면 머리가 맑아진다 (2교시는 AI 없이도 답이 보인다)
   session_keep: { value: 0.5, min: 0, max: 1, step: 0.05 },        // 교시가 바뀔 때 남는 의심도 비율
   adaptive_drop: { value: 0.15, min: 0, max: 0.5, step: 0.01 },    // SAT 1모듈을 잘 보면 2모듈 AI 정답률 -
   fatigue_step: { value: 0.25, min: 0, max: 1, step: 0.05 },       // USMLE 블록마다 스캔 시간 +
@@ -185,7 +187,7 @@ window.CONFIG = {
       stand: [1.8, 2.9], walk: [1.0, 1.7], tell: 0.6, watch: 2.4, speed: 0.12, cross: 0.3, feint: 0.25, sus: 1.25, ai: 5.5, reward: 20000000, pay: '첫 감정 수수료',
       news: '"6개월 합격" 수기 논란. 정부, 국가자격시험 전 종목 전수조사 · 시험장에 AI 탐지 전파 도입',
       head: ['제38회 감정평가사 시험', '감정평가이론 · 실무'], lines: ['감정평가사 자격시험', '단추 스티커 부착 · CCTV 녹화 중'] },
-    { id: 'leet', act: 1, name: '법학적성시험(LEET)', subject: '추리논증', gen: 'logic', qn: 8, time: 130, room: 'leet', sec: ['cctv', 'pulse'], mech: ['long'],
+    { id: 'leet', act: 1, name: '법학적성시험(LEET)', subject: '언어이해·추리논증', gen: 'logic', qn: 5, parts: ['1교시 언어이해', '2교시 추리논증'], time: 85, room: 'leet', sec: ['cctv', 'pulse'], mech: ['long'],
       staff: [{ type: 'agent', name: '시험 관리관' }, { type: 'suneung', name: '감독관' }],
       stand: [1.8, 3.0], walk: [1.0, 1.8], tell: 0.6, watch: 2.4, speed: 0.13, cross: 0.3, feint: 0.25, sus: 1.3, ai: 5.8, reward: 73000000, pay: '로스쿨 장학금',
       news: 'LEET 만점자 답안 수정 흔적 논란. 법무부 "변호사시험은 AI 감독관이 본다"',
