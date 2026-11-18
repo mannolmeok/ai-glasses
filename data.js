@@ -1,7 +1,8 @@
 // PROTOTYPE - NOT FOR PRODUCTION
 // Question: 감독관 눈치를 보며 AI 안경으로 스캔하는 긴장감이, 장비와 시험이 함께 커지는 성장과 맞물려 엔딩까지 재밌나?
 // Date: 2026-11-17
-// 문제 만들기: 시험 종류마다 4지선다를 자동으로 만든다 (정답은 언제나 하나). 대사와 문구도 여기.
+// 문제 만들기: 시험 종류마다 4지선다를 자동으로 만든다 (정답은 언제나 하나). 대사, 장비 문구, 장치 이름도 여기.
+// human: false 인 문제는 사람이 풀 수 없다(외계 문자, 테이스팅, 인류의 마지막 시험). AI 모델이 좋아야 맞힌다.
 'use strict';
 
 // 맞춤법: [맞는 말, 틀린 말]. 문맥에 따라 둘 다 맞을 수 있는 짝은 넣지 않는다.
@@ -17,15 +18,11 @@ const SPELL = [
   ['휴게실', '휴계실'], ['웬만하면', '왠만하면'], ['봬요', '뵈요'], ['우레', '우뢰'],
 ];
 
-const CIPHER_WORDS = ['HELLO', 'WORLD', 'BRAIN', 'GLASS', 'SMART', 'CHEAT', 'SPACE', 'ROBOT', 'LIGHT', 'MONEY',
-  'PIXEL', 'TIGER', 'APPLE', 'LEMON', 'MUSIC', 'DREAM', 'OCEAN', 'PLANT', 'CLOUD', 'STORM', 'HEART', 'QUEEN',
-  'NIGHT', 'POWER', 'CHAIR', 'PIANO', 'RIVER', 'STONE', 'TRAIN', 'WATCH'];
-
 const ALIEN_Q = ['다음 중 가장 무거운 별은?', '블랙홀의 맛으로 옳은 것은?', '은하 3번 국도의 제한 속도는?',
   '외계 급식 중 가장 매운 것은?', '토성 고리를 세는 단위는?', '지구인의 주식(主食)은?', '혜성의 꼬리는 몇 개인가?',
   '빛보다 빠른 것을 고르시오.', '안드로메다로 가는 버스 번호는?', '우주 화장실 사용법으로 옳은 것은?'];
 
-// 토익 Part 5: [빈칸 문장, 정답, 오답 3개]
+// 4지선다 문제 묶음: [문제, 정답, 오답 3개]
 const TOEIC = [
   ['The meeting has been ____ until next Monday.', 'postponed', ['postpone', 'postponing', 'postpones']],
   ['Please submit the report ____ Friday.', 'by', ['until', 'since', 'during']],
@@ -50,7 +47,33 @@ const TOEIC = [
   ['Items can be returned ____ 30 days.', 'within', ['between', 'among', 'above']],
   ['The report must be reviewed ____ it is sent.', 'before', ['during', 'despite', 'unless']],
 ];
-// 한국사: [문제, 정답, 오답 3개]
+// 토익 듣기: 문제는 방송으로만 나온다. 보기 넷 중 무엇이 맞는지는 들어야 안다.
+const TOEIC_LC = ['She is pouring some coffee.', 'They are boarding a bus.', 'A man is fixing a bicycle.', 'Some boxes are stacked on a cart.',
+  'He is talking on the phone.', 'The chairs are arranged in a row.', 'A woman is watering plants.', 'People are waiting in line.',
+  'He is holding a briefcase.', 'The door has been left open.', 'She is reading a menu.', 'A ladder is leaning against a wall.',
+  'They are shaking hands.', 'The shelves are being stocked.', 'A car is parked by the curb.', 'He is typing on a keyboard.'];
+const TOEFL = [
+  ["The word 'abundant' is closest in meaning to", 'plentiful', ['rare', 'ancient', 'fragile']],
+  ["The word 'diminish' is closest in meaning to", 'decrease', ['explain', 'reveal', 'enlarge']],
+  ["The word 'feasible' is closest in meaning to", 'possible', ['careless', 'famous', 'hidden']],
+  ["The word 'subsequent' is closest in meaning to", 'following', ['previous', 'sudden', 'minor']],
+  ["The word 'vital' is closest in meaning to", 'essential', ['optional', 'lively', 'visible']],
+  ["The word 'conceal' is closest in meaning to", 'hide', ['reveal', 'build', 'repeat']],
+  ["The word 'rigid' is closest in meaning to", 'stiff', ['flexible', 'wet', 'quiet']],
+  ["The word 'acquire' is closest in meaning to", 'obtain', ['lose', 'admire', 'require']],
+  ["The word 'precise' is closest in meaning to", 'exact', ['vague', 'costly', 'early']],
+  ["The word 'enormous' is closest in meaning to", 'huge', ['tiny', 'normal', 'heavy']],
+  ["The word 'hostile' is closest in meaning to", 'unfriendly', ['welcoming', 'tired', 'distant']],
+  ["The word 'scarce' is closest in meaning to", 'limited', ['frightening', 'common', 'scattered']],
+];
+const SAT_WORDS = [
+  ['Choose the word closest to "meticulous".', 'careful', ['careless', 'quick', 'loud']],
+  ['Choose the word closest to "candid".', 'honest', ['sweet', 'hidden', 'nervous']],
+  ['Choose the word closest to "benevolent".', 'kind', ['cruel', 'lazy', 'wealthy']],
+  ['Choose the word closest to "ephemeral".', 'short-lived', ['eternal', 'heavy', 'colorful']],
+  ['Choose the word closest to "pragmatic".', 'practical', ['dreamy', 'angry', 'ancient']],
+  ['Choose the word closest to "lucid".', 'clear', ['dark', 'lucky', 'slow']],
+];
 const HISTORY = [
   ['훈민정음을 창제한 왕은?', '세종', ['태종', '세조', '정조']],
   ['고려를 세운 인물은?', '왕건', ['궁예', '견훤', '이성계']],
@@ -75,9 +98,94 @@ const HISTORY = [
   ['탕평책을 펼친 왕은?', '영조', ['연산군', '광해군', '세조']],
   ['현존하는 세계에서 가장 오래된 금속 활자본은?', '직지심체요절', ['팔만대장경', '훈민정음', '동의보감']],
 ];
+const BIZ = [
+  ['SWOT에서 O가 뜻하는 것은?', '기회', ['약점', '위협', '강점']],
+  ['마케팅 4P에 들어가지 않는 것은?', '사람(People)', ['제품(Product)', '가격(Price)', '유통(Place)']],
+  ['포터의 본원적 경쟁 전략이 아닌 것은?', '수직 계열화', ['원가 우위', '차별화', '집중화']],
+  ['BCG 매트릭스에서 점유율은 높고 성장은 낮은 사업은?', '캐시카우', ['스타', '물음표', '개']],
+  ['테일러의 과학적 관리법과 관련이 깊은 것은?', '시간·동작 연구', ['호손 실험', '욕구 단계', 'X·Y 이론']],
+  ['매슬로의 욕구 단계에서 가장 높은 단계는?', '자아실현 욕구', ['존경 욕구', '안전 욕구', '소속 욕구']],
+  ['호손 실험이 강조한 것은?', '인간관계', ['분업', '표준화', '성과급']],
+  ['맥그리거가 사람은 일을 싫어한다고 본 이론은?', 'X 이론', ['Y 이론', 'Z 이론', '2요인 이론']],
+  ['허즈버그 2요인 이론에서 위생 요인은?', '급여', ['성취감', '인정', '책임감']],
+  ['STP에서 T가 뜻하는 것은?', '표적 시장 선정', ['시장 세분화', '포지셔닝', '판매 촉진']],
+  ['손익분기점에서 이익은?', '0', ['최대', '음수', '매출과 같음']],
+  ['주식회사의 최고 의사결정 기구는?', '주주총회', ['이사회', '감사', '대표이사']],
+];
+const LAW = [
+  ['대한민국 헌법상 대통령의 임기는?', '5년', ['4년', '6년', '7년']],
+  ['국회의원의 임기는?', '4년', ['5년', '6년', '3년']],
+  ['헌법재판소 재판관의 수는?', '9명', ['7명', '11명', '13명']],
+  ['형법상 형사미성년자는 몇 세 미만인가?', '14세', ['12세', '16세', '18세']],
+  ['민법상 성년이 되는 나이는?', '19세', ['18세', '20세', '21세']],
+  ['죄형법정주의가 금지하는 것은?', '소급 처벌', ['형의 감경', '집행 유예', '선고 유예']],
+  ['계약이 성립하려면 필요한 것은?', '청약과 승낙의 합치', ['공증', '등기', '계약금']],
+  ['헌법 개정안을 국회가 의결하려면 재적의원 몇 이상이 찬성해야 하나?', '3분의 2', ['과반수', '4분의 3', '5분의 3']],
+  ['형벌 중 가장 무거운 것은?', '사형', ['징역', '금고', '벌금']],
+  ['부동산 소유권을 넘기려면 필요한 것은?', '등기', ['인도', '공증', '통지']],
+  ['대법원장의 임기는?', '6년', ['5년', '4년', '10년']],
+  ['정당방위가 인정되면 그 행위는?', '위법성이 없어진다', ['형이 감경된다', '처벌이 유예된다', '벌금형이 된다']],
+];
+const OXFORD = [
+  ['모든 백조가 희다는 주장을 무너뜨리는 것은?', '검은 백조 한 마리', ['흰 백조 백만 마리', '백조 사진', '백조 사전']],
+  ['"나는 생각한다, 고로 존재한다"를 말한 사람은?', '데카르트', ['칸트', '흄', '플라톤']],
+  ['트롤리 문제가 다루는 것은?', '윤리적 선택', ['물리 법칙', '경제 성장', '언어 습득']],
+  ['죄수의 딜레마에서 둘 다 자백하는 까닭은?', '각자 배신이 유리해서', ['서로 믿어서', '법이 그래서', '운이 나빠서']],
+  ['오컴의 면도날이 권하는 것은?', '가장 단순한 설명', ['가장 긴 설명', '다수의 의견', '전통적 설명']],
+  ['테세우스의 배가 묻는 것은?', '동일성', ['속도', '소유권', '항해술']],
+  ['귀납 추론의 약점은?', '다음에도 같다는 보장이 없다', ['너무 짧다', '수학이 필요하다', '항상 틀린다']],
+  ['소크라테스 대화법의 핵심은?', '질문으로 모순 드러내기', ['강의로 가르치기', '투표로 정하기', '책 외우기']],
+];
+const MED = [
+  ['인슐린을 만드는 곳은?', '췌장 베타세포', ['간', '신장', '갑상선']],
+  ['적혈구가 주로 만들어지는 곳은?', '골수', ['비장', '간', '심장']],
+  ['산소를 운반하는 단백질은?', '헤모글로빈', ['인슐린', '콜라겐', '케라틴']],
+  ['심장에서 폐로 피를 보내는 곳은?', '우심실', ['좌심실', '우심방', '좌심방']],
+  ['비타민 C 결핍증은?', '괴혈병', ['구루병', '각기병', '야맹증']],
+  ['비타민 D가 모자라 아이에게 생기는 병은?', '구루병', ['괴혈병', '펠라그라', '빈혈']],
+  ['뇌에서 균형을 맡는 곳은?', '소뇌', ['대뇌', '연수', '시상']],
+  ['정상 체온에 가장 가까운 것은?', '36.5도', ['34도', '38.5도', '40도']],
+  ['항생제가 듣지 않는 것은?', '바이러스', ['세균', '포도상구균', '연쇄상구균']],
+  ['페니실린을 발견한 사람은?', '플레밍', ['파스퇴르', '코흐', '제너']],
+];
+const CFA = [
+  ['분산 투자로 줄일 수 있는 위험은?', '비체계적 위험', ['체계적 위험', '시장 위험', '금리 위험']],
+  ['베타가 1보다 크면?', '시장보다 더 출렁인다', ['시장보다 덜 출렁인다', '위험이 없다', '배당이 많다']],
+  ['금리가 오르면 이미 발행된 채권 가격은?', '내린다', ['오른다', '그대로다', '두 배가 된다']],
+  ['72의 법칙으로 연 8% 복리면 원금이 두 배가 되는 데 약 몇 년?', '9년', ['8년', '12년', '6년']],
+];
+const MBE = [
+  ['미국 수정헌법 제1조가 보장하는 것은?', '표현의 자유', ['무기 소지', '배심 재판', '노예 금지']],
+  ['미란다 원칙이 알려 주는 권리는?', '묵비권', ['투표권', '재산권', '이주권']],
+  ['미국 연방대법관의 임기는?', '종신', ['10년', '6년', '4년']],
+  ['이중 위험(double jeopardy) 금지란?', '같은 죄로 두 번 재판 안 함', ['벌금 두 번', '판사 두 명', '두 배 처벌']],
+  ['계약의 대가(consideration)란?', '서로 주고받는 가치', ['계약서 종이', '공증 비용', '변호사 보수']],
+  ['과실(negligence) 성립 요소가 아닌 것은?', '고의', ['주의 의무', '의무 위반', '손해']],
+  ['미국 대통령의 임기는?', '4년', ['5년', '6년', '8년']],
+  ['연방 판사를 지명하는 사람은?', '대통령', ['주지사', '하원의장', '국무장관']],
+];
+const AFTERLIFE = [
+  ['저승사자가 쓰는 모자는?', '갓', ['투구', '왕관', '두건']],
+  ['저승의 왕으로 알려진 이는?', '염라대왕', ['옥황상제', '용왕', '산신령']],
+  ['저승으로 가는 길에 건너는 강은?', '삼도천', ['한강', '은하수', '압록강']],
+  ['49재는 사람이 죽은 뒤 며칠째에 지내나?', '49일', ['7일', '100일', '3일']],
+  ['저승 명부에 적혀 있다는 것은?', '사람의 수명', ['통장 잔고', '성적', '혈액형']],
+  ['이승은 무엇을 뜻하나?', '지금 사는 세상', ['죽은 뒤 세상', '하늘나라', '바닷속']],
+  ['저승길에 쓰라고 넣어 주는 돈은?', '노잣돈', ['세뱃돈', '용돈', '축의금']],
+];
+const MULTILAW = [
+  ['평행우주의 나에게 빌린 돈은?', '같은 우주 안에서만 갚는다', ['모든 우주에 갚는다', '갚지 않는다', '이자만 갚는다']],
+  ['과거의 나를 만났을 때 금지된 것은?', '악수', ['인사', '눈 맞춤', '사진']],
+  ['우주 47번의 헌법 제1조는?', '고양이가 주권자다', ['사람이 주권자다', 'AI가 주권자다', '주권은 없다']],
+  ['다중우주 재판의 배심원 수는?', '무한대', ['12명', '9명', '1명']],
+  ['시간여행으로 미리 본 판결은?', '증거로 못 쓴다', ['그대로 확정된다', '두 번 집행된다', '항소할 수 없다']],
+];
+const OPEN_PROBLEMS = ['리만 가설은 참이다', 'P와 NP는 다르다', '모든 짝수는 두 소수의 합이다', '쌍둥이 소수는 끝없이 있다',
+  '콜라츠 추측은 참이다', '양-밀스 질량 간극이 있다', '나비에-스토크스 해는 늘 매끄럽다', '호지 추측은 참이다', '버치-스위너턴다이어 추측은 참이다'];
+const GRAPES_RED = ['피노 누아', '카베르네 소비뇽', '시라', '메를로', '말벡', '네비올로', '템프라니요', '그르나슈'];
+const GRAPES_WHITE = ['샤르도네', '소비뇽 블랑', '리슬링', '슈냉 블랑', '게뷔르츠트라미너'];
+const CAPTCHA_ICONS = ['신호등', '자동차', '나무', '버스', '자전거', '소화전'];
 const NAMES = ['민수', '지영', '하늘', '도윤', '서연', '준호', '유나', '태민'];
-
-const SIGNAL_SHAPES = 6; // 신호 모양 개수 (그림은 art.js)
 
 function shuffleChoices(rng, correct, wrongs) {
   const choices = [correct, ...wrongs];
@@ -102,33 +210,18 @@ function numQ(rng, q, ans, cands) {
   const { choices, answer } = shuffleChoices(rng, ans, numWrongs(rng, ans, cands));
   return { kind: 'text', q, choices: choices.map(String), answer, human: true };
 }
+function poolQ(rng, pool, human = true) {
+  const it = pool[Math.floor(rng() * pool.length)];
+  const { choices, answer } = shuffleChoices(rng, it[1], it[2]);
+  return { kind: 'text', q: it[0], choices, answer, human };
+}
+const wonText = v => Math.round(v).toLocaleString('ko-KR') + '원';
 
 const GEN = {
   spell(rng) {
     const idx = pickDistinct(rng, SPELL.length, 4);
     const { choices, answer } = shuffleChoices(rng, SPELL[idx[0]][0], idx.slice(1).map(i => SPELL[i][1]));
     return { kind: 'text', q: '다음 중 맞춤법이 바른 것은?', choices, answer, human: true };
-  },
-  add(rng) {
-    const sub = rng() < 0.4;
-    let a = ri(rng, 14, 89), b = ri(rng, 11, 79);
-    if (sub && b > a) [a, b] = [b, a];
-    if (sub && a === b) a += 7;
-    const ans = sub ? a - b : a + b;
-    const sw = Number(String(ans).split('').reverse().join(''));
-    return numQ(rng, `${a} ${sub ? '-' : '+'} ${b} = ?`, ans, [ans + 1, ans - 1, ans + 10, ans - 10, ans + 2, sw]);
-  },
-  mulseq(rng, hard) {
-    if (rng() < 0.5) {
-      const a = ri(rng, hard ? 23 : 12, hard ? 79 : 39), b = ri(rng, 3, 9), ans = a * b;
-      return numQ(rng, `${a} × ${b} = ?`, ans, [ans + a, ans - a, ans + b, ans - b, ans + 10, ans - 10]);
-    }
-    if (rng() < 0.55) {
-      const s = ri(rng, 2, 20), k = ri(rng, 3, hard ? 19 : 13), t = [0, 1, 2, 3].map(i => s + i * k), ans = s + 4 * k;
-      return numQ(rng, `${t.join(', ')}, ( ? )`, ans, [ans + k, ans - 1, ans + 1, ans - k, ans + 2]);
-    }
-    const s = ri(rng, 2, 5), r = ri(rng, 2, 3), t = [0, 1, 2, 3].map(i => s * r ** i), ans = s * r ** 4;
-    return numQ(rng, `${t.join(', ')}, ( ? )`, ans, [t[3] + (t[3] - t[2]), ans * 2, ans - s, ans + r, t[3] * (r + 1)]);
   },
   eq(rng, hard) {
     if (rng() < 0.25) {
@@ -138,42 +231,26 @@ const GEN = {
     const a = ri(rng, 2, 9), x = ri(rng, 2, hard ? 29 : 15), b = ri(rng, 1, 40), c = a * x + b;
     return numQ(rng, `${a}x + ${b} = ${c},  x = ?`, x, [x + 1, x - 1, x + 2, c - b, Math.round(c / a), x + 3]);
   },
-  cipher(rng, hard) {
-    const idx = pickDistinct(rng, CIPHER_WORDS.length, 4), word = CIPHER_WORDS[idx[0]], k = ri(rng, 1, hard ? 7 : 4);
-    const enc = word.split('').map(ch => String.fromCharCode(65 + (ch.charCodeAt(0) - 65 + k) % 26)).join('');
-    const { choices, answer } = shuffleChoices(rng, word, idx.slice(1).map(i => CIPHER_WORDS[i]));
-    return { kind: 'text', q: `암호 '${enc}' 를 ${k}칸 되돌리면?`, choices, answer, human: true };
+  eqhard(rng) { return GEN.eq(rng, true); },
+  toeic(rng) { return poolQ(rng, TOEIC); },
+  toeicLC(rng) { // 듣기: 글자가 없어 스캔이 안 된다. AI 이어폰이 받아써야 AI 답이 뜬다
+    const idx = pickDistinct(rng, TOEIC_LC.length, 4), answer = ri(rng, 0, 3);
+    return { kind: 'listen', q: 'Part 1 · 방송을 듣고 사진을 가장 잘 묘사한 것을 고르시오.', choices: idx.map((i, j) => `(${'ABCD'[j]}) ${TOEIC_LC[i]}`), answer, human: false };
   },
-  signal(rng, hard) {
-    const L = ri(rng, 2, hard ? 4 : 3), unit = [];
-    for (let i = 0; i < L; i++) unit.push(Math.floor(rng() * SIGNAL_SHAPES));
-    if (unit.every(v => v === unit[0])) unit[L - 1] = (unit[0] + 1) % SIGNAL_SHAPES;
-    const seq = []; for (let i = 0; i < 7; i++) seq.push(unit[i % L]);
-    const ans = unit[7 % L], wrongs = [];
-    while (wrongs.length < 3) { const v = Math.floor(rng() * SIGNAL_SHAPES); if (v !== ans && !wrongs.includes(v)) wrongs.push(v); }
-    const { choices, answer } = shuffleChoices(rng, ans, wrongs);
-    return { kind: 'signal', q: '다음에 올 신호는?', seq, choices, answer, human: true };
+  toefl(rng) { return poolQ(rng, TOEFL); },
+  sat(rng) {
+    if (rng() < 0.5) return poolQ(rng, SAT_WORDS);
+    const a = ri(rng, 2, 9), x = ri(rng, 3, 19), b = ri(rng, 1, 30), c = a * x + b;
+    return numQ(rng, `If ${a}x + ${b} = ${c}, what is x?`, x, [x + 1, x - 1, x + 2, c - b, x + 3]);
   },
-  alien(rng) {
-    const seed = ri(rng, 100, 99999), choices = [0, 1, 2, 3].map(() => ri(rng, 100, 99999));
-    return { kind: 'alien', q: seed, choices, answer: ri(rng, 0, 3), human: false, translation: ALIEN_Q[ri(rng, 0, ALIEN_Q.length - 1)] };
-  },
-  toeic(rng) {
-    const it = TOEIC[Math.floor(rng() * TOEIC.length)];
-    const { choices, answer } = shuffleChoices(rng, it[1], it[2]);
-    return { kind: 'text', q: it[0], choices, answer, human: true };
-  },
-  history(rng) {
-    const it = HISTORY[Math.floor(rng() * HISTORY.length)];
-    const { choices, answer } = shuffleChoices(rng, it[1], it[2]);
-    return { kind: 'text', q: it[0], choices, answer, human: true };
-  },
+  history(rng) { return poolQ(rng, HISTORY); },
+  biz(rng) { return poolQ(rng, BIZ); },
   civil(rng) { return rng() < 0.5 ? GEN.spell(rng) : GEN.history(rng); },
-  logic(rng) { // 추리논증: 이웃한 쌍의 비교 세 개로 순서가 하나로 정해진다
+  logic(rng) { // 추리논증: 이웃한 쌍의 비교 세 개로 순서가 하나로 정해진다 (LEET는 지문이 길다)
     const idx = pickDistinct(rng, NAMES.length, 4), p = idx.map(i => NAMES[i]);
     const facts = [[p[0], p[1]], [p[1], p[2]], [p[2], p[3]]];
     for (let i = facts.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [facts[i], facts[j]] = [facts[j], facts[i]]; }
-    const tall = rng() < 0.5, ask = Math.floor(rng() * 3); // 0: 가장 ~, 1: 가장 덜 ~, 2: 두 번째로 ~
+    const tall = rng() < 0.5, ask = Math.floor(rng() * 3);
     const askText = tall ? ['가장 키가 큰 사람은?', '가장 키가 작은 사람은?', '두 번째로 키가 큰 사람은?']
       : ['점수가 가장 높은 사람은?', '점수가 가장 낮은 사람은?', '점수가 두 번째로 높은 사람은?'];
     const ans = ask === 0 ? p[0] : ask === 1 ? p[3] : p[1];
@@ -182,26 +259,72 @@ const GEN = {
     return { kind: 'text', q, choices, answer, human: true };
   },
   tax(rng) {
-    const won0 = v => v.toLocaleString('ko-KR') + '원';
     const k = Math.floor(rng() * 4);
     if (k === 0) { const base = ri(rng, 12, 98) * 100000, v = base / 10;
-      return { kind: 'text', q: `공급가액 ${won0(base)}의 부가가치세(10%)는?`, ...shuffleChoices(rng, won0(v), [won0(v / 10), won0(base + v), won0(base - v)]), human: true }; }
+      return { kind: 'text', q: `공급가액 ${wonText(base)}의 부가가치세(10%)는?`, ...shuffleChoices(rng, wonText(v), [wonText(v / 10), wonText(base + v), wonText(base - v)]), human: true }; }
     if (k === 1) { const sales = ri(rng, 9, 30) * 1000000, cost = Math.round(sales * (0.4 + rng() * 0.2) / 100000) * 100000, sga = ri(rng, 5, 25) * 100000, op = sales - cost - sga;
-      return { kind: 'text', q: `매출 ${won0(sales)}, 매출원가 ${won0(cost)}, 판관비 ${won0(sga)}일 때 영업이익은?`, ...shuffleChoices(rng, won0(op), [won0(sales - cost), won0(op + sga * 2), won0(sales - sga)]), human: true }; }
+      return { kind: 'text', q: `매출 ${wonText(sales)}, 매출원가 ${wonText(cost)}, 판관비 ${wonText(sga)}일 때 영업이익은?`, ...shuffleChoices(rng, wonText(op), [wonText(sales - cost), wonText(op + sga * 2), wonText(sales - sga)]), human: true }; }
     if (k === 2) { const c = ri(rng, 4, 20) * 1000000, y = [4, 5, 8, 10][ri(rng, 0, 3)], v = c / y;
-      return { kind: 'text', q: `취득원가 ${won0(c)}, 잔존가치 0, 내용연수 ${y}년. 정액법 연 감가상각비는?`, ...shuffleChoices(rng, won0(v), [won0(v * 2), won0(Math.round(c / (y + 1) / 1000) * 1000), won0(Math.round(v / 2))]), human: true }; }
+      return { kind: 'text', q: `취득원가 ${wonText(c)}, 잔존가치 0, 내용연수 ${y}년. 정액법 연 감가상각비는?`, ...shuffleChoices(rng, wonText(v), [wonText(v * 2), wonText(Math.round(c / (y + 1) / 1000) * 1000), wonText(Math.round(v / 2))]), human: true }; }
     const inc = ri(rng, 10, 90) * 100000, v = Math.round(inc * 0.033);
-    return { kind: 'text', q: `사업소득 ${won0(inc)}의 원천징수액(3.3%)은?`, ...shuffleChoices(rng, won0(v), [won0(Math.round(inc * 0.0033)), won0(Math.round(inc * 0.03)), won0(Math.round(inc * 0.33))]), human: true };
+    return { kind: 'text', q: `사업소득 ${wonText(inc)}의 원천징수액(3.3%)은?`, ...shuffleChoices(rng, wonText(v), [wonText(Math.round(inc * 0.0033)), wonText(Math.round(inc * 0.03)), wonText(Math.round(inc * 0.33))]), human: true };
   },
-  mix(rng) {
-    const kinds = ['logic', 'tax', 'history', 'eq', 'toeic', 'logic', 'tax'];
-    return GEN[kinds[Math.floor(rng() * kinds.length)]](rng, true);
+  cpa(rng) {
+    const k = Math.floor(rng() * 3);
+    if (k === 0) { const cl = ri(rng, 2, 9) * 100, ca = cl * ri(rng, 11, 30) / 10, r = Math.round(ca / cl * 100);
+      return numQ(rng, `유동자산 ${ca}억, 유동부채 ${cl}억일 때 유동비율(%)은?`, r, [Math.round(cl / ca * 100), r + 10, r - 10, r + 50]); }
+    if (k === 1) { const eq = ri(rng, 2, 10) * 100, ni = eq * ri(rng, 4, 25) / 100, r = Math.round(ni / eq * 100);
+      return numQ(rng, `당기순이익 ${ni}억, 자기자본 ${eq}억일 때 ROE(%)는?`, r, [r * 2, r + 5, Math.max(1, r - 3), r + 10]); }
+    return GEN.tax(rng);
+  },
+  law(rng) { return poolQ(rng, LAW); },
+  oxford(rng) { return poolQ(rng, OXFORD); },
+  med(rng) { return poolQ(rng, MED); },
+  cfa(rng) {
+    const k = Math.floor(rng() * 3);
+    if (k === 0) { const p = ri(rng, 1, 9) * 100, ans = Math.round(p * 1.21);
+      return numQ(rng, `원금 ${p}만원을 연 10% 복리로 2년 두면 몇 만원?`, ans, [p * 1.2, p * 1.1, p * 1.3, ans + 1]); }
+    if (k === 1) { const sd = [10, 20, 25][ri(rng, 0, 2)], rf = ri(rng, 1, 4), s = [0.2, 0.4, 0.5, 0.8][ri(rng, 0, 3)], rp = rf + s * sd;
+      const { choices, answer } = shuffleChoices(rng, String(s), [String(Math.round((s + 0.1) * 10) / 10), String(Math.round(rp / sd * 10) / 10 === s ? s + 0.3 : Math.round(rp / sd * 10) / 10), String(Math.round((s + 0.6) * 10) / 10)]);
+      return { kind: 'text', q: `수익률 ${rp}%, 무위험 수익률 ${rf}%, 표준편차 ${sd}%일 때 샤프 비율은?`, choices, answer, human: true }; }
+    return poolQ(rng, CFA);
+  },
+  mbe(rng) { return poolQ(rng, MBE); },
+  wine(rng, hard, i) { // 블라인드 테이스팅: 잔 색깔로 레드·화이트는 사람도 가를 수 있다. 품종은 AI 미각 센서가 맞힌다
+    const red = rng() < 0.55, mine = red ? GRAPES_RED : GRAPES_WHITE, other = red ? GRAPES_WHITE : GRAPES_RED;
+    const a = pickDistinct(rng, mine.length, 2), b = pickDistinct(rng, other.length, 2);
+    const { choices, answer } = shuffleChoices(rng, mine[a[0]], [mine[a[1]], other[b[0]], other[b[1]]]);
+    return { kind: 'wine', q: `${i + 1}번 잔: 이 와인의 품종은?`, glass: i, color: red ? 'red' : 'white', choices, answer, human: false };
+  },
+  galaxy(rng) {
+    const seed = ri(rng, 100, 99999), choices = [0, 1, 2, 3].map(() => ri(rng, 100, 99999));
+    return { kind: 'alien', q: ALIEN_Q[ri(rng, 0, ALIEN_Q.length - 1)], seed, choices, answer: ri(rng, 0, 3), human: false };
+  },
+  afterlife(rng) { return poolQ(rng, AFTERLIFE); },
+  multilaw(rng) { return rng() < 0.5 ? poolQ(rng, MULTILAW, false) : poolQ(rng, LAW); },
+  captcha(rng) { // 로봇 확인 퀴즈: 칸을 세면 사람은 맞힌다. AI는 이런 걸 잘 못 맞힌다
+    const t = ri(rng, 0, CAPTCHA_ICONS.length - 1), c = ri(rng, 2, 5), grid = [];
+    for (let i = 0; i < 9; i++) grid.push(i < c ? t : (t + 1 + ri(rng, 0, CAPTCHA_ICONS.length - 2)) % CAPTCHA_ICONS.length);
+    for (let i = grid.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [grid[i], grid[j]] = [grid[j], grid[i]]; }
+    const lo = clampN(c - ri(rng, 0, 3), 1, 6), nums = [lo, lo + 1, lo + 2, lo + 3];
+    return { kind: 'captcha', q: `${CAPTCHA_ICONS[t]}이(가) 있는 칸은 몇 개?`, grid, target: t, choices: nums.map(n => n + '칸'), answer: nums.indexOf(c), human: true, aiBad: true };
+  },
+  hle(rng) {
+    const idx = pickDistinct(rng, OPEN_PROBLEMS.length, 4);
+    const asks = ['다음 중 이 우주에서 참인 것은?', '다음 중 증명이 끝난 것은?', 'Ω가 정답으로 정한 것은?', '다음 중 반례가 없는 것은?'];
+    return { kind: 'text', q: asks[ri(rng, 0, asks.length - 1)], choices: idx.map(i => OPEN_PROBLEMS[i]), answer: ri(rng, 0, 3), human: false };
   },
 };
+function clampN(v, a, b) { return Math.max(a, Math.min(b, v)); }
 
-function makeQuestions(rng, tier) {
+// 시험 한 교시(또는 모듈·블록)의 문제. 토익은 앞쪽 listen개가 듣기 문항
+function makeQuestions(rng, tier, part = 0) {
   const out = [];
-  for (let i = 0; i < tier.qn; i++) out.push(GEN[tier.gen](rng, false));
+  for (let i = 0; i < tier.qn; i++) {
+    const n = part * tier.qn + i;
+    if (tier.listen && n < tier.listen) out.push(GEN.toeicLC(rng));
+    else out.push(GEN[tier.gen](rng, false, n));
+  }
   return out;
 }
 
@@ -224,43 +347,73 @@ function alienWord(seed, len) { const a = []; for (let i = 0; i < len; i++) a.pu
 
 // 감독관 대사 (적발될 때)
 const CAUGHT_LINE = {
-  homeroom: '"잠깐만요, 그 안경 좀 볼게요."',
-  dean: '"수험생, 그 안경 잠깐 벗어 보세요."',
-  suneung: '"금속탐지기에 반응이 있네요?"',
-  agent: '"부정행위로 퇴실 조치합니다."',
-  cadet: '"그 렌즈, 어디서 났습니까?"',
-  alien: '"삐빅. 반칙 전파 감지."',
-  robot: '"AI가 AI를 못 알아볼 줄 알았나?"',
+  homeroom: '"잠깐만, 그 안경 좀 보자."', dean: '"수험생, 그 안경 잠깐 벗어 보세요."', suneung: '"금속탐지기에 반응이 있네요?"',
+  agent: '"부정행위로 퇴실 조치합니다."', robot: '"AI가 AI를 못 알아볼 줄 알았나?"', ta: '"교수님, 여기요! 이 학생 안경이..."',
+  prof: '"자네, 학점은 포기한 건가?"', teacher: '"Excuse me. Glasses off, please."', cnproctor: '"안경 이리 주세요. 검사합니다."',
+  don: '"흥미롭군요. 그 대답은 안경이 한 거죠?"', don2: '"논리적으로, 당신은 방금 걸렸습니다."', judge: '"향이 아니라 렌즈를 맡고 계셨군요."',
+  alien: '"삐빅. 반칙 전파 감지."', reaper: '"명부에 커닝도 적혀 있구나."', yeomra: '"이승에서 하던 짓을 여기서도 하느냐!"',
+  omega: '"이미 예측했습니다."', webcam: '"응시자분, 화면에서 눈을 떼지 마세요."',
 };
-const PROCTOR_NAME = { homeroom: '조교', dean: '감독관', suneung: '수능 감독관', agent: '시험 관리관', cadet: '교관', alien: '외계인 교수', robot: 'AI 감독관' };
+const PROCTOR_NAME = { homeroom: '담임', dean: '감독관', suneung: '수능 감독관', agent: '시험 관리관', robot: 'AI 감독관', ta: '조교', prof: '교수님',
+  teacher: '미국 선생님', cnproctor: '가오카오 감독관', don: '옥스퍼드 교수', don2: '논리학 교수', judge: '소믈리에 심사위원', alien: '외계인', reaper: '저승사자', yeomra: '염라대왕', omega: 'Ω', webcam: '웹캠' };
 
-// 장비 효과 문구: lv에서의 효과
+// 시험마다 다른 장치 이름 (일정표·시작 화면)
+const SEC_NAME = { cctv: 'CCTV 회전', pulse: 'AI 탐지 전파', drone: '드론 전파 감시', screen: '화면 검사' };
+const MECH_NAME = { tutorial: '걸려도 혼나고 끝', metal: '입실 금속탐지기', visit: '불시 순시', listen: '듣기 문항', webcam: '웹캠 원격 감독',
+  crowd: '다른 수험생', idcheck: '신분 확인 순회', calc: '계산기 검사', long: '긴 지문', sessions: '3교시 연속', adaptive: '적응형 2모듈',
+  glasscheck: '입실 안경 검사', interview: '마주 보는 면접', fatigue: '눈 피로', swap: '블록마다 교대', tasting: '블라인드 테이스팅',
+  threeeyes: '세 눈 감독관', float: '무중력', silent: '발소리 없음', teleport: '순간이동', clones: '늘어나는 감독관', human: 'AI 사용 감지', omega: '박자 예측' };
+
+// 장비 효과 문구: lv(그 단계를 가졌을 때)의 효과
+const pct = v => Math.round(v * 100) + '%';
 const GEAR_TEXT = {
   lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초`,
-  model: lv => { const t = CONFIG.tiers[nextTierIndex()], p = Math.max(tune.ai_floor, Math.min(0.99, tune.ai_base - tune.ai_drop * Math.max(0, t.ai - lv))); return `v${lv + 1} · 다음 시험 정확도 ${Math.round(p * 100)}%`; },
-  stealth: lv => `들킬 때 의심도 ${Math.round(Math.pow(1 - tune.stealth_cut, lv) * 100)}%`,
-  predict: lv => lv ? `돌아보면 렌즈 경고${lv >= 3 ? ' + 주시도 표시' : ''} · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초` : '시험지 보는 동안 양옆 감독관을 감지',
-  watch: lv => `시험 시간 +${(lv * tune.watch_bonus).toFixed(0)}초`,
-  wide: lv => lv ? `한 번 스캔에 ${lv + 1}문제` : '한 번 스캔으로 다음 문제까지 읽음',
-  coach: lv => lv ? `합격 보상 x${(1 + lv * tune.coach_bonus).toFixed(2)}` : '면접에서 합격 보상을 더 받음',
-  bot: lv => `초당 ${won(botRateAt(lv))}원`,
-  earbud: lv => lv ? `신뢰도 ${earbudNeedAt(lv)}% 이상 자동 제출` : '스캔 끝나면 AI가 답을 대신 냄',
-  autoscan: lv => lv ? `안 볼 때 알아서 스캔 (반응 ${autoDelayAt(lv).toFixed(2)}초)` : '감독관이 안 볼 때 알아서 스캔',
-  cctvjam: lv => lv >= 2 ? 'CCTV에 안 찍힘' : lv ? `CCTV 의심도 ${Math.round((1 - tune.jam_cut) * 100)}%` : 'CCTV 시선 무력화',
-  jammer: lv => lv >= 2 ? '탐지 전파 완전 차단' : lv ? `전파 의심도 ${Math.round((1 - tune.jam_cut) * 100)}%` : 'AI 탐지 전파 무력화',
+  predict: lv => lv ? `돌아보는 낌새를 렌즈가 경고 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초${lv >= 3 ? ' · 쳐다보면 빨갛게' : ''}` : '감독관이 돌아볼 낌새를 렌즈 가장자리로',
+  stealth: lv => `들킬 때 의심도 ${pct(Math.pow(1 - tune.stealth_cut, lv))} · 입실 검사도 덜 걸림`,
+  bot: n => `${n}명 · 초당 ${won(botRateAt(n))}원`,
+  earbud: lv => lv ? `듣기 문항 받아쓰기 · 신뢰도 ${earbudNeedAt(lv)}% 이상 자동 제출` : '듣기 문항을 AI가 받아쓰고 답을 대신 냄',
+  deepcam: lv => `웹캠 감시 ${pct(gearCut(lv))}`,
+  watch: lv => `시험 시간 +${Math.round(lv * tune.watch_bonus)}초`,
+  wide: lv => `한 번 스캔에 ${lv + 1}문제`,
+  cctvjam: lv => lv >= 3 ? 'CCTV에 안 찍힘' : `CCTV 의심도 ${pct(jamFactor(lv, 3))}`,
+  coach: lv => `합격 보상 x${coachMult(lv).toFixed(2)}`,
+  autooff: lv => lv >= 2 ? '감독관이 책상 앞에 서면 렌즈 소등 + 스캔 자동 멈춤' : '감독관이 책상 앞에 서면 렌즈 소등',
+  jammer: lv => lv >= 3 ? '탐지 전파·드론 완전 차단' : `탐지 전파·드론 ${pct(jamFactor(lv, 3))}`,
+  autoscan: lv => `안 볼 때 알아서 스캔 (반응 ${autoDelayAt(lv).toFixed(2)}초)`,
+  glasscase: lv => `입실 안경 검사 ${pct(gearCut(lv))}`,
+  gazefix: lv => `마주 보는 시험 의심도 ${pct(1 - lv * tune.gaze_cut)}`,
+  eyedrop: lv => `눈 피로 ${pct(gearCut(lv))}`,
+  calccover: lv => `계산기 검사 ${pct(gearCut(lv))}`,
+  screenfilm: lv => `화면 검사 ${pct(gearCut(lv))}`,
+  taste: lv => `테이스팅 AI 정답률 +${Math.round(lv * tune.taste_bonus * 100)}%`,
+  thirdeye: lv => `외계인 곁눈질 ${pct(gearCut(lv))}`,
+  candle: lv => `저승사자 낌새 +${(lv * tune.candle_bonus).toFixed(1)}초`,
+  clone: lv => `평행우주 감독관 ${lv}명 시선 차단`,
+  humanmod: lv => `AI 의심도 증가 ${pct(gearCut(lv))}`,
+  offbeat: lv => `Ω 박자 예측 ${pct(gearCut(lv))}`,
 };
 const GEAR_BLURB = {
-  lens: '안경 렌즈를 바꿔 시험지를 더 빨리 읽는다',
-  model: '어려운 시험일수록 AI가 틀린다. 모델이 좋으면 덜 틀린다',
-  stealth: '렌즈 빛 반사를 줄여 들켜도 덜 수상하다',
-  predict: '시험지를 보는 동안에도 양옆 감독관이 돌아보면 렌즈 가장자리가 경고한다',
-  watch: '손목에서 시간을 늘려 주는 수상한 시계',
-  wide: '시야가 넓은 렌즈로 시험지를 한꺼번에 읽는다',
-  coach: 'AI가 면접 답변을 귀띔해서 장학금·연봉이 오른다',
-  bot: '통과한 시험을 AI가 대신 응시해서 돈을 번다',
-  earbud: 'AI가 귓속말로 답을 불러 줘서 손이 알아서 고른다',
-  autoscan: '안경이 감독관 시선을 읽고 혼자 스캔한다',
-  cctvjam: '교실 CCTV 화면에 내 자리만 지운다',
-  jammer: 'AI 탐지 전파를 평범한 와이파이로 위장한다',
+  lens: '렌즈를 바꿔 시험지를 더 빨리 읽는다', predict: '시험지를 보는 동안에도 양옆 감독관이 돌아볼 낌새를 알려 준다',
+  stealth: '렌즈 빛 반사를 줄여 들켜도 덜 수상하다', bot: '통과한 시험을 대신 쳐서 돈을 번다 (자리 비운 동안에도)',
+  earbud: '귓속말로 답을 불러 주고, 방송으로 나오는 문제도 받아쓴다', deepcam: '원격 감독 웹캠에 성실한 내 얼굴을 대신 보여 준다',
+  watch: '손목에서 시험 시간을 늘려 주는 수상한 시계', wide: '시야가 넓은 렌즈로 다음 문제까지 한꺼번에 읽는다',
+  cctvjam: '교실 CCTV 화면에서 내 자리만 지운다', coach: '합격 뒤 면접에서 귀띔해서 장학금·연봉이 오른다',
+  autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: 'AI 탐지 전파와 드론을 평범한 와이파이로 속인다',
+  autoscan: '안경이 감독관 시선을 읽고 혼자 스캔한다', glasscase: '입실 검사 때 평범한 돋보기처럼 보이게 한다',
+  gazefix: '마주 앉은 면접관에게 내 눈이 늘 상대를 보는 것처럼 보이게 한다', eyedrop: '긴 시험에서 눈이 피로해져 스캔이 느려지는 걸 막는다',
+  calccover: '승인된 계산기 껍데기를 씌워 검사를 통과한다', screenfilm: '노트북 감시 프로그램에 평범한 화면을 보여 준다',
+  taste: '혀에 붙인 센서가 와인 품종을 분석한다', thirdeye: '외계인이 곁눈질하는 방향을 렌즈에 그려 준다',
+  candle: '저승사자가 다가오면 촛불이 더 일찍 흔들린다', clone: '평행우주의 내가 늘어난 감독관 시선을 대신 받아 준다',
+  humanmod: 'AI 답을 일부러 사람처럼 흐트러뜨린다', offbeat: '스캔 박자를 무작위로 바꿔 Ω의 예측을 피한다',
 };
-const SEC_NAME = { cctv: 'CCTV 회전', pulse: 'AI 탐지 전파' };
+const GEAR_REVIEW = {
+  lens: '감독관한테 안 걸렸어요 ★★★★★', predict: '뒤통수에 눈이 생긴 느낌 ★★★★☆', stealth: '반짝임이 하나도 없어요 ★★★★★',
+  bot: '형이 대신 쳐 줌 ★★★☆☆', earbud: '귀에서 정답이 들려요 ★★★★★', deepcam: '감독관이 제 사진만 봤어요 ★★★★☆',
+  watch: '시간이 늘어난 기분 ★★★★☆', wide: '한 번에 두 문제씩 ★★★★★', cctvjam: 'CCTV에 제 자리만 비어요 ★★★★★',
+  coach: '면접관이 울었어요 ★★★★★', autooff: '불이 알아서 꺼져요 ★★★★☆', jammer: '드론이 그냥 지나감 ★★★★★',
+  autoscan: '손 놓고 있어도 됨 ★★★★★', glasscase: '할머니 돋보기인 줄 알더라고요 ★★★★☆', gazefix: '교수님이 제 눈빛에 감동 ★★★★★',
+  eyedrop: '세 블록 내내 쌩쌩 ★★★★☆', calccover: '계산기 검사 프리패스 ★★★★★', screenfilm: '감시 프로그램이 졸았어요 ★★★★☆',
+  taste: '혀가 품종을 말해 줌 ★★★★★', thirdeye: '이마가 좀 간지러움 ★★★★☆', candle: '촛불이 미리 알려 줘요 ★★★★★',
+  clone: '나랑 나랑 나랑 ★★★★★', humanmod: '로봇 아니냐는 소리 안 들음 ★★★★☆', offbeat: 'Ω도 못 따라옴 ★★★★★',
+  model: '똑똑해졌어요 ★★★★★',
+};

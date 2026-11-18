@@ -209,7 +209,36 @@ function drawGear(k, id, cx, cy, s, lv) {
     if (id === 'cctvjam') { R(X(-9), Y(-5), S(16), S(9), C.ol); R(X(-8), Y(-4), S(14), S(7), '#d4d6de'); R(X(6), Y(-3), S(5), S(5), '#9b9eac'); R(X(-6), Y(-2), S(3), S(3), C.bad); }
     else { R(X(-7), Y(-2), S(14), S(11), C.ol); R(X(-6), Y(-1), S(12), S(9), '#3a3f4a'); line(X(0), Y(-2), X(0), Y(-11), C.ol, S(2)); disc(X(0), Y(-11), S(2), C.bad); ring(X(0), Y(-11), S(5), '#45e5ee'); }
     line(X(-11), Y(9), X(11), Y(-9), C.bad, S(2));
-  }
+  } else if (id === 'deepcam') { // 딥페이크 웹캠: 카메라와 웃는 얼굴 사진
+    R(X(-9), Y(-7), S(18), S(13), C.ol); R(X(-8), Y(-6), S(16), S(11), '#f3caa1'); R(X(-4), Y(-3), S(2), S(2), C.ol); R(X(2), Y(-3), S(2), S(2), C.ol); R(X(-3), Y(1), S(6), S(1), C.ol);
+    R(X(-3), Y(7), S(6), S(3), C.ol); disc(X(7), Y(-7), S(2), C.good);
+  } else if (id === 'autooff') { // 자동 소등 칩
+    R(X(-7), Y(-7), S(14), S(14), C.ol); R(X(-6), Y(-6), S(12), S(12), '#3a1f6b'); disc(X(0), Y(0), S(3), C.gold); line(X(-9), Y(9), X(9), Y(-9), C.ol, S(2));
+  } else if (id === 'glasscase') {
+    R(X(-10), Y(-5), S(20), S(11), C.ol); R(X(-9), Y(-4), S(18), S(9), '#7a5a3a'); R(X(-9), Y(0), S(18), S(1), '#5a4028'); R(X(-1), Y(-1), S(2), S(3), C.gold);
+  } else if (id === 'gazefix') {
+    disc(X(0), Y(0), S(9), C.ol); disc(X(0), Y(0), S(8), '#e8eef4'); disc(X(0), Y(0), S(4), '#2a8f9a'); disc(X(0), Y(0), S(2), C.ol); R(X(-2), Y(-2), S(1), S(1), C.white);
+  } else if (id === 'eyedrop') {
+    R(X(-4), Y(-4), S(8), S(13), C.ol); R(X(-3), Y(-3), S(6), S(11), '#f4f4f8'); R(X(-2), Y(-9), S(4), S(5), '#2a8af0'); R(X(-3), Y(1), S(6), S(3), '#2a8af0'); R(X(6), Y(4), S(2), S(3), '#7fd6ff');
+  } else if (id === 'calccover') {
+    R(X(-7), Y(-10), S(14), S(20), C.ol); R(X(-6), Y(-9), S(12), S(18), '#2a2c34'); R(X(-4), Y(-7), S(8), S(4), '#9ae0a0');
+    for (let i = 0; i < 9; i++) R(X(-4 + (i % 3) * 3), Y(-1 + Math.floor(i / 3) * 3), S(2), S(2), '#c9c4d8');
+  } else if (id === 'screenfilm') {
+    R(X(-10), Y(-7), S(20), S(13), C.ol); R(X(-9), Y(-6), S(18), S(11), '#1c2230'); line(X(-7), Y(3), X(1), Y(-5), '#7fd6ff', S(1)); line(X(-2), Y(4), X(7), Y(-5), '#7fd6ff', S(1)); R(X(-4), Y(7), S(8), S(2), C.ol);
+  } else if (id === 'taste') { // 와인잔
+    poly([[X(-6), Y(-9)], [X(6), Y(-9)], [X(3), Y(0)], [X(-3), Y(0)]], C.ol); poly([[X(-4), Y(-5)], [X(4), Y(-5)], [X(2), Y(-1)], [X(-2), Y(-1)]], '#8a1a2a');
+    R(X(-1), Y(0), S(2), S(7), C.ol); R(X(-5), Y(7), S(10), S(2), C.ol); disc(X(7), Y(4), S(2), '#ff5a8a');
+  } else if (id === 'thirdeye') {
+    for (const [ex, ey] of [[-6, 3], [6, 3], [0, -6]]) { disc(X(ex), Y(ey), S(4), C.ol); disc(X(ex), Y(ey), S(3), '#7ad06a'); disc(X(ex), Y(ey), S(1), C.ol); }
+  } else if (id === 'candle') {
+    R(X(-3), Y(-2), S(6), S(12), C.ol); R(X(-2), Y(-1), S(4), S(10), '#f4efe0'); poly([[X(0), Y(-11)], [X(3), Y(-4)], [X(-3), Y(-4)]], C.warn); R(X(-1), Y(-6), S(2), S(2), C.gold); R(X(-6), Y(10), S(12), S(2), C.ol);
+  } else if (id === 'clone') {
+    for (const [ox, c] of [[-6, '#5a4a8a'], [0, '#8a6cd6'], [6, '#c9b8ff']]) { disc(X(ox), Y(-4), S(4), C.ol); disc(X(ox), Y(-4), S(3), c); R(X(ox - 4), Y(1), S(8), S(9), C.ol); R(X(ox - 3), Y(2), S(6), S(8), c); }
+  } else if (id === 'humanmod') { // 하트 달린 칩
+    R(X(-8), Y(-7), S(16), S(14), C.ol); R(X(-7), Y(-6), S(14), S(12), '#6b1f3a'); disc(X(-2), Y(-1), S(2), '#ff8aa8'); disc(X(2), Y(-1), S(2), '#ff8aa8'); poly([[X(-5), Y(0)], [X(5), Y(0)], [X(0), Y(5)]], '#ff8aa8');
+  } else if (id === 'offbeat') { // 메트로놈
+    poly([[X(-3), Y(-10)], [X(3), Y(-10)], [X(8), Y(10)], [X(-8), Y(10)]], C.ol); poly([[X(-2), Y(-8)], [X(2), Y(-8)], [X(6), Y(8)], [X(-6), Y(8)]], '#5a3a24'); line(X(0), Y(6), X(5), Y(-7), '#e8e8e8', S(1)); disc(X(4), Y(-4), S(2), C.gold);
+  } else { R(X(-7), Y(-7), S(14), S(14), C.ol); R(X(-6), Y(-6), S(12), S(12), '#3a3248'); }
 }
 
 // ======================= 공용 판 =======================
@@ -247,20 +276,20 @@ function drawResults(k, L, Rz, now, H) {
   if (Rz.bonus > 0) extra.push(`시간 x${(1 + Rz.bonus).toFixed(2)}`);
   if (extra.length) { T(extra.join(' · '), L.W / 2, ly, 11, H.c, 'center', 700); ly += 16; }
   T(`직접 고른 답 ${Rz.self} · AI가 고른 답 ${Rz.ai}`, L.W / 2, ly, 11, '#c9c4d8', 'center', 700); ly += 16;
-  if (Rz.unlock) T(Rz.unlock, L.W / 2, ly, 12, H.c, 'center', 800);
+  if (Rz.unlock) { let us = 12; while (k.TW(Rz.unlock, us, 800) > w - 20 && us > 9) us--; T(Rz.unlock, L.W / 2, ly, us, H.c, 'center', 800); }
   const btns = [], by = y + h - 38, gap = 8;
   const defs = [[Rz.canRetry ? 'R 다시 응시' : '응시료 부족', 'retry', Rz.canRetry]];
   if (Rz.next != null) defs.push([Rz.final ? 'N 엔딩 보기' : Rz.canNext ? 'N 다음 시험' : '응시료 부족', 'next', Rz.final || Rz.canNext]);
-  defs.push(['Enter 장비 사러', 'hub', true]);
+  defs.push(['Enter 고시원으로', 'hub', true]);
   const bw = Math.floor((w - 24 - gap * (defs.length - 1)) / defs.length);
   defs.forEach(([label, key, ok], i) => { const b = k.button(x + 12 + i * (bw + gap), by, bw, 26, label, ok && key === Rz.focus, ok ? PAL.hud : '#5a5468'); if (ok) btns.push({ ...b, key }); });
   return btns;
 }
 
-function drawTitle(k, L, now, hasSave) {
+function drawTitle(k, L, now, hasSave, info) {
   const { R, T, TO } = k, C = PAL;
   k.b.globalAlpha = 0.45; R(0, 0, L.W, L.H, '#0b0910'); k.b.globalAlpha = 1; // 뒤로 밤의 고시원 3D가 비친다
-  const cx = L.W / 2, cy = L.H * 0.33, lw = 86, lh = 52, gx = 56;
+  const cx = L.W / 2, cy = L.H * 0.3, lw = 86, lh = 52, gx = 56;
   for (const sx of [-1, 1]) {
     k.R(cx + sx * gx - lw / 2 - 4, cy - lh / 2 - 4, lw + 8, lh + 8, C.ol); k.R(cx + sx * gx - lw / 2 - 2, cy - lh / 2 - 2, lw + 4, lh + 4, '#3a3248');
     k.R(cx + sx * gx - lw / 2, cy - lh / 2, lw, lh, '#0f3238');
@@ -268,30 +297,44 @@ function drawTitle(k, L, now, hasSave) {
   }
   k.R(cx - gx + lw / 2, cy - lh / 2 + 4, 2 * gx - lw, 6, C.ol); k.R(cx - gx + lw / 2, cy - lh / 2 + 5, 2 * gx - lw, 3, '#3a3248');
   TO('AI 안경', cx, cy + 2, 46, C.hud);
-  T('대학 중간고사부터 변호사시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 26, 13, '#d8d3e6', 'center', 700);
-  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리'];
-  lines.forEach((s2, i) => T(s2, cx, cy + lh / 2 + 54 + i * 18, 12, '#a9a3bd', 'center', 700));
+  T('모의평가부터 인류의 마지막 시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 24, 13, '#d8d3e6', 'center', 700);
+  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
+  lines.forEach((s2, i) => T(s2, cx, cy + lh / 2 + 50 + i * 17, 12, '#a9a3bd', 'center', 700));
+  if (info && info.best) T(`내 최고 기록 ${info.best}`, cx, cy + lh / 2 + 106, 12, C.gold, 'center', 800);
+  if (info && info.ios) { // 아이폰 사파리: 홈 화면에 추가하면 전체 화면
+    const w = 372, x = cx - w / 2, y = L.H - 104;
+    k.b.globalAlpha = 0.85; R(x, y, w, 34, '#101822'); k.b.globalAlpha = 1; k.frame(x, y, w, 34, C.hud2, 1);
+    T('아이폰은 공유 버튼 → "홈 화면에 추가"로 열면 전체 화면이에요', cx, y + 11, 11, C.white, 'center', 800);
+    T('진행 상황은 폰 → 설정 → 저장 코드로 옮겨요', cx, y + 25, 10, '#a9a3bd', 'center', 700);
+  }
   const label = hasSave ? 'Enter · 탭  이어서 하기' : 'Enter · 탭  첫 시험 보기';
   const bw = 200, b = k.button(cx - bw / 2, L.H - 60, bw, 30, label, Math.floor(now * 2) % 2 === 0);
   return [{ ...b, key: 'start' }];
 }
 
-function drawEnding(k, L, G, now, H) {
+function drawEnding(k, L, G, now, H, info) {
   const { R, T, TO } = k, C = PAL, cx = L.W / 2;
   R(0, 0, L.W, L.H, '#07060d');
   for (let i = 0; i < 70; i++) { const x = (i * 131) % L.W, y = (i * 71 + Math.floor(now * (1 + i % 3) * 6)) % L.H; R(x, y, 1 + (i % 2), 1 + (i % 2), i % 5 ? '#c9c4d8' : C.hud); }
-  const st = G.stats, mins = Math.floor(st.playT / 60), secs = Math.floor(st.playT % 60);
-  let y = L.H * 0.17;
-  TO('변호사시험 합격!', cx, y, 28, C.gold); y += 34;
-  T('대학 중간고사부터 변호사시험까지 전부 통과했다.', cx, y, 12, C.white, 'center', 700); y += 26;
-  const rows = [`걸린 시간 ${mins}분 ${secs}초`, `시험 응시 ${st.exams}번 · 수석 ${st.tops}번 · 적발 ${st.caught}번`, `번 돈 ${won(st.earned)}원 · 낸 응시료 ${won(st.fees)}원`];
-  rows.forEach(r => { T(r, cx, y, 12, '#c9c4d8', 'center', 700); y += 18; });
-  y += 10;
-  TO(`내가 직접 고른 답 ${st.selfQ}개`, cx, y, 14, C.white); y += 22;
-  TO(`AI가 고른 답 ${st.aiQ}개`, cx, y, 14, C.hud); y += 28;
-  T('...이제 안경을 벗으면, 나는 뭘 풀 수 있을까?', cx, y, 12, '#a9a3bd', 'center', 700);
-  const bw = 150, by = L.H - 56;
-  const b1 = k.button(cx - bw - 6, by, bw, 28, 'Enter 계속하기', Math.floor(now * 2) % 2 === 0);
-  const b2 = k.button(cx + 6, by, bw, 28, 'X 처음부터 새로', false, C.warn);
-  return [{ ...b1, key: 'continue' }, { ...b2, key: 'wipe' }];
+  const st = G.stats;
+  let y = 30;
+  TO('인류의 마지막 시험 합격!', cx, y, 24, C.gold); y += 26;
+  T('모의평가부터 Ω의 시험까지, 스물세 번의 시험을 전부 통과했다.', cx, y, 11, C.white, 'center', 700); y += 24;
+  TO(`타임어택 ${info.time}`, cx, y, 20, C.hud); y += 20;
+  T(info.rank ? `내 기록 ${info.rank}위${info.rank === 1 ? ' · 신기록!' : ''}` : '', cx, y, 11, C.gold, 'center', 800); y += 16;
+  // 왼쪽: 막별 구간 기록, 오른쪽: 내 기록 순위
+  const lx = cx - 150, rx = cx + 150; let ly = y + 6, ry = y + 6;
+  T('구간 기록', lx, ly, 11, H.c, 'center', 800); ly += 16;
+  for (const sp of info.splits) { T(`${sp.name}  ${sp.time}`, lx, ly, 11, '#c9c4d8', 'center', 700); ly += 15; }
+  T(`응시 ${st.exams}번 · 수석 ${st.tops}번 · 적발 ${st.caught}번`, lx, ly + 4, 10, '#8f89a3', 'center', 700);
+  T('내 기록 (이 기기)', rx, ry, 11, H.c, 'center', 800); ry += 16;
+  info.records.slice(0, 5).forEach((r, i) => { T(`${i + 1}. ${r.name}  ${r.time}`, rx, ry, 11, r.me ? C.gold : '#c9c4d8', 'center', r.me ? 800 : 700); ry += 15; });
+  y = Math.max(ly, ry) + 22;
+  TO(`내가 직접 고른 답 ${st.selfQ}개 · AI가 고른 답 ${st.aiQ}개`, cx, y, 12, C.white); y += 20;
+  T('...이제 안경을 벗으면, 나는 뭘 풀 수 있을까?', cx, y, 11, '#a9a3bd', 'center', 700);
+  const bw = 130, by = L.H - 44;
+  const b1 = k.button(cx - bw * 1.5 - 8, by, bw, 28, 'Enter 계속하기', Math.floor(now * 2) % 2 === 0);
+  const b3 = k.button(cx - bw / 2, by, bw, 28, 'N 이름 바꾸기', false);
+  const b2 = k.button(cx + bw / 2 + 8, by, bw, 28, 'X 새 타임어택', false, C.warn);
+  return [{ ...b1, key: 'continue' }, { ...b3, key: 'name' }, { ...b2, key: 'wipe' }];
 }
