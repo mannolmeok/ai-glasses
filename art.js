@@ -27,6 +27,7 @@ const LAYOUTS = {
 
 // ---- 도트 도구 ----
 const TEXT_CACHE = new Map();
+let HUD_SCALE = 1; // HUD 층을 화면 실제 픽셀 수로 그리는 배율 (game.js fit()이 정한다)
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function mix(h1, h2, k) { const a = hexRgb(h1), z = hexRgb(h2); return '#' + a.map((v, i) => Math.round(v + (z[i] - v) * k).toString(16).padStart(2, '0')).join(''); }
 
@@ -79,24 +80,20 @@ function makeKit(b) {
   // 글자: 시스템 한글 글꼴을 버퍼 크기로 찍고 반투명 경계를 잘라 도트 글자로
   K.T = (str, x, y, size, col, align = 'left', weight = 700) => {
     str = String(str);
-    const key = str + '|' + size + '|' + col + '|' + weight;
+    const S = HUD_SCALE, key = str + '|' + size + '|' + col + '|' + weight + '|' + S;
     let c = TEXT_CACHE.get(key);
-    if (!c) {
+    if (!c) { // 화면 실제 해상도로 찍어서 글자가 깨지지 않게 (S = 화면 배율)
       const m = document.createElement('canvas'), g = m.getContext('2d');
-      const f = `${weight} ${size}px ${FONT_KO}`; g.font = f;
-      const w = Math.max(1, Math.ceil(g.measureText(str).width) + 4), h = Math.ceil(size * 1.5);
+      const f = `${weight} ${size * S}px ${FONT_KO}`; g.font = f;
+      const w = Math.max(1, Math.ceil(g.measureText(str).width) + 4 * S), h = Math.ceil(size * 1.5 * S);
       m.width = w; m.height = h;
-      g.font = f; g.textBaseline = 'middle'; g.fillStyle = '#fff'; g.fillText(str, 2, h / 2);
-      const id = g.getImageData(0, 0, w, h), d = id.data, [r, gg, bb] = hexRgb(col);
-      for (let i = 0; i < d.length; i += 4) {
-        if (d[i + 3] > 100) { d[i] = r; d[i + 1] = gg; d[i + 2] = bb; d[i + 3] = 255; } else d[i + 3] = 0;
-      }
-      g.putImageData(id, 0, 0);
+      g.font = f; g.textBaseline = 'middle'; g.fillStyle = col; g.fillText(str, 2 * S, h / 2);
       c = m; if (TEXT_CACHE.size > 900) TEXT_CACHE.clear(); TEXT_CACHE.set(key, c);
     }
-    const dx = align === 'center' ? x - c.width / 2 : align === 'right' ? x - c.width + 2 : x - 2;
-    b.drawImage(c, Math.round(dx), Math.round(y - c.height / 2));
-    return c.width - 4;
+    const w = c.width / S, h = c.height / S, r = v => Math.round(v * S) / S;
+    const dx = align === 'center' ? x - w / 2 : align === 'right' ? x - w + 2 : x - 2;
+    b.drawImage(c, r(dx), r(y - h / 2), w, h);
+    return w - 4;
   };
   K.TW = (str, size, weight = 700) => { // 글자 폭만 잼
     const g = K._m || (K._m = document.createElement('canvas').getContext('2d'));

@@ -190,8 +190,11 @@ function fit() {
   const s = Math.max(0.1, Math.min(sw / B.L.W, sh / B.L.H));
   const k = Math.max(1, Math.ceil(s * dpr - 0.01));
   canvas.width = B.L.W * k; canvas.height = B.L.H * k;
+  const hs = Math.min(k, 4); // 글자가 선명하도록 HUD 층도 화면 픽셀 수로 그린다
+  if (hs !== HUD_SCALE || B.c.width !== B.L.W * hs) { HUD_SCALE = hs; TEXT_CACHE.clear(); B.c.width = B.L.W * hs; B.c.height = B.L.H * hs; }
+  B.k.b.setTransform(hs, 0, 0, hs, 0, 0); B.k.b.imageSmoothingEnabled = false;
   screen.style.width = Math.floor(B.L.W * s) + 'px'; screen.style.height = Math.floor(B.L.H * s) + 'px';
-  canvas.style.imageRendering = Math.abs(s * dpr - Math.round(s * dpr)) < 0.01 ? 'pixelated' : 'auto';
+  canvas.style.imageRendering = 'auto';
 }
 addEventListener('resize', () => { fitSig = ''; });
 function hudSet() { const h = PAL.hud; return { c: h, c2: mix(h, '#0d0b13', 0.3), c3: mix(h, '#0d0b13', 0.78) }; }
@@ -1037,7 +1040,7 @@ function drawFrame() {
   const B = buffer();
   B.k.b.clearRect(0, 0, B.L.W, B.L.H); // HUD 층은 투명하게 비우고 그 아래로 3D가 보인다
   if (!WORLD.ok && scene !== 'ending') drawNo3D(B); else scenes[scene].draw(B);
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = true;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(B.c, 0, 0, canvas.width, canvas.height);
 }
