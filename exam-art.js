@@ -173,6 +173,75 @@ function drawPaperTexture(g, E, now) {
   }
 }
 
+// ---- 재시험 출석 통보: 성적 통지표와 같은 종이에 찍혀 온다 ----
+function drawNoticePaper(g, A) {
+  const F = FONT_BODY, ink = '#22212c', sub = '#5a586a', line = '#3a3948', red = '#c8242a', W = PAPER_W, H = PAPER_H;
+  g.setTransform(1, 0, 0, 1, 0, 0); g.textBaseline = 'alphabetic'; g.fillStyle = '#f3f2ec'; g.fillRect(0, 0, W, H);
+  g.save(); g.globalAlpha = 0.045; g.fillStyle = '#2b5f8a'; g.font = `800 30px ${F}`; g.textAlign = 'center'; g.translate(W / 2, H / 2); g.rotate(-0.5);
+  for (let yy = -700; yy <= 700; yy += 78) for (let xx = -700; xx <= 700; xx += 300) g.fillText('시험관리위원회', xx + (Math.round(yy / 78) % 2) * 150, yy);
+  g.restore();
+  g.strokeStyle = line; g.lineWidth = 4; g.strokeRect(26, 26, W - 52, H - 52); g.lineWidth = 1.5; g.strokeRect(34, 34, W - 68, H - 68);
+  g.fillStyle = sub; g.textAlign = 'left'; g.font = `700 17px ${F}`; g.fillText(`시험관리위원회 제 2026-조사-${String(417 + A.tier * 13).padStart(4, '0')} 호`, 52, 66);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = `800 50px ${F}`; g.fillText('재시험 출석 통보', W / 2, 170); g.fillRect(W / 2 - 200, 186, 400, 3); g.fillRect(W / 2 - 200, 192, 400, 1);
+  const rows = [['수험번호', String(31000000 + A.tier * 1234567), ink], ['성 명', '김 수 험', ink], ['대상 시험', `${A.tierName} (득점 100)`, ink], ['사 유', '고득점자 답안 재검증', red]];
+  rows.forEach(([a, b, col], i) => { const y = 236 + i * 56; g.fillStyle = '#e2e3e0'; g.fillRect(56, y, 150, 56); g.lineWidth = 1.5; g.strokeRect(56, y, 150, 56); g.strokeRect(206, y, W - 262, 56);
+    g.fillStyle = ink; g.textAlign = 'center'; g.font = `700 22px ${F}`; g.fillText(a, 131, y + 36); g.fillStyle = col; g.textAlign = 'left'; let fs = 24; g.font = `800 ${fs}px ${F}`; while (g.measureText(b).width > W - 300 && fs > 14) { fs--; g.font = `800 ${fs}px ${F}`; } g.fillText(b, 224, y + 37); });
+  g.lineWidth = 3; g.strokeRect(56, 236, W - 112, 224);
+  g.fillStyle = ink; g.textAlign = 'left'; g.font = `500 25px ${F}`;
+  ['귀하는 답안 재검증 대상으로 선정되었습니다.', '조사관 입회하에 같은 과목 재시험에', '응시하시기 바랍니다.'].forEach((s, i) => g.fillText(s, 64, 520 + i * 40));
+  g.font = `800 25px ${F}`; g.fillText('전자기기와 안경류는 입실 전 제출합니다.', 64, 660);
+  g.font = `500 25px ${F}`; g.fillText('5문항 중 3문항 이상 맞히면 재검증을 마칩니다.', 64, 712); g.fillStyle = red; g.font = `800 25px ${F}`; g.fillText('미달하면 합격을 취소하고 고발합니다.', 64, 752);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = `800 34px ${F}`; g.fillText('시험관리위원회 조사국장', W / 2 - 30, 870);
+  g.save(); g.translate(W - 120, 858); g.rotate(-0.06); g.globalAlpha = 0.86; g.strokeStyle = red; g.lineWidth = 5; g.strokeRect(-44, -44, 88, 88); g.fillStyle = red; g.font = `800 28px ${F}`; g.fillText('조 사', 0, -6); g.fillText('국 장', 0, 28); g.restore();
+  g.save(); g.translate(W - 128, 98); g.rotate(0.12); g.globalAlpha = 0.88; g.strokeStyle = red; g.lineWidth = 6; g.strokeRect(-88, -28, 176, 56); g.fillStyle = red; g.font = `800 32px ${F}`; g.textAlign = 'center'; g.fillText('출석 요구', 0, 12); g.restore();
+}
+// ---- 재시험 문제지: 조사실 책상 위 종이 한 장 (600x800) ----
+function wrapChars(g, str, maxW) { const out = []; let cur = ''; for (const ch of String(str)) { if (g.measureText(cur + ch).width > maxW && cur) { out.push(cur); cur = ch === ' ' ? '' : ch; } else cur += ch; } if (cur) out.push(cur); return out; }
+function drawProbePaper(g, P) {
+  const F = FONT_BODY, W = 600, H = 800, ink = '#22212c', q = P.qs[Math.min(P.qi, P.qs.length - 1)];
+  g.setTransform(1, 0, 0, 1, 0, 0); g.textBaseline = 'alphabetic'; g.fillStyle = '#f3f1e8'; g.fillRect(0, 0, W, H);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = `700 22px ${F}`; g.fillText(`${P.T.name} · 재시험`, W / 2, 46); g.fillRect(40, 62, W - 80, 3);
+  g.textAlign = 'right'; g.font = `700 20px ${F}`; g.fillText(`${Math.min(P.qi + 1, P.qs.length)} / ${P.qs.length}`, W - 40, 46);
+  let fs = 40, ql, cl; const marks = ['①', '②', '③', '④'];
+  for (; fs >= 22; fs -= 2) { g.font = `700 ${fs}px ${F}`; ql = wrapChars(g, `${P.qi + 1}. ${q.q}`, W - 80); g.font = `500 ${fs}px ${F}`; cl = q.choices.map(c => wrapChars(g, c, W - 150));
+    if (ql.length * fs * 1.3 + cl.reduce((p, c) => p + c.length * fs * 1.25 + fs * 0.9, 0) < H - 150) break; }
+  let y = 84 + fs; g.textAlign = 'left'; g.font = `700 ${fs}px ${F}`; for (const ln of ql) { g.fillText(ln, 40, y); y += fs * 1.3; }
+  y += fs * 0.5; P.rects = [];
+  cl.forEach((lines, i) => { const y0 = y - fs, bh = lines.length * fs * 1.25 + fs * 0.5; P.rects.push([(y0 - fs * 0.2) / H, (y0 + bh + fs * 0.2) / H]);
+    if (P.mark && P.mark.c === i) { g.fillStyle = 'rgba(40,40,60,0.12)'; g.fillRect(30, y0, W - 60, bh); }
+    g.fillStyle = ink; g.font = `500 ${fs}px ${F}`; g.fillText(marks[i], 44, y + fs * 0.1); lines.forEach((ln, j) => g.fillText(ln, 44 + fs * 1.5, y + fs * 0.1 + j * fs * 1.25));
+    if (P.mark && P.mark.c === i) { g.strokeStyle = '#1a1a22'; g.lineWidth = 5; g.beginPath(); g.ellipse(44 + fs * 0.5, y - fs * 0.22, fs * 0.72, fs * 0.66, -0.2, 0, 7); g.stroke(); }
+    y += bh + fs * 0.4; });
+  if (P.phase === 'pass' || P.phase === 'fail') { const ok = P.phase === 'pass', col = ok ? '#1c5a9a' : '#c8242a'; g.save(); g.translate(W / 2 + 60, H - 190); g.rotate(-0.16); g.globalAlpha = 0.9; g.fillStyle = 'rgba(243,241,232,0.8)'; g.fillRect(-170, -52, 340, 104); g.strokeStyle = col; g.lineWidth = 9; g.strokeRect(-170, -52, 340, 104); g.fillStyle = col; g.font = `800 66px ${F}`; g.textAlign = 'center'; g.fillText(ok ? '이상 없음' : '합격 취소', 0, 24); g.restore(); }
+}
+function drawProbeHud(k, L, P, now, spot) { // 조사실: 초록 HUD 없이 맨눈. 시계와 문항 수만 흰 글씨
+  const b = k.b, W = L.W, H = L.H, R = k.R, t = P.t;
+  let gr = b.createRadialGradient(W / 2, H * 0.42, 110, W / 2, H * 0.42, 420); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.62)'); b.fillStyle = gr; b.fillRect(0, 0, W, H);
+  if (P.phase === 'in') {
+    const a = Math.max(0, 1 - t / 1.5) * (Math.floor(now * 22) % 3 ? 1 : 0.55); // 안경을 벗는 순간: 초록 화면이 지직거리며 꺼진다
+    if (a > 0) { b.globalAlpha = 0.6 * a; R(0, 0, W, H, '#061e0e'); b.globalAlpha = 0.16 * a; for (let y = 0; y < H; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = a; b.font = `400 12.5px ${BOOT_FONT}`; b.textAlign = 'left'; b.fillStyle = '#74ff8e'; ['LENS-OS 0.9b', '착용 ......... 해제됨', '전원 ......... 강제 종료'].forEach((ln, i) => b.fillText(ln, 65, 60 + i * 15.6)); b.globalAlpha = 1; b.drawImage(rimFor('land'), 0, 0); }
+    if (t > 0.3 && t < 2.3) k.SUB('조사관: 안경은 여기 두시죠.', W / 2, H - 34, 13);
+    else if (t >= 2.3) k.SUB('(안경이 없다. 글자가 그냥 글자다)', W / 2, H - 34, 12, '#e8e4da');
+  } else if (P.phase === 'play') {
+    const s = Math.max(0, Math.ceil(P.left)), low = P.left < 10;
+    k.SUB(`${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`, W - 24, 24, 17, low && Math.floor(now * 4) % 2 ? '#ff6a6a' : '#ffffff', 'right');
+    k.SUB(`재시험 ${Math.min(P.qi + 1, P.qs.length)} / ${P.qs.length} · 3개 이상`, W - 24, 42, 9, '#ffffff', 'right');
+    if (P.qi === 0 && !P.mark) k.SUB('보기를 눌러 답하기 [1~4]', W / 2, H - 14, 9, '#e8e4da');
+  } else if (P.phase === 'judge') k.SUB('(조사관이 답안지를 넘겨 본다)', W / 2, H - 34, 12, '#e8e4da');
+  else if (P.phase === 'pass') { if (t > 0.5) k.SUB('조사관: …실력이셨군요. 돌아가셔도 됩니다.', W / 2, H - 34, 13); }
+  else if (P.phase === 'fail') {
+    if (t < 1.6) k.SUB(`조사관: ${P.correct}개. 합격선에 못 미치네요.`, W / 2, H - 34, 13);
+    if (t > 2.0) { const red = Math.floor(now / 0.32) % 2; // 경광등
+      gr = b.createLinearGradient(0, 0, W * 0.55, 0); gr.addColorStop(0, red ? 'rgba(255,40,40,0.5)' : 'rgba(40,90,255,0.2)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); b.fillStyle = gr; b.fillRect(0, 0, W, H);
+      gr = b.createLinearGradient(W, 0, W * 0.45, 0); gr.addColorStop(0, red ? 'rgba(255,40,40,0.2)' : 'rgba(40,90,255,0.5)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); b.fillStyle = gr; b.fillRect(0, 0, W, H); }
+    if (spot && t > 2.1) { const [sx, sy] = spot, a = Math.min(1, (t - 2.1) / 0.3) * (0.85 + Math.sin(now * 30) * 0.05); // 손전등이 내 얼굴을 비춘다
+      gr = b.createRadialGradient(sx, sy, 2, sx, sy, 190); gr.addColorStop(0, `rgba(255,252,230,${0.95 * a})`); gr.addColorStop(0.12, `rgba(255,248,210,${0.5 * a})`); gr.addColorStop(1, 'rgba(255,248,210,0)'); b.fillStyle = gr; b.fillRect(0, 0, W, H); }
+    if (t > 2.6 && t < 5.4) k.SUB('경찰입니다. 같이 가시죠.', W / 2, H - 34, 14);
+    const off = Math.max(0, Math.min(1, (t - 5.0) / 0.9));
+    if (off > 0) { const h = H / 2 * Math.min(1, off * 1.6), w2 = off > 0.62 ? W / 2 * Math.min(1, (off - 0.62) / 0.3) : 0; R(0, 0, W, h, '#000000'); R(0, H - h, W, h, '#000000'); R(0, 0, w2, H, '#000000'); R(W - w2, 0, w2, H, '#000000'); if (off > 0.55 && off < 0.98) { b.globalAlpha = 0.9; R(w2, H / 2 - 1, W - w2 * 2, 2, '#f4f4f0'); b.globalAlpha = 1; } }
+  }
+}
+
 // ---- 성적 통지표: 시험이 끝나면 책상 위 시험지가 채점된 종이로 바뀐다 ----
 function drawResultPaper(g, Rz) { // 기관에서 발급한 공문서처럼: 문서번호, 인적 사항 표, 성적 표, 문항별 채점표, 발급 문구, 직인
   const F = FONT_BODY, ink = '#22212c', sub = '#5a586a', line = '#3a3948', red = '#c8242a', W = PAPER_W, H = PAPER_H, t = CONFIG.tiers[Rz.tier] || {};

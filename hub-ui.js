@@ -183,6 +183,7 @@ const HUBUI = (() => {
   const PW = 168, PH = 270;
   function drawPhone(k, hv, now) {
     const { R, T } = k, C = PAL, w = PW, h = PH;
+    if (hv.tip) return drawTip(k, hv.tip.t);
     R(0, 0, w, h, '#10131c');
     R(0, 0, w, 20, '#0a0c12'); T(fmtRun(runSecs()), 7, 10.5, 11, C.hud, 'left', 800); T(`${won(STATE.shown)}원`, w - 7, 10.5, 12, C.gold, 'right', 800);
     const tw = w / 3, unread = phoneUnread(), ty = h - 48, lt = { bg: '#1c2230', col: '#4a5a6a', fg: '#ffffff', ink: '#8fa0b8' };
@@ -216,7 +217,7 @@ const HUBUI = (() => {
         row('내 최고 기록', recs.length ? fmtRun(recs[0].t) : '아직 없음', recs.length ? C.gold : '#8fa0b8');
         ry += 6; head('지금 상태');
         row('AI 모델', CONFIG.models[G.gear.model].name, C.hud);
-        row('전수조사 의심', `${Math.round(G.heat * 100)}%`, G.heat >= 0.66 ? C.bad : G.heat >= 0.33 ? C.warn : C.white);
+        row('TV 빨간 등', `${'●'.repeat(G.lamps || 0)}${'○'.repeat(3 - (G.lamps || 0))}`, G.lamps >= 2 ? C.bad : G.lamps ? C.warn : C.white);
         if (botRate() > 0) row('대리 응시 수입', `초당 ${won(botRate())}원`, C.gold);
       } else {
         head('기록');
@@ -236,6 +237,54 @@ const HUBUI = (() => {
     }
     const g = k.b; g.globalAlpha = 0.07; g.fillStyle = '#000000'; for (let y = 0; y < h; y += 2) g.fillRect(0, y, w, 0.5); // 주사선
     g.globalAlpha = 1; let gr = g.createLinearGradient(0, 0, w * 0.9, h); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.3, 'rgba(255,255,255,0.02)'); gr.addColorStop(0.31, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); // 비스듬한 반사
+  }
+  function drawTip(k, t) { // 브로커의 제보: 폰이 저절로 들리고 메시지가 하나씩 뜬다
+    const { R, T } = k, w = PW, h = PH, b = k.b;
+    R(0, 0, w, h, '#17212b'); R(0, 0, w, 30, '#232e3c'); k.disc(17, 15, 9, '#55606e'); T('장비 팔던 사람', 32, 15, 12, '#ffffff', 'left', 800); T('방금', w - 8, 15, 9, '#8fa0b8', 'right', 700);
+    const msgs = [`${won(STATE.tipAmount || 0)}원. 오늘까지라고 했죠`, '답이 없으시네', '그럼 제보합니다', null, '방송국에 보냈어요 ㅎ'];
+    let y = 40; const n = Math.min(msgs.length, Math.floor(t / 0.8) + 1);
+    for (let i = 0; i < n; i++) { const m = msgs[i];
+      if (m == null) { R(8, y, 104, 58, '#232e3c'); b.save(); b.globalAlpha = 0.9; R(12, y + 4, 96, 50, '#3a4a3a'); R(12, y + 34, 96, 20, '#6b5a48'); R(46, y + 22, 30, 22, '#e8e2d4'); R(30, y + 10, 16, 16, '#1b1d24'); R(74, y + 8, 14, 14, '#1b1d24'); for (let j = 0; j < 12; j++) R(12 + (j % 6) * 16, y + 4 + Math.floor(j / 6) * 25, 16, 25, j % 2 ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.12)'); b.restore(); y += 64; continue; } // 흐릿한 시험장 사진
+      const lines = wrap(k, m, 110, 11), bh = lines.length * 13 + 10; R(8, y, 126, bh, '#232e3c'); lines.forEach((ln, j) => T(ln, 15, y + 11 + j * 13, 11, '#ffffff', 'left', 700)); y += bh + 6; }
+    if (t > 4.4) T('상대방이 대화방을 나갔습니다', w / 2, y + 8, 9, '#8fa0b8', 'center', 700);
+    return;
+  }
+  const TV_IDLE = { tag: '경제', h: 'AI 안경 판매량 석 달 새 4배', s: '"없어서 못 판다" 수험가 품귀', tk: ['전자기기 반입 단속 강화', '내일 전국 흐리고 비', '환율 1,380원대'], icon: 'glass' };
+  function tv(g, item, now, lit) { // 선반 위 TV 화면 (640x360). 꺼져 있으면 까만 유리, 켜지면 진짜 방송처럼
+    const W = 640, H = 360, F = FONT_BODY; g.setTransform(1, 0, 0, 1, 0, 0); g.textBaseline = 'alphabetic';
+    if (!lit) { let gr = g.createRadialGradient(200, 80, 10, 320, 180, 420); gr.addColorStop(0, '#24262e'); gr.addColorStop(1, '#07070a'); g.fillStyle = gr; g.fillRect(0, 0, W, H); g.fillStyle = 'rgba(255,255,255,0.06)'; g.beginPath(); g.moveTo(40, 0); g.lineTo(190, 0); g.lineTo(90, H); g.lineTo(-60, H); g.fill(); return; }
+    const it = item || TV_IDLE, br = it.tag === '속보';
+    let gr = g.createRadialGradient(190, 110, 20, 320, 180, 460); gr.addColorStop(0, '#2c4f86'); gr.addColorStop(1, '#0d1c38'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
+    g.fillStyle = 'rgba(120,170,255,0.14)'; g.beginPath(); g.moveTo(70, 0); g.lineTo(190, 0); g.lineTo(50, H); g.lineTo(-70, H); g.fill(); g.beginPath(); g.moveTo(300, 0); g.lineTo(340, 0); g.lineTo(200, H); g.lineTo(160, H); g.fill();
+    g.fillStyle = '#12203c'; g.fillRect(0, 232, W, 40);
+    // 앵커: 얼굴 없는 실루엣
+    const ax = 150, bob = Math.sin(now * 1.3) * 1.2;
+    g.fillStyle = '#18213a'; g.beginPath(); g.moveTo(ax - 92, 272); g.quadraticCurveTo(ax - 88, 176, ax - 30, 168); g.lineTo(ax + 30, 168); g.quadraticCurveTo(ax + 88, 176, ax + 92, 272); g.fill();
+    g.fillStyle = '#e9edf2'; g.beginPath(); g.moveTo(ax - 18, 168); g.lineTo(ax + 18, 168); g.lineTo(ax, 206); g.fill(); g.fillStyle = '#8a1f2a'; g.beginPath(); g.moveTo(ax - 5, 172); g.lineTo(ax + 5, 172); g.lineTo(ax + 7, 214); g.lineTo(ax, 224); g.lineTo(ax - 7, 214); g.fill();
+    g.fillStyle = '#b98e76'; g.fillRect(ax - 13, 150 + bob, 26, 22); g.fillStyle = '#cfa88e'; g.beginPath(); g.ellipse(ax, 118 + bob, 33, 40, 0, 0, 7); g.fill();
+    g.fillStyle = '#1d1a1c'; g.beginPath(); g.ellipse(ax, 96 + bob, 36, 26, 0, Math.PI, 0); g.fill(); g.fillRect(ax - 36, 94 + bob, 72, 12);
+    // 자료 화면
+    const px = 350, py = 44, pw = 250, ph = 158; g.fillStyle = '#e9edf2'; g.fillRect(px - 3, py - 3, pw + 6, ph + 6); g.fillStyle = '#20242c'; g.fillRect(px, py, pw, ph);
+    g.save(); g.beginPath(); g.rect(px, py, pw, ph); g.clip();
+    if (it.icon === 'paper') { g.fillStyle = '#6b5a48'; g.fillRect(px, py, pw, ph); g.save(); g.translate(px + 125, py + 84); g.rotate(-0.08); g.fillStyle = '#f1efe6'; g.fillRect(-62, -70, 124, 150); g.fillStyle = '#3a3948'; for (let i = 0; i < 5; i++) g.fillRect(-48, -50 + i * 22, 96 - (i % 2) * 24, 5); g.strokeStyle = '#c8242a'; g.lineWidth = 6; g.beginPath(); g.arc(20, 30, 30, 0, 7); g.stroke(); g.fillStyle = '#c8242a'; g.font = `900 26px ${F}`; g.textAlign = 'center'; g.fillText('100', 20, 40); g.restore(); }
+    else if (it.icon === 'tip') { g.fillStyle = '#2a2e36'; g.fillRect(px, py, pw, ph); for (let j = 0; j < 40; j++) { g.fillStyle = ['#4a5560', '#6b5a48', '#3a4046', '#8a7a64', '#2a2e36'][(j * 7) % 5]; g.fillRect(px + (j % 8) * 32, py + Math.floor(j / 8) * 32, 32, 32); } g.fillStyle = 'rgba(0,0,0,0.55)'; g.fillRect(px, py + ph - 30, pw, 30); }
+    else if (it.icon === 'cuffs') { g.fillStyle = '#1c2230'; g.fillRect(px, py, pw, ph); g.fillStyle = 'rgba(255,60,60,0.5)'; g.fillRect(px, py, pw / 2, ph); g.fillStyle = 'rgba(60,100,255,0.5)'; g.fillRect(px + pw / 2, py, pw / 2, ph); g.strokeStyle = '#d9dee6'; g.lineWidth = 9; g.beginPath(); g.arc(px + 96, py + 82, 30, 0, 7); g.stroke(); g.beginPath(); g.arc(px + 160, py + 82, 30, 0, 7); g.stroke(); }
+    else if (it.icon === 'stamp') { g.fillStyle = '#6b5a48'; g.fillRect(px, py, pw, ph); g.fillStyle = '#f1efe6'; g.fillRect(px + 50, py + 16, 150, 130); g.save(); g.translate(px + 125, py + 84); g.rotate(-0.14); g.strokeStyle = '#1c5a9a'; g.lineWidth = 5; g.strokeRect(-58, -22, 116, 44); g.fillStyle = '#1c5a9a'; g.font = `900 26px ${F}`; g.textAlign = 'center'; g.fillText('이상 없음', 0, 10); g.restore(); }
+    else { g.fillStyle = '#d8d2c6'; g.fillRect(px, py, pw, ph); g.fillStyle = '#b08a5e'; for (let j = 0; j < 8; j++) g.fillRect(px + 14 + (j % 4) * 60, py + 56 + Math.floor(j / 4) * 52, 44, 26); g.fillStyle = '#3f5f4a'; g.fillRect(px + 40, py + 10, 170, 30); g.strokeStyle = '#15161a'; g.lineWidth = 7; g.strokeRect(px + 78, py + 70, 40, 26); g.strokeRect(px + 132, py + 70, 40, 26); g.beginPath(); g.moveTo(px + 118, py + 80); g.lineTo(px + 132, py + 80); g.stroke(); }
+    g.restore(); g.fillStyle = 'rgba(0,0,0,0.7)'; g.fillRect(px, py + ph - 22, 96, 22); g.fillStyle = '#ffffff'; g.font = `500 12px ${F}`; g.textAlign = 'left'; g.fillText(it.cap || '자료 화면', px + 8, py + ph - 7);
+    // 방송사 표지와 시계
+    g.fillStyle = '#e9edf2'; g.fillRect(18, 14, 52, 24); g.fillStyle = '#10234a'; g.font = `900 18px ${F}`; g.textAlign = 'center'; g.fillText('GSN', 44, 33); g.fillStyle = '#ffffff'; g.font = `700 14px ${F}`; g.textAlign = 'left'; g.fillText('뉴스 9', 78, 32);
+    const mm = 4 + Math.floor(now / 60) % 50, ss = Math.floor(now) % 60; g.textAlign = 'right'; g.font = `700 14px ${F}`; g.fillText(`21:${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`, W - 18, 32);
+    // 아래 자막 띠
+    gr = g.createLinearGradient(0, 0, W, 0); gr.addColorStop(0, '#0c2a66'); gr.addColorStop(0.6, '#12409a'); gr.addColorStop(1, '#0c2a66'); g.fillStyle = gr; g.fillRect(0, 258, W, 76);
+    g.fillStyle = br ? '#d6202a' : '#e9edf2'; g.fillRect(0, 232, 76, 26); g.fillStyle = br ? '#ffffff' : '#10234a'; g.font = `900 15px ${F}`; g.textAlign = 'center'; g.fillText(it.tag || '사회', 38, 251);
+    g.fillStyle = '#ffffff'; g.textAlign = 'left'; let fs = 30; g.font = `900 ${fs}px ${F}`; while (g.measureText(it.h).width > W - 36 && fs > 18) { fs -= 1; g.font = `900 ${fs}px ${F}`; } g.fillText(it.h, 18, 294);
+    g.fillStyle = '#cfe0ff'; fs = 16; g.font = `500 ${fs}px ${F}`; while (g.measureText(it.s).width > W - 36 && fs > 11) { fs -= 1; g.font = `500 ${fs}px ${F}`; } g.fillText(it.s, 19, 320);
+    g.fillStyle = '#f1f3f6'; g.fillRect(0, 334, W, 26); const tk = (it.tk || TV_IDLE.tk).join('   ·   ') + '   ·   '; g.font = `500 13px ${F}`; const tw2 = g.measureText(tk).width, off = (now * 34) % tw2;
+    g.save(); g.beginPath(); g.rect(74, 334, W - 74, 26); g.clip(); g.fillStyle = '#1a1d26'; for (let x = 84 - off; x < W; x += tw2) g.fillText(tk, x, 352); g.restore();
+    g.fillStyle = '#12409a'; g.fillRect(0, 334, 74, 26); g.fillStyle = '#ffffff'; g.font = `700 13px ${F}`; g.textAlign = 'center'; g.fillText('이 시각', 37, 352);
+    g.fillStyle = 'rgba(0,0,0,0.13)'; for (let y = 0; y < H; y += 3) g.fillRect(0, y, W, 1);
+    gr = g.createRadialGradient(W / 2, H / 2, 150, W / 2, H / 2, 420); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,0.5)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   }
   function surface(view, k, hv, now, hoverXY) { // 3D 표면에 그리는 화면: 노트북 · 일정표 · 폰
     if (view === 'laptop') return laptop(k, hv, now, hoverXY);
@@ -264,8 +313,8 @@ const HUBUI = (() => {
     for (const px of [x + 16, x + w - 16]) { k.disc(px + 1, y + 9, 5, 'rgba(0,0,0,0.35)'); k.disc(px, y + 8, 5, '#c0392b'); k.disc(px - 1, y + 7, 2, '#f08a7a'); }
   }
   function drawMail(k, L, z) { // 우편으로 온 성적 통지표: 집어 든 종이(3D) 위에 그린다
-    if (!G.mail) return null;
-    if (STATE.mailImg !== G.mail) { const m = WORLD.mailTex(); drawResultPaper(m.g, G.mail); m.t.needsUpdate = true; STATE.mailImg = G.mail; }
+    const doc = G.mail || G.audit; if (!doc) return null;
+    if (STATE.mailImg !== doc) { const m = WORLD.mailTex(); if (G.mail) drawResultPaper(m.g, G.mail); else drawNoticePaper(m.g, G.audit); m.t.needsUpdate = true; STATE.mailImg = doc; }
     return WORLD.hubRect('mail');
   }
   function draw(k, L, hv, now, hoverXY) { // 2D 층에 그리는 건 우편뿐. 노트북·일정표·폰은 3D 표면(surface)에 그린다
@@ -275,5 +324,5 @@ const HUBUI = (() => {
     else rect = WORLD.hubRect(hv.view);
     return { btns, rect };
   }
-  return { draw, laptop, surface, LW, LH, BW, BH, PW, PH };
+  return { draw, laptop, surface, tv, LW, LH, BW, BH, PW, PH };
 })();
