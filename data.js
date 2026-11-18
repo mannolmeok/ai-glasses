@@ -180,6 +180,44 @@ const MULTILAW = [
   ['다중우주 재판의 배심원 수는?', '무한대', ['12명', '9명', '1명']],
   ['시간여행으로 미리 본 판결은?', '증거로 못 쓴다', ['그대로 확정된다', '두 번 집행된다', '항소할 수 없다']],
 ];
+const CUSTOMS = [
+  ['FOB 조건에서 해상 운임을 부담하는 쪽은?', '매수인(수입자)', ['매도인(수출자)', '운송인', '세관']],
+  ['CIF 가격에 들어가지 않는 것은?', '수입국 관세', ['물품 가격', '해상 운임', '해상 보험료']],
+  ['HS 코드에서 세계 공통으로 쓰는 자릿수는?', '6자리', ['4자리', '8자리', '10자리']],
+  ['인코텀즈(Incoterms)를 만드는 기관은?', '국제상업회의소(ICC)', ['세계무역기구(WTO)', '세계관세기구(WCO)', '국제통화기금(IMF)']],
+  ['선하증권을 뜻하는 약어는?', 'B/L', ['L/C', 'C/O', 'P/L']],
+  ['신용장을 뜻하는 약어는?', 'L/C', ['B/L', 'D/A', 'T/T']],
+  ['원산지증명서를 뜻하는 약어는?', 'C/O', ['B/L', 'L/G', 'D/P']],
+  ['관세의 과세표준은 수입 물품의 무엇인가?', '가격 또는 수량', ['부피', '원산지', '운송 거리']],
+  ['수입 물품에 대한 관세를 낼 의무가 있는 사람은 원칙적으로?', '그 물품을 수입신고한 화주', ['운송 회사', '수출자', '보세창고 운영인']],
+  ['덤핑방지관세를 매기는 까닭은?', '국내 산업 보호', ['세수 확대', '수출 장려', '환율 안정']],
+  ['FTA는 무엇의 줄임말인가?', '자유무역협정', ['관세동맹', '공동시장', '경제동맹']],
+  ['외국 물품을 관세를 내지 않은 채 보관할 수 있는 곳은?', '보세구역', ['자유무역항', '면세점 창고', '물류센터']],
+];
+const APPRAISE = [
+  ['감정평가의 3방식에 들지 않는 것은?', '추첨방식', ['원가방식', '비교방식', '수익방식']],
+  ['원가법으로 구한 가액을 무엇이라 하나?', '적산가액', ['비준가액', '수익가액', '과세가액']],
+  ['거래사례비교법으로 구한 가액은?', '비준가액', ['적산가액', '수익가액', '공시가액']],
+  ['수익환원법으로 구한 가액은?', '수익가액', ['적산가액', '비준가액', '보상가액']],
+  ['표준지공시지가의 공시기준일은?', '1월 1일', ['3월 1일', '6월 1일', '12월 31일']],
+  ['표준지공시지가를 공시하는 사람은?', '국토교통부장관', ['시장·군수·구청장', '기획재정부장관', '한국부동산원장']],
+  ['개별공시지가를 결정·공시하는 사람은?', '시장·군수·구청장', ['국토교통부장관', '시·도지사', '감정평가사']],
+  ['토지의 위치를 옮길 수 없다는 특성은?', '부동성', ['부증성', '영속성', '개별성']],
+  ['토지의 양을 늘릴 수 없다는 특성은?', '부증성', ['부동성', '영속성', '용도의 다양성']],
+  ['감정평가에서 원칙으로 삼는 기준가치는?', '시장가치', ['투자가치', '과세가치', '담보가치']],
+];
+const TRANSFER = [
+  ['Choose the word closest to "ubiquitous".', 'omnipresent', ['scarce', 'obscure', 'fragile']],
+  ['Choose the word closest to "ameliorate".', 'improve', ['worsen', 'postpone', 'conceal']],
+  ['Choose the word closest to "ostensible".', 'apparent', ['hidden', 'costly', 'hostile']],
+  ['Choose the word closest to "pernicious".', 'harmful', ['beneficial', 'stubborn', 'generous']],
+  ['Choose the word closest to "equivocal".', 'ambiguous', ['equal', 'vocal', 'certain']],
+  ['Choose the word closest to "exacerbate".', 'aggravate', ['soothe', 'examine', 'exaggerate']],
+  ['Choose the word closest to "taciturn".', 'reserved', ['talkative', 'tactful', 'tense']],
+  ['Choose the word closest to "prodigal".', 'wasteful', ['gifted', 'thrifty', 'obedient']],
+  ['Choose the word closest to "laconic".', 'concise', ['lazy', 'wordy', 'tearful']],
+  ['Choose the word closest to "capricious".', 'fickle', ['spacious', 'steady', 'cautious']],
+];
 const OPEN_PROBLEMS = ['리만 가설은 참이다', 'P와 NP는 다르다', '모든 짝수는 두 소수의 합이다', '쌍둥이 소수는 끝없이 있다',
   '콜라츠 추측은 참이다', '양-밀스 질량 간극이 있다', '나비에-스토크스 해는 늘 매끄럽다', '호지 추측은 참이다', '버치-스위너턴다이어 추측은 참이다'];
 const GRAPES_RED = ['피노 누아', '카베르네 소비뇽', '시라', '메를로', '말벡', '네비올로', '템프라니요', '그르나슈'];
@@ -278,6 +316,14 @@ const GEN = {
     return GEN.tax(rng);
   },
   law(rng) { return poolQ(rng, LAW); },
+  transfer(rng) { return poolQ(rng, TRANSFER); },
+  customs(rng) { return poolQ(rng, CUSTOMS); },
+  psat(rng) { return rng() < 0.5 ? GEN.logic(rng) : poolQ(rng, LAW); },
+  appraise(rng) {
+    if (rng() < 0.3) { const noi = ri(rng, 2, 12) * 1000, cap = [4, 5, 8, 10][ri(rng, 0, 3)], v = noi / cap * 100;
+      return numQ(rng, `순영업소득 ${noi}만원, 환원율 ${cap}%일 때 수익가액은 몇 만원?`, v, [noi * cap, v / 10, v * 2, v + noi]); }
+    return poolQ(rng, APPRAISE);
+  },
   oxford(rng) { return poolQ(rng, OXFORD); },
   med(rng) { return poolQ(rng, MED); },
   cfa(rng) {
@@ -358,17 +404,17 @@ const PROCTOR_NAME = { homeroom: '담임', dean: '감독관', suneung: '수능 �
   teacher: '미국 선생님', cnproctor: '가오카오 감독관', don: '옥스퍼드 교수', don2: '논리학 교수', judge: '소믈리에 심사위원', alien: '외계인', reaper: '저승사자', yeomra: '염라대왕', omega: 'Ω', webcam: '웹캠' };
 
 // 시험마다 다른 장치 이름 (일정표·시작 화면)
-const SEC_NAME = { cctv: 'CCTV 회전', pulse: 'AI 탐지 전파', drone: '드론 전파 감시', screen: '화면 검사' };
-const MECH_NAME = { tutorial: '걸려도 혼나고 끝', metal: '입실 금속탐지기', visit: '불시 순시', listen: '듣기 문항', webcam: '웹캠 원격 감독',
+const SEC_NAME = { cctv: 'CCTV 회전', pulse: 'AI 탐지 전파', drone: '드론 전파 감시', screen: '화면 검사', alert: '불시 재난문자', emp: 'EMP' };
+const MECH_NAME = { sticker: '단추 스티커', tutorial: '걸려도 혼나고 끝', metal: '입실 금속탐지기', visit: '불시 순시', listen: '듣기 문항', webcam: '웹캠 원격 감독',
   crowd: '다른 수험생', idcheck: '신분 확인 순회', calc: '계산기 검사', long: '긴 지문', sessions: '3교시 연속', adaptive: '적응형 2모듈',
-  glasscheck: '입실 안경 검사', interview: '마주 보는 면접', fatigue: '눈 피로', swap: '블록마다 교대', tasting: '블라인드 테이스팅',
+  glasscheck: '안경 물에 담그기', interview: '마주 보는 면접', fatigue: '눈 피로', swap: '블록마다 교대', tasting: '블라인드 테이스팅',
   threeeyes: '세 눈 감독관', float: '무중력', silent: '발소리 없음', teleport: '순간이동', clones: '늘어나는 감독관', human: 'AI 사용 감지', omega: '박자 예측' };
 
 // 장비 효과 문구: lv(그 단계를 가졌을 때)의 효과
 const pct = v => Math.round(v * 100) + '%';
 const GEAR_TEXT = {
-  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초`,
-  predict: lv => lv ? `돌아보는 낌새를 렌즈가 경고 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초${lv >= 3 ? ' · 쳐다보면 빨갛게' : ''}` : '감독관이 돌아볼 낌새를 렌즈 가장자리로',
+  lens: lv => `스캔 ${scanSecondsAt(lv).toFixed(2)}초 · ${lv >= tune.glass_level ? '시험지 위에 AI 답이 뜸' : lv >= 2 ? '소매 속 액정으로 답 확인' : '허벅지 폰으로 답 확인'}`,
+  predict: lv => lv >= 3 ? `후방 카메라: 등 뒤 감독관이 렌즈 위쪽에 보임 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초` : lv ? `돌아보는 낌새를 렌즈가 경고 · 낌새 +${(lv * tune.predict_bonus).toFixed(2)}초${lv >= 3 ? ' · 쳐다보면 빨갛게' : ''}` : '감독관이 돌아볼 낌새를 렌즈 가장자리로',
   stealth: lv => `들킬 때 의심도 ${pct(Math.pow(1 - tune.stealth_cut, lv))} · 입실 검사도 덜 걸림`,
   bot: n => `${n}명 · 초당 ${won(botRateAt(n))}원`,
   earbud: lv => lv ? `듣기 문항 받아쓰기 · 신뢰도 ${earbudNeedAt(lv)}% 이상 자동 제출` : '듣기 문항을 AI가 받아쓰고 답을 대신 냄',
@@ -378,9 +424,9 @@ const GEAR_TEXT = {
   cctvjam: lv => lv >= 3 ? 'CCTV에 안 찍힘' : `CCTV 의심도 ${pct(jamFactor(lv, 3))}`,
   coach: lv => `합격 보상 x${coachMult(lv).toFixed(2)}`,
   autooff: lv => lv >= 2 ? '감독관이 책상 앞에 서면 렌즈 소등 + 스캔 자동 멈춤' : '감독관이 책상 앞에 서면 렌즈 소등',
-  jammer: lv => lv >= 3 ? '탐지 전파·드론 완전 차단' : `탐지 전파·드론 ${pct(jamFactor(lv, 3))}`,
+  jammer: lv => lv >= 3 ? '탐지 전파·드론·재난문자·EMP 완전 차단' : `탐지 전파·드론·재난문자·EMP ${pct(jamFactor(lv, 3))}`,
   autoscan: lv => `안 볼 때 알아서 스캔 (반응 ${autoDelayAt(lv).toFixed(2)}초)`,
-  glasscase: lv => `입실 안경 검사 ${pct(gearCut(lv))}`,
+  glasscase: lv => `안경 물 검사 ${pct(gearCut(lv))}`,
   gazefix: lv => `마주 보는 시험 의심도 ${pct(1 - lv * tune.gaze_cut)}`,
   eyedrop: lv => `눈 피로 ${pct(gearCut(lv))}`,
   calccover: lv => `계산기 검사 ${pct(gearCut(lv))}`,
@@ -393,12 +439,12 @@ const GEAR_TEXT = {
   offbeat: lv => `Ω 박자 예측 ${pct(gearCut(lv))}`,
 };
 const GEAR_BLURB = {
-  lens: '렌즈를 바꿔 시험지를 더 빨리 읽는다', predict: '시험지를 보는 동안에도 양옆 감독관이 돌아볼 낌새를 알려 준다',
+  lens: '시험지를 찍고 답을 보는 장비. 단추 카메라에서 AI 안경, 그 너머까지', predict: '감독관이 돌아볼 낌새를 알려 주고, 3단계부터는 등 뒤도 보여 준다',
   stealth: '렌즈 빛 반사를 줄여 들켜도 덜 수상하다', bot: '통과한 시험을 대신 쳐서 돈을 번다 (자리 비운 동안에도)',
   earbud: '귓속말로 답을 불러 주고, 방송으로 나오는 문제도 받아쓴다', deepcam: '원격 감독 웹캠에 성실한 내 얼굴을 대신 보여 준다',
   watch: '손목에서 시험 시간을 늘려 주는 수상한 시계', wide: '시야가 넓은 렌즈로 다음 문제까지 한꺼번에 읽는다',
   cctvjam: '교실 CCTV 화면에서 내 자리만 지운다', coach: '합격 뒤 면접에서 귀띔해서 장학금·연봉이 오른다',
-  autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: 'AI 탐지 전파와 드론을 평범한 와이파이로 속인다',
+  autooff: '감독관이 바로 앞에 오면 렌즈가 알아서 꺼진다', jammer: '탐지 전파·드론·재난문자·EMP로부터 내 기기를 숨긴다',
   autoscan: '안경이 감독관 시선을 읽고 혼자 스캔한다', glasscase: '입실 검사 때 평범한 돋보기처럼 보이게 한다',
   gazefix: '마주 앉은 면접관에게 내 눈이 늘 상대를 보는 것처럼 보이게 한다', eyedrop: '긴 시험에서 눈이 피로해져 스캔이 느려지는 걸 막는다',
   calccover: '승인된 계산기 껍데기를 씌워 검사를 통과한다', screenfilm: '노트북 감시 프로그램에 평범한 화면을 보여 준다',

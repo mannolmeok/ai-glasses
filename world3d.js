@@ -231,7 +231,8 @@ const WORLD = (() => {
       m.root.position.set(o.x, (o.y || 0) + Math.sin(o.now * 0.8) * 0.12, o.z);
       m.head.rotation.set(m.headPitch, m.yaw + m.headYaw, 0);
       m.rings.forEach((r, i) => { r.rotation.z = o.now * (0.3 + i * 0.2); });
-      m.irisMat.color.setHex(o.phase === 'watch' ? 0xff2e47 : o.phase === 'tell' ? 0xffa030 : 0x3a6aff);
+      m.irisMat.color.setHex(o.asleep ? 0x0a0a12 : o.phase === 'watch' ? 0xff2e47 : o.phase === 'tell' ? 0xffa030 : 0x3a6aff);
+      m.head.scale.y = lerp(m.head.scale.y, o.asleep ? 0.12 : 1, Math.min(1, dt * 3)); // 눈이 감긴다
     } else {
       const sw = o.moving ? Math.sin(o.walk * 7) : 0;
       const y = m.robot ? 0.06 + Math.sin(o.now * 4) * 0.03 : (o.seated ? -0.4 : o.moving ? Math.abs(sw) * 0.02 : 0);
@@ -342,8 +343,8 @@ const WORLD = (() => {
   }
 
   const EX = { scene: null, tier: -1, home: false };
-  const VIEWS_ROOM = { paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.8, pitch: -0.1, fov: 58 }, right: { yaw: -0.8, pitch: -0.1, fov: 58 } };
-  const VIEWS_VOID = { paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.1, pitch: 0.18, fov: 60 }, right: { yaw: 0.1, pitch: 0.18, fov: 60 } };
+  const VIEWS_ROOM = { front: { yaw: 0, pitch: -0.1, fov: 62 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.8, pitch: -0.1, fov: 58 }, right: { yaw: -0.8, pitch: -0.1, fov: 58 } };
+  const VIEWS_VOID = { front: { yaw: 0.1, pitch: 0.18, fov: 60 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.1, pitch: 0.18, fov: 60 }, right: { yaw: 0.1, pitch: 0.18, fov: 60 } };
   const VIEWS_TABLE = { paper: { yaw: 0, pitch: -0.08, fov: 62 }, left: { yaw: 0, pitch: -0.08, fov: 62 }, right: { yaw: 0, pitch: -0.08, fov: 62 } };
 
   function lights(sc, S, sky) {
@@ -587,7 +588,7 @@ const WORLD = (() => {
       const pitch = s.phase === 'stand' ? 0.55 : s.phase === 'tell' ? 0.22 : 0;
       if (EX.layout === 'table') { const fx = T.staff.map((d, j) => j).filter(j => T.staff[j].fixed), n = fx.length, k = fx.indexOf(i), x = (SEATS[n] || SEATS[3])[Math.max(0, k)];
         return { x, z: -0.95, yaw: toMe(x) * (s.phase === 'stand' ? 0.3 : 1), moving: false, headPitch: pitch, seated: true }; }
-      if (s.type === 'omega') return { x: 0, y: 2.3, z: -5.5, yaw: s.phase === 'stand' ? (s.away ? 0.7 : -0.7) : 0, headPitch: s.phase === 'stand' ? -0.2 : 0.18, moving: false };
+      if (s.type === 'omega') return { x: 0, y: 2.3, z: -5.5, yaw: s.asleep ? 0 : s.phase === 'stand' ? (s.away ? 0.7 : -0.7) : 0, headPitch: s.phase === 'stand' ? -0.2 : 0.18, moving: false };
       return { x: -1.8, z: EX.frontZ - 1.55, yaw: toMe(-1.8), moving: false, headPitch: pitch, seated: true };
     }
     let x = s.side === 'L' ? EX.AL : EX.AR, z = zOf(s.u), yaw, moving = s.phase === 'walk', headPitch = 0;
@@ -628,7 +629,7 @@ const WORLD = (() => {
       const dist = Math.hypot(EX.eye.x - p.x, EX.eye.z - p.z);
       if (s.phase === 'help' && s.help && s.help.k >= 1) helping = s;
       poseModel(m, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, moving: p.moving, walk: s.walk, phase: s.phase === 'check' && s.check && s.check.stage === 'at' ? 'watch' : s.phase, now, headYaw, headPitch: p.headPitch,
-        predict, away: s.away, hidden: s.out || s.blink > 0, seated: p.seated, coneLen: s.phase === 'watch' ? Math.max(0.6, dist - 0.55) : 3.5 });
+        predict: predict && !s.asleep, asleep: s.asleep, away: s.away, hidden: s.out || s.blink > 0, seated: p.seated, coneLen: s.phase === 'watch' ? Math.max(0.6, dist - 0.55) : 3.5 });
     });
     if (EX.raise) { // 손 든 수험생
       EX.raise.visible = !!helping;
@@ -668,7 +669,7 @@ const WORLD = (() => {
     const sec = Math.floor(now) % 60; if (sec !== EX.clockSec) { EX.clockSec = sec; drawClockFace(sec); }
     if (EX.paperTex) {
       const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
-      const sig = [E.qi, E.part, Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
+      const sig = [E.qi, E.part, E.ar, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
       if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
     }
     draw(EX.scene, cam, now);

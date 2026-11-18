@@ -26,6 +26,48 @@ const HUBUI = (() => {
     if (cur) out.push(cur); return out;
   }
 
+  // ---- 노트북: 바탕화면 (AI마켓 · 텔레그램) ----
+  function drawDesk(k, r, hv, now) {
+    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
+    R(x, y, w, h, '#16324a'); for (let i = 0; i < 9; i++) R(x, y + Math.round(h * i / 9), w, Math.ceil(h / 9), ['#16324a', '#183a52', '#1a425a', '#1c4a60', '#1e5266', '#205a6a', '#22626c', '#24686c', '#266e6a'][i]);
+    T('고시원 노트북', x + 10, y + 12, 10, '#c9e6f0', 'left', 700); T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
+    const icon = (ix, label, key, col, glyph, badge) => {
+      const iy = y + h / 2 - 50, hot = inR({ x: ix, y: iy, w: 96, h: 100 }, hover);
+      if (hot) { k.b.globalAlpha = 0.25; R(ix, iy, 96, 100, '#ffffff'); k.b.globalAlpha = 1; }
+      R(ix + 20, iy + 8, 56, 56, C.dark); R(ix + 22, iy + 10, 52, 52, col); glyph(ix + 48, iy + 36);
+      T(label, ix + 48, iy + 80, 12, C.white, 'center', 800);
+      if (badge) { k.disc(ix + 74, iy + 12, 8, '#e8453e'); T(String(badge), ix + 74, iy + 12, 10, C.white, 'center', 800); }
+      btns.push({ x: ix, y: iy, w: 96, h: 100, key });
+    };
+    const tgBadge = G.flags.sold && soldOut(gearDef('lens')) ? 1 : 0;
+    icon(x + w / 2 - 130, 'AI마켓', 'app:shop', '#0f1722', (cx, cy) => T('AI', cx, cy, 22, C.hud, 'center', 800), shopNewCount());
+    icon(x + w / 2 + 34, '텔레그램', 'app:tg', '#2aa3e0', (cx, cy) => k.poly([[cx - 16, cy], [cx + 16, cy - 13], [cx + 8, cy + 14], [cx - 2, cy + 5]], '#ffffff'), tgBadge);
+    R(x, y + h - 22, w, 22, '#0d1f2c');
+    btn(k, x + 6, y + h - 19, 74, 16, '< 방으로', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff' });
+    T('아이콘을 눌러 열기', x + w - 8, y + h - 11, 10, '#8fb0c0', 'right', 700);
+  }
+  // ---- 노트북: 텔레그램 (품절된 초소형 카메라를 구해 주는 해외 브로커) ----
+  function drawTg(k, r, hv, now) {
+    const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
+    R(x, y, w, h, '#0e1621'); R(x, y, w, 24, '#17212b'); T('텔레그램', x + 10, y + 12, 13, '#5eb5f7', 'left', 800); T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
+    const want = G.flags.sold && soldOut(gearDef('lens')), done = !!G.flags.cam;
+    let by = y + 34;
+    const bubble = (text, mine) => { const ls = wrap(k, text, w * 0.6, 11), bw = Math.max(...ls.map(l => k.TW(l, 11, 700))) + 16, bh = ls.length * 14 + 8, bx = mine ? x + w - 12 - bw : x + 12;
+      R(bx, by, bw, bh, mine ? '#2b5278' : '#182533'); ls.forEach((l, i) => T(l, bx + 8, by + 11 + i * 14, 11, C.white, 'left', 700)); by += bh + 6; };
+    if (!want && !done) { T('새 대화가 없습니다', x + w / 2, y + h / 2 - 8, 12, '#6d7f8f', 'center', 800); T('모르는 사람이 보낸 메시지는 조심하세요', x + w / 2, y + h / 2 + 10, 10, '#4a5a6a', 'center', 700); }
+    else {
+      T('"구해드림" · 해외 구매 대행', x + w / 2, by + 2, 10, '#6d7f8f', 'center', 700); by += 16;
+      bubble('사장님 초소형 카메라 찾으시죠? 요즘 한국에서 다 품절이라던데', false);
+      bubble('재고 있어요?', true);
+      bubble(`해외 창고에 딱 남았음. 요즘 귀해서 값은 좀 올랐어요. ${won(brokerCost())}원, 선입금`, false);
+      if (done) { bubble('입금했어요', true); bubble('확인. 택배로 보냄. 우리 서로 모르는 사이인 거 알죠', false); }
+      else { const ok = G.money >= brokerCost(); btn(k, x + w - 12 - 190, y + h - 56, 190, 24, ok ? `입금하기 · ${won(brokerCost())}원` : `${won(brokerCost() - G.money)}원 모자람`, ok ? 'broker' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff' }); }
+    }
+    R(x, y + h - 22, w, 22, '#17212b');
+    btn(k, x + 6, y + h - 19, 84, 16, '< 바탕화면', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff' });
+    const n = hv.order.length; if (n) T(`주문 ${n}건 · 방으로 나가면 택배가 와요`, x + w - 8, y + h - 11, 10, '#f5cc4a', 'right', 800);
+  }
+
   // ---- 노트북: AI마켓 ----
   function drawShop(k, r, hv, now) {
     const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
@@ -68,7 +110,7 @@ const HUBUI = (() => {
       const cw = Math.floor((w - 24) / 2), ch = Math.floor((bottom - top - 4) / 2);
       items.forEach((d, i) => {
         const cx = x + 8 + (i % 2) * (cw + 8), cy = top + Math.floor(i / 2) * (ch + 4), lv = G.gear[d.id], cap = gearCap(d), count = d.kind === 'count';
-        const maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, isNew = !!G.fresh[d.id];
+        const maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, isNew = !!G.fresh[d.id], so = soldOut(d), gone = so && G.flags.sold;
         R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, ok ? '#2a8f9a' : '#d0d5de', 1);
         R(cx + 6, cy + 6, 34, 34, '#eef1f6'); drawGear(k, d.id, cx + 23, cy + 23, 28, lv + 1);
         const name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1);
@@ -79,13 +121,15 @@ const HUBUI = (() => {
         el.forEach((ln, j) => T(ln, cx + 8, cy + 50 + j * 13, 10, '#17616a', 'left', 800));
         if (ch > 112) T(GEAR_REVIEW[d.id] || '', cx + 8, cy + 50 + el.length * 13 + 2, 9, '#9a8a5a', 'left', 700);
         const by = cy + ch - 26;
-        if (maxed) btn(k, cx + 6, by, cw - 12, 20, cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에서 신형 입고', null, { off: true });
+        if (so) { R(cx + cw - 78, cy + 5, 72, 12, gone ? '#5a6474' : '#e8453e'); T(gone ? '품절' : '남은 재고 1개', cx + cw - 42, cy + 11, 9, C.white, 'center', 800); }
+        if (gone) btn(k, cx + 6, by, cw - 12, 20, '품절 · 재입고 미정 (다른 경로를 찾아보세요)', null, { off: true });
+        else if (maxed) btn(k, cx + 6, by, cw - 12, 20, cap >= gearMax(d) ? '최고 사양 보유 중' : '다음 막에서 신형 입고', null, { off: true });
         else btn(k, cx + 6, by, cw - 12, 20, ok ? `주문하기 · ${won(cost)}원` : `${won(cost)}원 · ${won(cost - G.money)}원 모자람`, ok ? 'buy:' + d.id : null, { off: !ok, bg: '#e8453e', col: '#e8453e', fg: '#ffffff' });
       });
     }
     // 아래 줄
     R(x, y + h - 22, w, 22, '#e3e6ec');
-    btn(k, x + 6, y + h - 19, 74, 16, '< 방으로', 'back', { bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
+    btn(k, x + 6, y + h - 19, 84, 16, '< 바탕화면', 'back', { bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
     if (pages > 1) {
       btn(k, x + w / 2 - 56, y + h - 19, 24, 16, '<', hv.page > 0 ? 'page:-1' : null, { off: hv.page <= 0, bg: '#1d2433', col: '#1d2433', fg: '#ffffff' });
       T(`${hv.page + 1} / ${pages}`, x + w / 2, y + h - 11, 10, '#1d2433', 'center', 800);
@@ -147,9 +191,9 @@ const HUBUI = (() => {
       const per = 6, list = G.news.slice().reverse(), pages = Math.max(1, Math.ceil(list.length / per)); hv.npage = Math.max(0, Math.min(pages - 1, hv.npage || 0));
       if (!list.length) T('아직 알림이 없어요', x + w / 2, top + 60, 11, '#8fa0b8', 'center', 700);
       list.slice(hv.npage * per, hv.npage * per + per).forEach((n, i) => {
-        const ry = top + i * 42, col = { shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
+        const ry = top + i * 42, col = { reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
         R(x + 6, ry, w - 12, 38, '#1a1f2c'); R(x + 6, ry, 3, 38, col);
-        T({ shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
+        T({ reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
         T(fmtRun(n.t), x + w - 12, ry + 9, 9, '#5a6474', 'right', 700);
         const ls = wrap(k, n.text, w - 28, 10).slice(0, 2); ls.forEach((ln, j) => T(ln, x + 14, ry + 21 + j * 11, 10, C.white, 'left', 700));
       });
@@ -183,7 +227,7 @@ const HUBUI = (() => {
   function draw(k, L, hv, now, hoverXY) {
     btns = []; hover = hoverXY; let rect = null;
     const z = hv.zoom * hv.zoom * (3 - 2 * hv.zoom);
-    if (hv.view === 'laptop') { if (hv.zoom >= 1) { rect = WORLD.hubRect('laptop'); if (rect) drawShop(k, rect, hv, now); } }
+    if (hv.view === 'laptop') { if (hv.zoom >= 1) { rect = WORLD.hubRect('laptop'); if (rect) (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, rect, hv, now); } }
     else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) drawBoard(k, rect, hv, now); } }
     else if (hv.view === 'phone') rect = drawPhone(k, L, hv, now, z);
     return { btns, rect };

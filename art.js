@@ -295,7 +295,7 @@ function drawTitle(k, L, now, hasSave, info) {
   k.R(cx - gx + lw / 2, cy - lh / 2 + 4, 2 * gx - lw, 6, C.ol); k.R(cx - gx + lw / 2, cy - lh / 2 + 5, 2 * gx - lw, 3, '#3a3248');
   TO('AI 안경', cx, cy + 2, 46, C.hud);
   T('모의평가부터 인류의 마지막 시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 24, 13, '#d8d3e6', 'center', 700);
-  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
+  const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : 고개 숙여 AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
   lines.forEach((s2, i) => T(s2, cx, cy + lh / 2 + 50 + i * 17, 12, '#a9a3bd', 'center', 700));
   if (info && info.best) T(`내 최고 기록 ${info.best}`, cx, cy + lh / 2 + 106, 12, C.gold, 'center', 800);
   if (info && info.ios) { // 아이폰 사파리: 홈 화면에 추가하면 전체 화면
@@ -310,25 +310,31 @@ function drawTitle(k, L, now, hasSave, info) {
 }
 
 function drawEnding(k, L, G, now, H, info) {
-  const { R, T, TO } = k, C = PAL, cx = L.W / 2;
+  const { R, T, TO } = k, C = PAL, cx = L.W / 2, t = info.t, st = G.stats;
   R(0, 0, L.W, L.H, '#07060d');
-  for (let i = 0; i < 70; i++) { const x = (i * 131) % L.W, y = (i * 71 + Math.floor(now * (1 + i % 3) * 6)) % L.H; R(x, y, 1 + (i % 2), 1 + (i % 2), i % 5 ? '#c9c4d8' : C.hud); }
-  const st = G.stats;
-  let y = 30;
-  TO('인류의 마지막 시험 합격!', cx, y, 24, C.gold); y += 26;
-  T('모의평가부터 Ω의 시험까지, 스물세 번의 시험을 전부 통과했다.', cx, y, 11, C.white, 'center', 700); y += 24;
+  if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
+  const fade = (t0, t1) => Math.max(0, Math.min(1, (t - t0) / 0.8)) * (t1 ? Math.max(0, Math.min(1, (t1 - t) / 0.8)) : 1);
+  const line = (str, y, size, col, a) => { if (a <= 0) return; k.b.globalAlpha = a; T(str, cx, y, size, col, 'center', 800); k.b.globalAlpha = 1; };
+  if (t < 9.5) { // 문구: 한 줄씩, 천천히
+    line('AI는 답을 알려 줍니다.', L.H / 2 - 16, 20, C.white, fade(2.0, 9.2));
+    line('어디에 쓸지는 알려 주지 않습니다.', L.H / 2 + 16, 20, C.hud, fade(4.6, 9.2));
+    return [];
+  }
+  const a = Math.min(1, (t - 9.5) / 0.8); k.b.globalAlpha = a;
+  let y = 28;
+  T('AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다.', cx, y, 12, C.white, 'center', 800); y += 30;
   TO(`타임어택 ${info.time}`, cx, y, 20, C.hud); y += 20;
   T(info.rank ? `내 기록 ${info.rank}위${info.rank === 1 ? ' · 신기록!' : ''}` : '', cx, y, 11, C.gold, 'center', 800); y += 16;
-  // 왼쪽: 막별 구간 기록, 오른쪽: 내 기록 순위
   const lx = cx - 150, rx = cx + 150; let ly = y + 6, ry = y + 6;
   T('구간 기록', lx, ly, 11, H.c, 'center', 800); ly += 16;
   for (const sp of info.splits) { T(`${sp.name}  ${sp.time}`, lx, ly, 11, '#c9c4d8', 'center', 700); ly += 15; }
-  T(`응시 ${st.exams}번 · 수석 ${st.tops}번 · 적발 ${st.caught}번`, lx, ly + 4, 10, '#8f89a3', 'center', 700);
   T('내 기록 (이 기기)', rx, ry, 11, H.c, 'center', 800); ry += 16;
-  info.records.slice(0, 5).forEach((r, i) => { T(`${i + 1}. ${r.name}  ${r.time}`, rx, ry, 11, r.me ? C.gold : '#c9c4d8', 'center', r.me ? 800 : 700); ry += 15; });
-  y = Math.max(ly, ry) + 22;
-  TO(`내가 직접 고른 답 ${st.selfQ}개 · AI가 고른 답 ${st.aiQ}개`, cx, y, 12, C.white); y += 20;
-  T('...이제 안경을 벗으면, 나는 뭘 풀 수 있을까?', cx, y, 11, '#a9a3bd', 'center', 700);
+  info.records.slice(0, 4).forEach((r, i) => { T(`${i + 1}. ${r.name}  ${r.time}`, rx, ry, 11, r.me ? C.gold : '#c9c4d8', 'center', r.me ? 800 : 700); ry += 15; });
+  y = Math.max(ly, ry) + 14;
+  T(`시험 ${st.exams}번 · 스캔 ${st.scans}회 · 적발 ${st.caught}번`, cx, y, 11, '#c9c4d8', 'center', 700); y += 17;
+  T(`AI가 고른 답 ${st.aiQ}개 · 내가 직접 고른 답 ${st.selfQ}개`, cx, y, 12, C.white, 'center', 800); y += 24;
+  T('이 게임은 AI와 함께 만들었습니다.', cx, y, 11, '#8f89a3', 'center', 700);
+  k.b.globalAlpha = 1;
   const bw = 130, by = L.H - 44;
   const b1 = k.button(cx - bw * 1.5 - 8, by, bw, 28, 'Enter 계속하기', Math.floor(now * 2) % 2 === 0);
   const b3 = k.button(cx - bw / 2, by, bw, 28, 'N 이름 바꾸기', false);

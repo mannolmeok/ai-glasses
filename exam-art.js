@@ -93,6 +93,17 @@ function drawPaperTexture(g, E, now) {
   });
   g.textAlign = 'center'; g.font = `700 24px ${F}`; g.fillStyle = '#6c6a80'; g.fillText(`- ${E.qi + 1} -`, PAPER_W / 2, PAPER_H - 26);
   if (E.start > 0) return;
+  if (q.final && E.ai) { // 마지막 문제: 모든 보기에 AI 100%, 화면이 깨진다
+    for (let i = 0; i < 4; i++) {
+      const y = PAPER_ROW(i), jx = Math.round(Math.sin(now * 31 + i * 2.1) * 7), jy = Math.round(Math.sin(now * 23 + i) * 3);
+      g.lineWidth = 6; g.strokeStyle = i % 2 ? '#ff3a8a' : cyan; g.strokeRect(46 + jx, y - 70 + jy, PAPER_W - 92, 92);
+      g.fillStyle = '#ff3a8a'; g.textAlign = 'right'; g.font = `800 40px ${F}`; g.fillText('AI 100%', PAPER_W - 58 + jx, y - 8 + jy);
+      g.fillStyle = cyan; g.fillText('AI 100%', PAPER_W - 62 - jx, y - 8);
+    }
+    for (let i = 0; i < 9; i++) { const h = Math.abs(Math.sin(i * 12.9898 + Math.floor(now * 14) * 78.233) * 43758.5453) % 1; g.globalAlpha = 0.5; g.fillStyle = i % 3 ? cyan : '#ff3a8a'; g.fillRect(0, Math.floor(h * PAPER_H), PAPER_W, 3 + Math.floor(((h * 7) % 1) * 14)); } g.globalAlpha = 1;
+    return;
+  }
+  if (!E.ar) return; // 안경 전 단계: 시험지 위에는 아무것도 뜨지 않는다 (답은 소매 속 액정에)
   // 안경이 종이 위에 비추는 AR: 1/3, 2/3에서 지운 오답, 끝나면 AI가 고른 보기, 스캔 중엔 초점 틀
   const strikes = Math.min(2, q.pre ? 2 : Math.floor(E.scan * 3 + 1e-6));
   for (let j = 0; j < strikes; j++) {
@@ -209,7 +220,8 @@ function lensGlow(side, hex) {
 function drawExamHud(k, L, E, now, H) {
   const X = EXAM_LAYOUT, C = PAL, { R, T, TO } = k, tier = E.T;
   const live = E.start <= 0 && !E.over && !E.caught && !(E.breakT > 0), onPaper = E.view === 'paper' && E.viewT >= 1;
-  k.b.globalAlpha = 0.06; for (let y = 1; y < L.H; y += 3) R(0, y, L.W, 1, H.c); k.b.globalAlpha = 1; // 렌즈 스캔라인
+  const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
+  if (E.ar) { k.b.globalAlpha = 0.06; for (let y = 1; y < L.H; y += 3) R(0, y, L.W, 1, H.c); k.b.globalAlpha = 1; } // 렌즈 스캔라인 (안경을 쓴 뒤부터)
   if (E.pulse && (E.pulse.warn > 0 || E.pulse.active > 0) && E.pulseCut > 0) { // 탐지 전파·드론: 렌즈에 잡음
     const strong = E.pulse.active > 0, n = strong ? 26 : 9;
     for (let i = 0; i < n; i++) {
@@ -220,6 +232,12 @@ function drawExamHud(k, L, E, now, H) {
     k.b.globalAlpha = 1;
   }
   const pl = E.gear.predict; // 시선 예측: 그쪽 렌즈 가장자리가 경고 (3단계부터 쳐다볼 때도 빨갛게)
+  if (pl >= 3 && live && E.layout === 'room') { // 후방 카메라: 등 뒤 감독관을 위쪽 작은 화면에
+    const back = E.staff.filter(s => !s.fixed && !s.out && !(s.blink > 0) && s.phase !== 'help' && s.u < 0.37), bx = L.W / 2 - 46, by = 8;
+    k.b.globalAlpha = 0.8; R(bx, by, 92, 18, '#06161a'); k.b.globalAlpha = 1; k.frame(bx, by, 92, 18, H.c2, 1);
+    T('후방', bx + 46, by + 9, 8, H.c2, 'center', 700);
+    for (const s of back) { const col = s.phase === 'watch' ? C.bad : s.phase === 'tell' ? C.warn : '#c9c4d8', x = s.side === 'L' ? bx + 14 : bx + 78; k.disc(x, by + 9, 4, col); if (s.phase === 'watch') k.ring(x, by + 9, 6, C.bad); }
+  }
   if (pl > 0 && live && E.layout === 'room') {
     for (const sd of ['L', 'R']) {
       const st = E.staff.filter(s => s.side === sd && s.phase !== 'cross' && !s.out && !(s.blink > 0) && !s.fixed);
@@ -235,13 +253,26 @@ function drawExamHud(k, L, E, now, H) {
     k.b.globalAlpha = Math.max(0, a); k.b.drawImage(lensGlow('A', C.bad), 0, 0); k.b.globalAlpha = 1;
   }
   if (E.layout === 'table') drawArCard(k, L, E, now, H);
-  if (live && (onPaper || E.layout !== 'room') && E.scan > 0 && !E.ai && !E.fb) { // 스캔 진행 막대 (1/3, 2/3 눈금)
+  if (!E.ar && live && E.view === 'paper' && (E.scan > 0 || E.ai)) { // 안경 전 단계: 소매 속 초소형 액정 (lens 0은 허벅지 폰)
+    const lx = 44, ly = 262, lw = 104, lh = 50, small = E.gear.lens >= 2;
+    R(lx - 6, ly - 4, lw + 12, lh + 30, '#2f3e66'); R(lx - 2, ly - 2, lw + 4, lh + 4, '#0a0a0e'); R(lx, ly, lw, lh, '#0c1a12');
+    T(small ? '소매 속 액정' : '허벅지 위 폰', lx + lw / 2, ly + lh + 12, 8, '#c9c4d8', 'center', 700);
+    if (E.ai && !E.fb) { T(`답 ${q.aiPick + 1}번`, lx + lw / 2, ly + 17, 16, '#7dff9a', 'center', 800); T(`AI ${q.conf}%`, lx + lw / 2, ly + 38, 10, '#4ac27a', 'center', 800); }
+    else if (!E.ai) { T('문제 전송 중…', lx + lw / 2, ly + 14, 9, '#4ac27a', 'center', 700); R(lx + 8, ly + 26, lw - 16, 4, '#143a24'); R(lx + 8, ly + 26, Math.round((lw - 16) * E.scan), 4, '#7dff9a');
+      const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, lx + lw / 2, ly + 40, 9, '#7dff9a', 'center', 700); }
+  }
+  if (E.finalQ) { // 마지막 문제: 렌즈가 깨진다
+    const n = Math.round(6 + E.glitch * 26);
+    for (let i = 0; i < n; i++) { const h = Math.abs(Math.sin(i * 12.9898 + Math.floor(now * 18) * 78.233) * 43758.5453) % 1; k.b.globalAlpha = 0.25 + E.glitch * 0.4; R(Math.floor(((h * 13) % 1) * L.W) - 60, Math.floor(h * L.H), 60 + Math.floor(((h * 7) % 1) * 260), 1 + Math.floor(((h * 5) % 1) * 3), i % 3 === 0 ? '#ff3a8a' : i % 3 === 1 ? H.c : '#ffffff'); }
+    k.b.globalAlpha = 1;
+    if (E.ai && Math.floor(now * 3) % 2) T('ERR: 응답자 확인 불가', L.W / 2 + Math.round(Math.sin(now * 40) * 3), 52, 11, '#ff3a8a', 'center', 800);
+  }
+  if (E.ar && live && (onPaper || E.layout !== 'room') && E.scan > 0 && !E.ai && !E.fb) { // 스캔 진행 막대 (1/3, 2/3 눈금)
     const bx = 200, bw = 240, by = 34;
     R(bx - 1, by - 1, bw + 2, 5, '#0d2a30'); R(bx, by, bw, 3, H.c3); R(bx, by, Math.round(bw * E.scan), 3, H.c);
     for (const f of [1 / 3, 2 / 3]) R(bx + Math.round(bw * f) - 1, by - 2, 2, 7, '#0d2a30');
   }
   // 시험마다 다른 장치: 꼭 필요할 때만
-  const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
   if (live && q && q.kind === 'listen' && !E.ai && !E.fb) {
     const has = E.gear.earbud > 0, txt = has ? `AI 이어폰이 받아쓰는 중 ${Math.round(E.listen * 100)}%` : '듣기 문항: AI 이어폰이 없어요 · 직접 고르기';
     const w = k.TW(txt, 11, 800) + 34, x = L.W / 2 - w / 2, y = 50;
@@ -271,10 +302,10 @@ function drawExamHud(k, L, E, now, H) {
   }
   if (E.flash && E.flash.t < 1.6) { const a = E.flash.t < 1.2 ? 1 : (1.6 - E.flash.t) / 0.4; k.b.globalAlpha = a; TO(E.flash.text, L.W / 2, 96, 14, E.flash.col || C.warn); k.b.globalAlpha = 1; }
   const sec = Math.max(0, Math.ceil(E.timeLeft));
-  TO(`${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, X.clock[0], X.clock[1], 12, E.timeLeft < 10 ? C.bad : H.c, 'right', '#0d2a30');
+  TO(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, X.clock[0], X.clock[1], 12, E.timeLeft < 10 ? C.bad : H.c, 'right', '#0d2a30');
   if (tier.parts) T(tier.parts[E.part], X.clock[0] + 2, X.clock[1] + 14, 9, H.c2, 'right', 700);
   if (E.runShown) T(fmtRun(E.runShown), 48, 40, 10, H.c2, 'left', 700);
-  k.b.drawImage(rimFor('land'), 0, 0);
+  if (E.ar) k.b.drawImage(rimFor('land'), 0, 0); // 안경테는 안경을 쓴 뒤부터
   drawExamOverlays(k, L, E, now, H);
 }
 
@@ -285,7 +316,7 @@ function drawExamOverlays(k, L, E, now, H) {
     R(L.W / 2 - tw / 2, y - 10, tw, 20, C.white); k.frame(L.W / 2 - tw / 2, y - 10, tw, 20, C.ol, 1);
     T(E.hint, L.W / 2, y, 12, C.ink, 'center', 800);
   }
-  if (E.showZones && E.view === 'paper' && !E.caught && !E.over && E.start <= 0 && E.layout === 'room') {
+  if (E.showZones && E.view === 'front' && !E.caught && !E.over && E.start <= 0 && E.layout === 'room') {
     const zw = Math.round(L.W * X.zone);
     k.b.globalAlpha = 0.14; R(0, 0, zw, L.H, C.white); R(L.W - zw, 0, zw, L.H, C.white); k.b.globalAlpha = 1;
     if (Math.floor(now * 2) % 2 === 0) { TO('<', zw / 2 + 8, L.H / 2, 22, C.white); TO('>', L.W - zw / 2 - 8, L.H / 2, 22, C.white); }
@@ -308,7 +339,7 @@ function drawExamOverlays(k, L, E, now, H) {
     const who = E.caughtBy || tier.staff[0];
     TO(E.T.mech.includes('tutorial') ? '걸렸다!' : '적발!', L.W / 2, L.H / 2 - 50, 44, C.bad);
     TO(CAUGHT_LINE[who.type] || CAUGHT_LINE.dean, L.W / 2, L.H / 2 + 2, 15, C.white);
-    const why = { cctv: 'CCTV에 찍힘', pulse: 'AI 탐지 전파에 걸림', drone: '드론 전파에 걸림', screen: '화면 검사에 걸림', check: '책상 앞 검사에 걸림',
+    const why = { alert: '재난문자에 폰이 울림', emp: 'EMP에 기기가 드러남', cctv: 'CCTV에 찍힘', pulse: 'AI 탐지 전파에 걸림', drone: '드론 전파에 걸림', screen: '화면 검사에 걸림', check: '책상 앞 검사에 걸림',
       webcam: '웹캠에 찍힘', ai: 'AI 사용이 감지됨', omega: 'Ω가 스캔 박자를 읽음' }[E.caughtHow] || `${who.name}에게 걸림`;
     T(E.T.mech.includes('tutorial') ? `${why} · 혼나고 끝 (모의고사라 다행)` : `${why} · 이번 시험 0점`, L.W / 2, L.H / 2 + 30, 12, '#d6d2e0', 'center', 700);
   }

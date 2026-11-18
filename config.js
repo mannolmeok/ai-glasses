@@ -88,8 +88,15 @@ window.CONFIG = {
   taste_need: { value: 0.25, min: 0, max: 0.6, step: 0.01 },       // 미각 센서가 없을 때 테이스팅 AI 정답률 -
   gaze_cut: { value: 0.25, min: 0, max: 0.5, step: 0.01 },         // 시선 보정 렌즈 단계당 마주 보는 시험 의심도 -
   break_time: { value: 2.5, min: 0.5, max: 8, step: 0.5 },         // 교시·모듈·블록 사이 쉬는 시간(초)
-  zoom_time: { value: 0.35, min: 0.1, max: 1.5, step: 0.05 },      // 고시원에서 노트북·일정표·폰으로 다가가는 시간(초)
+  zoom_time: { value: 0.8, min: 0.1, max: 1.5, step: 0.05 },      // 고시원에서 노트북·일정표·폰으로 다가가는 시간(초)
   candle_bonus: { value: 0.4, min: 0, max: 1.5, step: 0.05 },      // 촛불 감지기 단계당 저승사자 낌새 +초
+
+  sticker_slow: { value: 1.4, min: 1, max: 3, step: 0.05 },        // 단추 스티커: 단추 카메라(안경 전 단계)면 스캔 시간 배율
+  emp_wipe: { value: 1, min: 0, max: 1, step: 0.1 },                // EMP가 터지면 진행 중인 스캔이 날아가는 비율
+  glass_level: { value: 3, min: 1, max: 7, step: 1 },              // 촬영·표시 장비가 이 단계부터 AI 안경(시험지 위 AR). 그 전에는 소매 속 액정
+  down_keep: { value: 0.6, min: 0.1, max: 3, step: 0.1 },          // 손을 뗀 뒤 고개를 숙이고 있는 시간(초)
+  answer_keep: { value: 3, min: 0.5, max: 8, step: 0.5 },          // AI 답이 뜬 뒤 마킹을 기다리며 숙이고 있는 시간(초)
+  broker_markup: { value: 1.5, min: 1, max: 5, step: 0.1 },        // 텔레그램 브로커 웃돈 배율
 
   // ---- 경제 ----
   cost_scale: { value: 1, min: 0.1, max: 10, step: 0.1 },          // 모든 장비 가격 배율
@@ -118,11 +125,13 @@ window.CONFIG = {
     { id: 'suneung', act: 1, name: '대학수학능력시험', subject: '수학 영역', gen: 'eq', qn: 8, time: 100, room: 'suneung', sec: [], mech: ['metal'],
       staff: [{ type: 'suneung', name: '정감독관' }, { type: 'homeroom', name: '부감독관' }],
       stand: [2.8, 4.2], walk: [1.3, 2.3], tell: 1.0, watch: 1.8, speed: 0.11, cross: 0.18, feint: 0.08, sus: 0.85, ai: 1.2, reward: 700, pay: '장학금',
+      news: '수능 만점자가 너무 많다? 교육부 "가방은 복도에, 전자기기는 1교시 전 전부 수거"',
       head: ['2027학년도 대학수학능력시험 문제지', '수학 영역'], lines: ['2027학년도 대학수학능력시험', '2교시 수학 영역 · 10:30 ~ 12:10', '휴대전화 · 스마트기기 반입 금지'] },
-    { id: 'final', act: 1, name: '대학교 전공 기말고사', subject: '경영학원론', gen: 'biz', qn: 6, time: 70, room: 'lecture', sec: [], mech: ['visit'],
+    { id: 'transfer', act: 1, name: '대학 편입학 시험', subject: '편입 영어', gen: 'transfer', qn: 6, time: 70, room: 'lecture', sec: [], mech: ['visit'],
       staff: [{ type: 'ta', name: '조교' }, { type: 'prof', name: '교수님', visit: 'drop' }],
-      stand: [2.6, 4.0], walk: [1.2, 2.2], tell: 0.95, watch: 1.9, speed: 0.11, cross: 0.2, feint: 0.1, sus: 0.9, ai: 2, reward: 2300, pay: '성적 장학금',
-      head: ['2026학년도 2학기 기말고사', '경영학원론'], lines: ['경영학원론 기말고사', '휴대폰 OFF · 오픈북 아님'] },
+      stand: [2.6, 4.0], walk: [1.2, 2.2], tell: 0.95, watch: 1.9, speed: 0.11, cross: 0.2, feint: 0.1, sus: 0.9, ai: 2, reward: 2300, pay: '편입 장학금',
+      news: '편입 시험 합격선이 이상하게 올랐다. 수험생 카페 "단기 합격 수기, 믿어도 되나"',
+      head: ['2027학년도 일반편입학 필기고사', '영어'], lines: ['일반편입학 필기고사', '휴대폰 OFF · 감독 교수 순시 중'] },
     { id: 'toeic', act: 1, name: '토익(TOEIC)', subject: 'LC + RC', gen: 'toeic', qn: 8, listen: 4, time: 100, room: 'toeic', sec: [], mech: ['listen'],
       staff: [{ type: 'dean', name: '토익 감독관' }],
       stand: [2.4, 3.8], walk: [1.2, 2.0], tell: 0.9, watch: 2.0, speed: 0.12, cross: 0.25, feint: 0.12, sus: 0.95, ai: 2.5, reward: 8000, pay: '어학 장학금',
@@ -131,30 +140,36 @@ window.CONFIG = {
       staff: [{ type: 'webcam', name: '원격 감독관', fixed: true }],
       stand: [3, 6], walk: [1, 1], tell: 0.8, watch: 2.4, speed: 0, cross: 0, feint: 0.1, sus: 1.0, ai: 3.2, reward: 27000, pay: '유학 장학금',
       head: ['TOEFL iBT Home Edition', 'Reading Section'], lines: [] },
-    { id: 'history', act: 1, name: '한국사능력검정 심화', subject: '한국사', gen: 'history', qn: 8, time: 90, room: 'history', sec: [], mech: ['crowd'],
+    { id: 'civil7', act: 1, name: '7급 공무원 공채', subject: '헌법·상황판단', gen: 'psat', qn: 8, time: 90, room: 'history', sec: [], mech: ['crowd'],
       staff: [{ type: 'dean', name: '감독관' }, { type: 'homeroom', name: '감독관' }],
-      stand: [2.2, 3.4], walk: [1.1, 2.0], tell: 0.8, watch: 2.1, speed: 0.12, cross: 0.3, feint: 0.15, sus: 1.0, ai: 3.6, reward: 90000, pay: '가산점 수당',
-      head: ['제80회 한국사능력검정시험', '한국사 (심화)'], lines: ['한국사능력검정시험 (심화)', '부정행위 시 응시 무효'] },
-    { id: 'civil', act: 1, name: '9급 공무원 공채', subject: '국어·한국사', gen: 'civil', qn: 10, time: 120, room: 'civil', sec: ['cctv'], mech: [],
+      stand: [2.2, 3.4], walk: [1.1, 2.0], tell: 0.8, watch: 2.1, speed: 0.12, cross: 0.3, feint: 0.15, sus: 1.0, ai: 3.6, reward: 90000, pay: '첫 월급',
+      news: '7급 공채에도 AI 커닝 의혹. 인사처 "시험장에 CCTV를 달겠다"',
+      head: ['2027년도 국가공무원 7급 공개경쟁채용', '제1차 시험'], lines: ['국가공무원 7급 공개경쟁채용', '부정행위 시 응시 무효'] },
+    { id: 'customs', act: 1, name: '관세사 시험', subject: '관세법·무역영어', gen: 'customs', qn: 10, time: 120, room: 'civil', sec: ['cctv'], mech: [],
       staff: [{ type: 'agent', name: '시험 관리관' }, { type: 'dean', name: '감독관' }],
-      stand: [2.2, 3.4], walk: [1.1, 2.0], tell: 0.7, watch: 2.2, speed: 0.13, cross: 0.25, feint: 0.2, sus: 1.1, ai: 4.3, reward: 310000, pay: '첫 월급',
-      head: ['2027년도 국가공무원 9급 필기시험', '국어 · 한국사'], lines: ['국가공무원 9급 공개경쟁채용', '필기시험 · 전자기기 소지 = 부정행위'] },
-    { id: 'tax', act: 1, name: '세무사 2차 시험', subject: '회계·세법', gen: 'tax', qn: 8, time: 110, room: 'tax', sec: [], mech: [],
+      stand: [2.2, 3.4], walk: [1.1, 2.0], tell: 0.7, watch: 2.2, speed: 0.13, cross: 0.25, feint: 0.2, sus: 1.1, ai: 4.3, reward: 310000, pay: '첫 수임료',
+      news: '관세사 동차 합격자 급증. 정부 "켜진 폰을 찾으려 시험 중 불시에 재난문자를 보내겠다"',
+      head: ['제44회 관세사 시험', '관세법개론 · 무역영어'], lines: ['관세사 자격시험', '전자기기 소지 = 부정행위 · CCTV 녹화 중'] },
+    { id: 'tax', act: 1, name: '세무사 시험', subject: '회계·세법', gen: 'tax', qn: 8, time: 110, room: 'tax', sec: ['pulse'], pulse: 'alert', mech: [],
       staff: [{ type: 'dean', name: '감독관' }, { type: 'agent', name: '시험 관리관' }, { type: 'homeroom', name: '감독관' }],
       stand: [1.9, 3.0], walk: [1.0, 1.7], tell: 0.62, watch: 2.4, speed: 0.1, cross: 0.3, feint: 0.25, sus: 1.2, ai: 4.8, reward: 1050000, pay: '첫 수임료',
-      head: ['제64회 세무사 제2차 시험', '회계학 1부'], lines: ['세무사 제2차 시험', '회계학 1부 · 계산기 외 반입 금지'] },
-    { id: 'cpa', act: 1, name: '공인회계사 2차 시험', subject: '재무회계', gen: 'cpa', qn: 10, time: 130, room: 'cpa', sec: ['cctv'], mech: ['idcheck'],
+      news: '세무사 수석 합격자, 초소형 카메라 부정행위 의혹. 초소형 카메라 품절 대란 · 정부 "옷 단추마다 스티커를 붙이겠다"',
+      head: ['제64회 세무사 시험', '회계학 · 세법학'], lines: ['세무사 자격시험', '시험 중 불시 재난문자 발송'] },
+    { id: 'appraiser', act: 1, name: '감정평가사 시험', subject: '감정평가이론·실무', gen: 'appraise', qn: 10, time: 130, room: 'cpa', sec: ['cctv'], mech: ['sticker', 'idcheck'],
       staff: [{ type: 'dean', name: '감독관' }, { type: 'agent', name: '시험 관리관' }],
-      stand: [1.8, 2.9], walk: [1.0, 1.7], tell: 0.6, watch: 2.4, speed: 0.12, cross: 0.3, feint: 0.25, sus: 1.25, ai: 5.5, reward: 3600000, pay: '사이닝 보너스',
-      head: ['제62회 공인회계사 제2차 시험', '재무회계'], lines: ['공인회계사 제2차 시험', '신분 확인 중 · 수험표는 책상 위에'] },
+      stand: [1.8, 2.9], walk: [1.0, 1.7], tell: 0.6, watch: 2.4, speed: 0.12, cross: 0.3, feint: 0.25, sus: 1.25, ai: 5.5, reward: 3600000, pay: '첫 감정 수수료',
+      news: '"6개월 합격" 수기 논란. 정부, 국가자격시험 전 종목 전수조사 · 시험장에 AI 탐지 전파 도입',
+      head: ['제38회 감정평가사 시험', '감정평가이론 · 실무'], lines: ['감정평가사 자격시험', '단추 스티커 부착 · 신분 확인 중'] },
     { id: 'leet', act: 1, name: '법학적성시험(LEET)', subject: '추리논증', gen: 'logic', qn: 8, time: 130, room: 'leet', sec: ['cctv', 'pulse'], mech: ['long'],
       staff: [{ type: 'agent', name: '시험 관리관' }, { type: 'suneung', name: '감독관' }],
       stand: [1.8, 3.0], walk: [1.0, 1.8], tell: 0.6, watch: 2.4, speed: 0.13, cross: 0.3, feint: 0.25, sus: 1.3, ai: 5.8, reward: 12000000, pay: '로스쿨 장학금',
+      news: 'LEET 만점자 답안 수정 흔적 논란. 법무부 "변호사시험은 AI 감독관이 본다"',
       head: ['2028학년도 법학적성시험 문제지', '추리논증'], lines: ['법학적성시험 (LEET)', '2교시 추리논증 · 긴 지문 주의'] },
     { id: 'bar', act: 1, name: '변호사시험', subject: '공법·형사법·민사법', gen: 'law', qn: 6, parts: ['1교시 공법', '2교시 형사법', '3교시 민사법'], time: 80, room: 'bar',
       sec: ['cctv', 'pulse'], mech: ['sessions'], noAuto: true, boss: true,
       staff: [{ type: 'robot', name: 'AI 감독관' }, { type: 'agent', name: '시험 관리관' }],
       stand: [1.4, 2.4], walk: [0.8, 1.4], tell: 0.5, watch: 2.6, speed: 0.12, cross: 0.35, feint: 0.3, sus: 1.4, ai: 6.2, reward: 41000000, pay: '첫 연봉',
+      news: 'K-커닝, 세계로. 각국 시험 당국이 한국발 수법에 비상',
       head: ['제17회 변호사시험', '선택형'], lines: ['변호사시험', 'AI 감독 시스템 가동 중'] },
     // ---- 2막 글로벌 ----
     { id: 'sat', act: 2, name: '미국 SAT', subject: 'Reading & Math', gen: 'sat', qn: 6, parts: ['Module 1', 'Module 2'], time: 70, room: 'usclass', device: 'tablet', sec: [], mech: ['adaptive', 'visit'],
@@ -164,7 +179,8 @@ window.CONFIG = {
     { id: 'gaokao', act: 2, name: '중국 가오카오', subject: '수학', gen: 'eqhard', qn: 10, time: 120, room: 'gaokao', sec: ['cctv', 'pulse'], pulse: 'drone', mech: ['glasscheck'],
       staff: [{ type: 'cnproctor', name: '감독관' }, { type: 'cnproctor', name: '부감독관' }],
       stand: [1.8, 3.0], walk: [0.9, 1.6], tell: 0.55, watch: 2.5, speed: 0.13, cross: 0.3, feint: 0.3, sus: 1.3, ai: 7.0, reward: 727000000, pay: '명문대 장학금',
-      head: ['전국 대학 통일 입학시험 (高考)', '수학'], lines: ['高考 · 전국 대학 통일 입학시험', '안경 검사 · 드론 전파 감시 중'] },
+      news: '가오카오 당국, 수험생 안경을 전부 물에 담갔다. "방수 안경은 못 막았다"',
+      head: ['전국 대학 통일 입학시험 (高考)', '수학'], lines: ['高考 · 전국 대학 통일 입학시험', '안경을 물에 담그는 검사 · 드론 감시 중'] },
     { id: 'oxford', act: 2, name: '옥스퍼드 입학 면접', subject: '철학·논리', gen: 'oxford', qn: 5, time: 75, room: 'oxford', layout: 'table', device: 'ar', sec: [], mech: ['interview'],
       staff: [{ type: 'don', name: '철학 교수', fixed: true }, { type: 'don2', name: '논리학 교수', fixed: true }],
       stand: [1.6, 2.8], walk: [1, 1], tell: 0.6, watch: 2.2, speed: 0, cross: 0, feint: 0.25, sus: 1.3, ai: 7.4, reward: 3050000000, pay: '옥스퍼드 장학금',
@@ -190,12 +206,13 @@ window.CONFIG = {
     { id: 'galaxy', act: 3, name: '은하수능', subject: '은하 수학 영역', gen: 'galaxy', qn: 10, time: 120, room: 'space', sec: [], mech: ['threeeyes', 'float'],
       staff: [{ type: 'alien', name: '외계인 감독관' }, { type: 'alien', name: '외계인 감독관' }],
       stand: [1.6, 2.6], walk: [0.9, 1.6], tell: 0.5, watch: 2.5, speed: 0.14, cross: 0.35, feint: 0.3, sus: 1.5, ai: 10.5, reward: 6600000000000, pay: '은하 장학금',
+      news: '은하 연합, 지구인 수험생 전원에게 EMP 사용 승인',
       head: ['제1회 은하계 수학능력시험', '은하 수학 영역'], lines: ['은하계 수학능력시험', '무중력 주의 · 시험지를 붙잡으세요'] },
     { id: 'afterlife', act: 3, name: '저승 입학시험', subject: '저승 법도', gen: 'afterlife', qn: 10, time: 120, room: 'underworld', sec: [], mech: ['silent', 'teleport'],
       staff: [{ type: 'reaper', name: '저승사자' }, { type: 'reaper', name: '저승사자' }, { type: 'yeomra', name: '염라대왕', fixed: true }],
       stand: [1.6, 2.6], walk: [0.9, 1.6], tell: 0.45, watch: 2.6, speed: 0.12, cross: 0.3, feint: 0.3, sus: 1.55, ai: 11.4, reward: 47000000000000, pay: '환생 포인트',
       head: ['저승 입학시험', '저승 법도'], lines: ['저승 입학시험', '촛불이 흔들리면 사자가 가까이 있다'] },
-    { id: 'multi', act: 3, name: '평행우주 변호사시험', subject: '다중우주법', gen: 'multilaw', qn: 12, time: 140, room: 'multiverse', sec: [], mech: ['clones'],
+    { id: 'multi', act: 3, name: '평행우주 변호사시험', subject: '다중우주법', gen: 'multilaw', qn: 12, time: 140, room: 'multiverse', sec: ['pulse'], pulse: 'emp', mech: ['clones'],
       staff: [{ type: 'agent', name: '시험 관리관' }],
       stand: [1.6, 2.6], walk: [0.9, 1.5], tell: 0.5, watch: 2.5, speed: 0.13, cross: 0.35, feint: 0.3, sus: 1.5, ai: 12.4, reward: 330000000000000, pay: '다중우주 수임료',
       head: ['제∞회 평행우주 변호사시험', '다중우주법'], lines: ['평행우주 변호사시험', '감독관이 계속 늘어납니다'] },
@@ -233,8 +250,8 @@ window.CONFIG = {
   // ladder: 단계마다 바뀌는 제품명, price: 가격 = mult x (unlock + step x 지금 단계)번째 시험의 문제당 상금
   // kind: count(대리 응시: 사람 수만큼), group: glass(안경) · device(안경 밖 AI 기기)
   gear: [
-    { id: 'lens', name: '렌즈', group: 'glass', unlock: -1, caps: [3, 5, 7], mult: 4, step: 1.5,
-      ladder: ['천원샵 돋보기', '블루라이트 안경', '중고 스마트글라스', '실리콘밸리 시제품', '군용 정찰 렌즈', '독수리 눈 이식', '망원경 눈알'] },
+    { id: 'lens', name: '촬영·표시 장비', group: 'glass', unlock: -1, caps: [3, 5, 7], mult: 4, step: 1.5,
+      ladder: ['초소형 카메라', '소매 속 초소형 액정', '중고 AI 안경', '실리콘밸리 시제품 안경', '군용 정찰 렌즈', '스마트 콘택트렌즈', '뇌 임플란트'] },
     { id: 'predict', name: '시선 예측', group: 'glass', unlock: 0, caps: [2, 4, 6], mult: 3, step: 2,
       ladder: ['눈치', '사이드미러 스티커', '후방 카메라', '감독관 동선 AI', '예지몽', '1초 뒤 미래 보기'] },
     { id: 'stealth', name: '스텔스 코팅', group: 'glass', unlock: 1, caps: [2, 4, 6], mult: 3, step: 2,
