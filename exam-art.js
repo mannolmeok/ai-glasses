@@ -45,7 +45,7 @@ function captchaIcon(g, id, cx, cy, s) { // 로봇 확인 그림 6종 (신호등
   else { R(-4, -4, 8, 13, '#d6403a'); R(-5, -6, 10, 3, '#b8302a'); R(-2, -9, 4, 3, '#b8302a'); R(-7, -1, 3, 3, '#b8302a'); R(4, -1, 3, 3, '#b8302a'); R(-5, 8, 10, 2, '#8a2a24'); }
 }
 function drawPaperTexture(g, E, now) {
-  const F = FONT_KO, tier = E.T, q = E.qs[Math.min(E.qi, E.qs.length - 1)], tablet = tier.device === 'tablet';
+  const F = FONT_BODY, tier = E.T, q = E.qs[Math.min(E.qi, E.qs.length - 1)], tablet = tier.device === 'tablet';
   const head = [tier.head[0], tier.parts ? tier.parts[E.part] : tier.head[1]];
   const ink = '#2a2838', cyan = '#2fd3dd', bg = tablet ? '#fbfcfe' : '#f6f2e6';
   g.textBaseline = 'alphabetic'; g.fillStyle = bg; g.fillRect(0, 0, PAPER_W, PAPER_H);
@@ -132,7 +132,7 @@ function drawPaperTexture(g, E, now) {
 
 // ---- 성적 통지표: 시험이 끝나면 책상 위 시험지가 채점된 종이로 바뀐다 ----
 function drawResultPaper(g, Rz) {
-  const F = FONT_KO, ink = '#2a2838', red = '#d0282a';
+  const F = FONT_BODY, ink = '#2a2838', red = '#d0282a';
   g.textBaseline = 'alphabetic'; g.fillStyle = '#f6f2e6'; g.fillRect(0, 0, PAPER_W, PAPER_H);
   g.fillStyle = ink; g.textAlign = 'center'; g.font = `800 44px ${F}`; g.fillText('성 적 통 지 표', PAPER_W / 2, 78);
   let ns = 34; g.font = `700 ${ns}px ${F}`; while (g.measureText(Rz.tierName).width > PAPER_W - 100 && ns > 22) { ns -= 2; g.font = `700 ${ns}px ${F}`; }
@@ -166,7 +166,7 @@ const SCREEN_W = 990, SCREEN_H = 600;
 const SCREEN_ROW = i => 170 + i * 108;
 function screenRowAt(px, py) { if (px < 500) return -1; for (let i = 0; i < 4; i++) if (Math.abs(py - SCREEN_ROW(i)) < 52) return i; return -1; }
 function drawScreenTexture(g, E, now) {
-  const F = FONT_KO, q = E.qs[Math.min(E.qi, E.qs.length - 1)], cyan = '#2fd3dd';
+  const F = FONT_BODY, q = E.qs[Math.min(E.qi, E.qs.length - 1)], cyan = '#2fd3dd';
   g.textBaseline = 'alphabetic'; g.fillStyle = '#f4f6fa'; g.fillRect(0, 0, SCREEN_W, SCREEN_H);
   g.fillStyle = '#1d3557'; g.fillRect(0, 0, SCREEN_W, 74);
   g.fillStyle = '#ffffff'; g.font = `800 30px ${F}`; g.textAlign = 'left'; g.fillText('TOEFL iBT  |  Reading', 28, 48);
@@ -285,12 +285,22 @@ function drawExamHud(k, L, E, now, H) {
   }
   if (E.layout === 'table' && !E.result) drawArCard(k, L, E, now, H);
   if (!E.ar && live && E.view === 'paper' && (E.scan > 0 || E.ai)) { // 안경 전 단계: 소매 속 초소형 액정 (lens 0은 허벅지 폰)
-    const lx = 44, ly = 262, lw = 104, lh = 50, small = E.gear.lens >= 2;
-    R(lx - 6, ly - 4, lw + 12, lh + 30, '#2f3e66'); R(lx - 2, ly - 2, lw + 4, lh + 4, '#0a0a0e'); R(lx, ly, lw, lh, '#0c1a12');
-    T(small ? '소매 속 액정' : '허벅지 위 폰', lx + lw / 2, ly + lh + 12, 8, '#c9c4d8', 'center', 700);
-    if (E.ai && !E.fb) { T(`답 ${q.aiPick + 1}번`, lx + lw / 2, ly + 17, 16, '#7dff9a', 'center', 800); T(`AI ${q.conf}%`, lx + lw / 2, ly + 38, 10, '#4ac27a', 'center', 800); }
-    else if (!E.ai) { T('문제 전송 중…', lx + lw / 2, ly + 14, 9, '#4ac27a', 'center', 700); R(lx + 8, ly + 26, lw - 16, 4, '#143a24'); R(lx + 8, ly + 26, Math.round((lw - 16) * E.scan), 4, '#7dff9a');
-      const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, lx + lw / 2, ly + 40, 9, '#7dff9a', 'center', 700); }
+    const small0 = E.gear.lens >= 2, fx = window.FX && window.FX[small0 ? 'lcd' : 'thigh'];
+    if (fx && fx.img.complete && fx.img.naturalWidth) { // 생성한 그림 위에 답을 띄운다
+      const dw = small0 ? 236 : 250, sc = dw / fx.w, dh = fx.h * sc, dx = small0 ? 8 : 6, dy = L.H - dh - (small0 ? 30 : 6);
+      k.b.imageSmoothingEnabled = false; k.b.drawImage(fx.img, dx, dy, dw, dh);
+      const sx = dx + fx.screen[0] * sc, sy = dy + fx.screen[1] * sc, sw = (fx.screen[2] - fx.screen[0]) * sc, sh = (fx.screen[3] - fx.screen[1]) * sc, cx = sx + sw / 2, ink = small0 ? '#06363c' : '#9ff3ff';
+      if (E.ai && !E.fb) { T(`${q.aiPick + 1}번`, cx, sy + sh * (small0 ? 0.4 : 0.36), small0 ? 11 : 15, ink, 'center', 800); T(`${q.conf}%`, cx, sy + sh * (small0 ? 0.82 : 0.6), small0 ? 7 : 9, ink, 'center', 700); }
+      else if (!E.ai) { T('전송 중', cx, sy + sh * (small0 ? 0.36 : 0.3), small0 ? 7 : 8, ink, 'center', 700); R(sx + 4, sy + sh * (small0 ? 0.7 : 0.48), sw - 8, 2, small0 ? '#0a5a62' : '#1c3a6a'); R(sx + 4, sy + sh * (small0 ? 0.7 : 0.48), Math.round((sw - 8) * E.scan), 2, ink);
+        const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, small0 ? dx + dw / 2 : cx, small0 ? dy + dh + 8 : sy + sh * 0.74, 7, small0 ? '#c9c4d8' : ink, 'center', 700); }
+    } else {
+      const lx = 44, ly = 262, lw = 104, lh = 50, small = E.gear.lens >= 2;
+      R(lx - 6, ly - 4, lw + 12, lh + 30, '#2f3e66'); R(lx - 2, ly - 2, lw + 4, lh + 4, '#0a0a0e'); R(lx, ly, lw, lh, '#0c1a12');
+      T(small ? '소매 속 액정' : '허벅지 위 폰', lx + lw / 2, ly + lh + 12, 8, '#c9c4d8', 'center', 700);
+      if (E.ai && !E.fb) { T(`답 ${q.aiPick + 1}번`, lx + lw / 2, ly + 17, 16, '#7dff9a', 'center', 800); T(`AI ${q.conf}%`, lx + lw / 2, ly + 38, 10, '#4ac27a', 'center', 800); }
+      else if (!E.ai) { T('문제 전송 중…', lx + lw / 2, ly + 14, 9, '#4ac27a', 'center', 700); R(lx + 8, ly + 26, lw - 16, 4, '#143a24'); R(lx + 8, ly + 26, Math.round((lw - 16) * E.scan), 4, '#7dff9a');
+        const st = Math.min(2, Math.floor(E.scan * 3 + 1e-6)); if (st > 0) T(`${q.elim.slice(0, st).map(i => i + 1).join('·')}번 아님`, lx + lw / 2, ly + 40, 9, '#7dff9a', 'center', 700); }
+    }
   }
   if (E.finalQ) { // 마지막 문제: 렌즈가 깨진다
     const n = Math.round(6 + E.glitch * 26);
@@ -355,17 +365,17 @@ function drawExamOverlays(k, L, E, now, H) {
     if (Math.floor(now * 2) % 2 === 0) { TO('<', zw / 2 + 8, L.H / 2, 22, C.white); TO('>', L.W - zw / 2 - 8, L.H / 2, 22, C.white); }
   }
   if (E.breakT > 0 && !E.caught) { // 쉬는 시간 종소리 뒤의 안내 방송
-    k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, 28, '#000000'); k.b.globalAlpha = 1;
-    T(`${tier.staff[0].name}: "쉬는 시간입니다. 다음은 ${tier.parts[E.part]}."`, L.W / 2, L.H - 48, 12, C.white, 'center', 800);
+    
+    k.SUB(`${tier.staff[0].name}: "쉬는 시간입니다. 다음은 ${tier.parts[E.part]}."`, L.W / 2, L.H - 48, 12, C.white, 'center', 800);
   }
   if (E.start > 0) { // 감독관의 안내 방송 (자막)
     const notes = (E.startNotes || []).map(n => n.text), who = tier.staff[0].name;
     const l1 = `${who}: "${tier.parts ? tier.parts[E.part] + ', ' : ''}${tier.name}${tier.boss ? '. 마지막 관문입니다' : ''}. 지금부터 시작합니다."`, l2 = notes.length ? `"${notes.join(' · ')}"` : '';
-    k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, l2 ? 44 : 28, '#000000'); k.b.globalAlpha = 1;
-    let s1 = 12; while (k.TW(l1, s1, 800) > L.W - 40 && s1 > 9) s1--; T(l1, L.W / 2, L.H - 48, s1, C.white, 'center', 800);
+    
+    let s1 = 12; while (k.TW(l1, s1, 800) > L.W - 40 && s1 > 9) s1--; k.SUB(l1, L.W / 2, L.H - 48, s1, C.white, 'center', 800);
     if (l2) { let s2 = 11; while (k.TW(l2, s2, 700) > L.W - 40 && s2 > 8) s2--; T(l2, L.W / 2, L.H - 30, s2, '#d8d3e6', 'center', 700); }
   }
-  if (E.over && !E.caught) { k.b.globalAlpha = 0.6; R(0, L.H - 62, L.W, 28, '#000000'); k.b.globalAlpha = 1; T(`${tier.staff[0].name}: "${E.all ? '답안지 걷겠습니다.' : '시험 종료. 필기구 내려놓으세요.'}"`, L.W / 2, L.H - 48, 12, C.white, 'center', 800); }
+  if (E.over && !E.caught) {  k.SUB(`${tier.staff[0].name}: "${E.all ? '답안지 걷겠습니다.' : '시험 종료. 필기구 내려놓으세요.'}"`, L.W / 2, L.H - 48, 12, C.white, 'center', 800); }
   if (E.caught) {
     k.b.globalAlpha = 0.8; R(0, 0, L.W, L.H, '#170810'); k.b.globalAlpha = 1;
     const who = E.caughtBy || tier.staff[0];

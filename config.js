@@ -120,6 +120,13 @@ window.CONFIG = {
   away_rate: { value: 0.5, min: 0, max: 1, step: 0.05 },           // 자리 비움 동안 대리 응시 효율
   count_speed: { value: 6, min: 1, max: 20, step: 0.5 },           // 숫자 카운트업 속도
 
+  sub_style: 'bar', // 방송 자막: bar(검은 띠, 지금 사이트) | film(띠 없이 테두리 글자)
+  hud_font: 'system', // HUD 글꼴: pretendard(차분한 고딕) | dohyeon(도현체) | system
+  room_assets: 'box', // 시험장 가구·사람: box(코드로 쌓은 상자) | gen (assets/room1.js의 생성 모델)
+  look: 'psx', // 화면 느낌: psx(지금) | pixel(정해진 색 + 먹선, 2D 픽셀 그림처럼)
+  title_font: 'default', // 타이틀 글자: default | reatic | reaticwide | reaticnarrow (assets/title-art.js의 그림)
+  hub_props: 'box', // 고시원 소품: box(코드로 쌓은 상자) | gen (assets/의 생성 모델)
+  ending_model: 'box', // 엔딩의 내 모습: box(코드로 쌓은 상자) | meshy | hf (assets/의 생성 모델)
   acts: ['1막 대한민국', '2막 글로벌', '3막 뇌절'],
 
   // 시험 25개. act: 막, staff: 감독관(종류·이름), stand: 서 있는 시간 범위(초), walk: 걷는 시간 범위(초), tell: 돌아보는 낌새(초),

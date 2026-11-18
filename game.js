@@ -316,15 +316,12 @@ function setView(v) { // 고개를 그쪽으로 돌려 둔다 (다시 바꿀 때
   E.prevView = E.view; E.view = v; E.viewT = 0; sfx.turn();
   if (side(v)) { E.looks++; G.hints.look = true; E.showZones = false; }
 }
-function viewInput(taps) { // 왼쪽·오른쪽·위·가운데를 톡(또는 ← → ↑ ↓): 왼쪽·오른쪽·정면·책상 보기
+function viewInput(taps) { // 화면 왼쪽·오른쪽·위를 누르고 있는 동안만 그쪽을 본다. 떼면 시험지로 돌아온다
   if (E.layout === 'table') return;
-  const front = E.layout === 'room' ? 'front' : 'paper', W = EXAM_LAYOUT.W, H = EXAM_LAYOUT.H, z = EXAM_LAYOUT.zone;
   if (FORCE_VIEW) { setView(FORCE_VIEW); return; }
-  for (const [x, y] of taps) setView(x < W * z ? 'left' : x > W * (1 - z) ? 'right' : y < H * 0.2 ? front : 'paper');
-  if (pressed('ArrowLeft') || pressed('KeyA')) setView('left');
-  else if (pressed('ArrowRight') || pressed('KeyD')) setView('right');
-  else if (pressed('ArrowUp') || pressed('KeyW')) setView(front);
-  else if (pressed('ArrowDown') || pressed('KeyS') || pressed('Space')) setView('paper');
+  const front = E.layout === 'room' ? 'front' : 'paper'; let z = null;
+  for (const p of ptrs.values()) if (p.zone === 'L' || p.zone === 'R' || p.zone === 'T') z = p.zone;
+  setView(z === 'L' || down.has('ArrowLeft') || down.has('KeyA') ? 'left' : z === 'R' || down.has('ArrowRight') || down.has('KeyD') ? 'right' : z === 'T' || down.has('ArrowUp') || down.has('KeyW') ? front : 'paper');
 }
 function scanPointer() { for (const p of ptrs.values()) if (p.zone === 'C' || (E && E.layout === 'table')) return true; return false; }
 
@@ -673,9 +670,9 @@ function getCaught() {
 function examHint() { // 첫 시험(모의평가)에서만, 한 번에 하나
   if (E.tier !== 0 || G.stats.exams > 0) return null;
   if (E.rising) return '누가 보고 있어요! 손 떼기';
-  if (!G.hints.look) return '화면 양옆을 톡: 고개 돌려 감독관 보기 (← →)';
-  if (E.view === 'left' || E.view === 'right') return G.hints.desk ? null : '가운데를 톡: 책상 보기 (↓) · 위를 톡: 정면 (↑)';
-  if (E.view === 'front') return G.hints.scan ? null : '가운데를 톡: 책상 보기 (↓)';
+  if (!G.hints.look) return '화면 양옆을 꾹: 누르는 동안 고개 돌려 감독관 보기 (← →)';
+  if (E.view === 'left' || E.view === 'right') return G.hints.desk ? null : '떼면 시험지로 돌아옵니다 · 위를 꾹: 정면 (↑)';
+  if (E.view === 'front') return G.hints.scan ? null : '떼면 시험지로 돌아옵니다';
   if (!E.ai && !G.hints.scan) return E.holding ? null : '아무도 안 볼 때 책상을 꾹: AI 스캔 (Space). 떼면 처음부터';
   if (E.ai && !E.fb && !G.hints.pick) return E.ar ? 'AI가 고른 보기를 눌러 마킹 (1~4)' : '소매 속 액정의 번호를 보고, 그 보기를 눌러 마킹 (1~4)';
   return null;

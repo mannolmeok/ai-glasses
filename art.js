@@ -5,7 +5,10 @@
 // 세상은 world3d.js(3D), 시험 중 안경 HUD는 exam-art.js. 이 층은 640x360 버퍼에 그리고 3D 위에 겹친다.
 'use strict';
 
-const FONT_KO = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR","Noto Sans CJK KR","NanumGothic",sans-serif';
+const PIXEL_LOOK = (new URLSearchParams(location.search).get('look') || CONFIG.look) === 'pixel';
+const FONT_BODY = '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR","Noto Sans CJK KR","NanumGothic",sans-serif'; // 시험지·칠판처럼 인쇄된 글자
+const FONT_SUB = '"Pretendard","Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif'; // 자막
+const FONT_KO = (PIXEL_LOOK ? '"Galmuri11",' : CONFIG.hud_font === 'dohyeon' ? '"Do Hyeon",' : CONFIG.hud_font === 'pretendard' ? '"Pretendard",' : '') + '"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR","Noto Sans CJK KR","NanumGothic",sans-serif';
 const PAL = {
   ol: '#1c1726', white: '#ffffff', dark: '#0d0b13',
   skin: '#f3caa1', skin2: '#d9a57c',
@@ -27,6 +30,7 @@ const LAYOUTS = {
 
 // ---- 도트 도구 ----
 const TEXT_CACHE = new Map();
+if (document.fonts) { for (const f of PIXEL_LOOK ? ['400 12px Galmuri11', '700 12px Galmuri11'] : ['400 12px "Do Hyeon"', '400 12px Pretendard', '600 12px Pretendard', '700 12px Pretendard', '800 12px Pretendard']) document.fonts.load(f); document.fonts.ready.then(() => TEXT_CACHE.clear()); } // 픽셀 글꼴이 오면 그려 둔 글자를 다시 만든다
 let HUD_SCALE = 1; // HUD 층을 화면 실제 픽셀 수로 그리는 배율 (game.js fit()이 정한다)
 function hexRgb(h) { const n = parseInt(h.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
 function mix(h1, h2, k) { const a = hexRgb(h1), z = hexRgb(h2); return '#' + a.map((v, i) => Math.round(v + (z[i] - v) * k).toString(16).padStart(2, '0')).join(''); }
@@ -94,6 +98,24 @@ function makeKit(b) {
     const dx = align === 'center' ? x - w / 2 : align === 'right' ? x - w + 2 : x - 2;
     b.drawImage(c, r(dx), r(y - h / 2), w, h);
     return w - 4;
+  };
+  K.SUB = (str, x, y, size, col = '#ffffff', align = 'center') => { // 영상 자막처럼: 띠 없이 흰 글자에 검은 테두리와 그림자
+    if (CONFIG.sub_style !== 'film') { const S0 = K.S || HUD_SCALE, W0 = b.canvas.width / S0; b.globalAlpha = 0.6; K.R(0, y - 14, W0, 28, '#000000'); b.globalAlpha = 1; return K.T(str, x, y, size, col, align, 800); } // 지금 사이트와 같은 검은 띠 자막
+    str = String(str); size += 2;
+    const S = K.S || HUD_SCALE, key = 'sub|' + str + '|' + size + '|' + col + '|' + S;
+    let c = TEXT_CACHE.get(key);
+    if (!c) {
+      const m = document.createElement('canvas'), g = m.getContext('2d'), f = `600 ${size * S}px ${FONT_SUB}`; g.font = f;
+      const pad = 6 * S, w = Math.max(1, Math.ceil(g.measureText(str).width) + pad * 2), h = Math.ceil(size * 1.7 * S);
+      m.width = w; m.height = h; g.font = f; g.textBaseline = 'middle'; g.lineJoin = 'round';
+      g.shadowColor = 'rgba(0,0,0,0.75)'; g.shadowBlur = 4 * S; g.shadowOffsetY = 1.2 * S;
+      g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = 2.4 * S; g.strokeText(str, pad, h / 2);
+      g.shadowColor = 'transparent'; g.fillStyle = col; g.fillText(str, pad, h / 2);
+      c = m; if (TEXT_CACHE.size > 900) TEXT_CACHE.clear(); TEXT_CACHE.set(key, c);
+    }
+    const w = c.width / S, h = c.height / S;
+    b.drawImage(c, Math.round((align === 'center' ? x - w / 2 : x - 6) * S) / S, Math.round((y - h / 2) * S) / S, w, h);
+    return w - 12;
   };
   K.TW = (str, size, weight = 700) => { // 글자 폭만 잼
     const g = K._m || (K._m = document.createElement('canvas').getContext('2d'));
@@ -315,7 +337,9 @@ function drawTitle(k, L, now, hasSave, info) {
     k.b.globalAlpha = 0.5; for (let y = 0; y < lh; y += 3) k.R(cx + sx * gx - lw / 2, cy - lh / 2 + y, lw, 1, C.hud); k.b.globalAlpha = 1;
   }
   k.R(cx - gx + lw / 2, cy - lh / 2 + 4, 2 * gx - lw, 6, C.ol); k.R(cx - gx + lw / 2, cy - lh / 2 + 5, 2 * gx - lw, 3, '#3a3248');
-  TO('AI 안경', cx, cy + 2, 46, C.hud);
+  const tf = new URLSearchParams(location.search).get('font') || CONFIG.title_font, ta = window.TITLE_ART && window.TITLE_ART[tf];
+  if (ta && ta.img.complete && ta.img.naturalWidth) { const h = 50, w = h * ta.w / ta.h; k.b.imageSmoothingEnabled = true; k.b.drawImage(ta.img, cx - w / 2, cy + 2 - h / 2, w, h); } // 리틱체로 그려 둔 제목 그림
+  else TO('AI 안경', cx, cy + 2, 46, C.hud);
   T('모의평가부터 인류의 마지막 시험까지, 들키지 말고 통과하라', cx, cy + lh / 2 + 24, 13, '#d8d3e6', 'center', 700);
   const lines = ['화면 양옆 꾹 / ← → : 고개 돌려 감독관 보기', '가운데 꾹 / Space : 고개 숙여 AI 스캔', '보기 누르기 / 1~4 : 마킹 · P 일시정지 · M 소리 · F 전체 화면'];
   // 조작법은 첫 시험에서 하나씩 알려 준다
