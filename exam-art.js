@@ -493,8 +493,8 @@ function drawExamHud(k, L, E, now, H) {
   const pl = E.gear.predict; // 시선 예측: 그쪽 렌즈 가장자리가 경고 (3단계부터 쳐다볼 때도 빨갛게)
   if (pl >= 3 && live && E.layout === 'room') { // 후방 카메라: 등 뒤 감독관을 위쪽 작은 화면에
     const back = E.staff.filter(s => !s.fixed && !s.out && !(s.blink > 0) && s.phase !== 'help' && s.u < 0.37), bx = L.W / 2 - 46, by = 8;
-    k.b.globalAlpha = 0.8; R(bx, by, 92, 18, '#06161a'); k.b.globalAlpha = 1; k.frame(bx, by, 92, 18, H.c2, 1);
-    T('후방', bx + 46, by + 9, 8, H.c2, 'center', 700);
+    k.b.globalAlpha = 0.5; R(bx, by, 92, 18, '#0a0a0e'); k.b.globalAlpha = 0.85; k.frame(bx, by, 92, 18, '#ffffff', 1); k.b.globalAlpha = 1;
+    k.M('후방', bx + 46, by + 9.5, 7.5, '#ffffff', 'center', 700);
     for (const s of back) { const col = s.phase === 'watch' ? C.bad : s.phase === 'tell' ? C.warn : '#c9c4d8', x = s.side === 'L' ? bx + 14 : bx + 78; k.disc(x, by + 9, 4, col); if (s.phase === 'watch') k.ring(x, by + 9, 6, C.bad); }
   }
   if (pl > 0 && live && E.layout === 'room') {
@@ -526,30 +526,26 @@ function drawExamHud(k, L, E, now, H) {
   }
   // 시험마다 다른 장치: 꼭 필요할 때만
   if (live && q && q.kind === 'listen' && !E.ai && !E.fb) {
-    const has = E.gear.earbud > 0; if (!has) { /* 이어폰이 없으면 아무 표시도 없다: 방송만 들린다 */ } else { const txt = has ? `AI 이어폰이 받아쓰는 중 ${Math.round(E.listen * 100)}%` : '듣기 문항: AI 이어폰이 없어요 · 직접 고르기';
-    const w = k.TW(txt, 11, 800) + 34, x = L.W / 2 - w / 2, y = 50;
-    k.b.globalAlpha = 0.8; R(x, y - 9, w, 18, '#06161a'); k.b.globalAlpha = 1; k.frame(x, y - 9, w, 18, has ? H.c : C.warn, 1);
-    R(x + 8, y - 3, 4, 6, has ? H.c : C.warn); R(x + 12, y - 5, 3, 10, has ? H.c : C.warn); // 스피커
-    T(txt, x + 22, y, 11, has ? H.c : C.warn, 'left', 800);
-    if (has) R(x + 2, y + 7, Math.round((w - 4) * E.listen), 1, H.c); }
+    if (E.gear.earbud > 0) { // 이어폰이 없으면 아무 표시도 없다: 방송만 들린다
+      for (let i = 0; i < 10; i++) R(30 + i * 4, L.H - 62 - (4 + Math.abs(Math.sin(now * 9 + i * 1.7)) * 12) / 2, 2, 4 + Math.abs(Math.sin(now * 9 + i * 1.7)) * 12, '#ffffff');
+      k.SUB(`(이어폰) 받아쓰는 중 ${Math.round(E.listen * 100)}%`, 80, L.H - 62, 10, '#ffffff', 'left'); }
   }
   const cam = E.staff.find(s => s.type === 'webcam');
   if (cam && live) { // 원격 감독 웹캠 불
     const on = cam.phase === 'watch', tell = cam.phase === 'tell', blink = Math.floor(now * 8) % 2;
     const col = on ? C.bad : tell ? (blink ? C.warn : '#5a3a1a') : '#3a3340';
-    k.b.globalAlpha = 0.8; R(L.W / 2 - 44, 46, 88, 16, '#0d0b13'); k.b.globalAlpha = 1;
-    k.disc(L.W / 2 - 30, 54, 4, col); T(on ? '웹캠 LIVE' : tell ? '웹캠 ...' : '웹캠 꺼짐', L.W / 2 - 20, 54, 10, on ? C.bad : tell ? C.warn : '#8f89a3', 'left', 800);
+    k.disc(L.W / 2 - 30, 54, 3.5, col); k.M(on ? '웹캠 LIVE' : tell ? '웹캠 ...' : '웹캠 꺼짐', L.W / 2 - 22, 54.5, 9, on ? '#ff6a6a' : tell ? '#ffcf5a' : '#e8e4da', 'left', 700);
   }
   const chk = E.staff.find(s => s.phase === 'check' && s.check && s.check.stage === 'at');
   if (chk && live) { // 감독관이 내 책상 앞에
     const off = E.gear.autooff > 0;
     k.b.globalAlpha = 0.35; R(0, 0, L.W, 26, '#1a0608'); k.b.globalAlpha = 1;
-    if (off) T(E.gear.autooff >= 2 ? '자동 소등: 렌즈 꺼짐 · 스캔 멈춤' : '자동 소등: 렌즈 꺼짐', L.W / 2, 80, 10, H.c, 'center', 800);
+    if (off) k.SUB(E.gear.autooff >= 2 ? '(렌즈가 스스로 꺼졌다 · 스캔 멈춤)' : '(렌즈가 스스로 꺼졌다)', L.W / 2, L.H - 70, 10, '#e8e4da', 'center');
   }
   if (tier.mech.includes('human') && live) { // 인간 인증: AI 의심도
     const x = 24, y = 300, w = 120;
-    T('AI 사용 감지', x, y - 10, 10, E.aiSus > 0.6 ? C.bad : '#c9c4d8', 'left', 800);
-    R(x - 1, y - 1, w + 2, 6, '#0d0b13'); R(x, y, w, 4, '#3a2a30'); R(x, y, Math.round(w * E.aiSus), 4, E.aiSus > 0.6 ? C.bad : C.warn);
+    k.M(`AI 감지 ${Math.round(E.aiSus * 100)}%`, x, y - 9, 8, E.aiSus > 0.6 ? '#ff6a6a' : '#ffffff', 'left', 700);
+    k.b.globalAlpha = 0.3; R(x, y, w, 2, '#ffffff'); k.b.globalAlpha = 1; R(x, y, Math.round(w * E.aiSus), 2, E.aiSus > 0.6 ? '#ff6a6a' : '#ffcf5a');
   }
   if (live && E.staff.some(s => s.phase === 'peek' && s.peek.stage === 'sneak') && E.gear.predict >= 2) { k.b.globalAlpha = Math.floor(now * 8) % 2 ? 0.9 : 0.4; TO('발소리가 사라졌다…', L.W / 2, 96, 12, C.warn); k.b.globalAlpha = 1; } // 시선 예측 2단계부터 경고
   // 떠다니는 안내 글자는 쓰지 않는다: 소리와 화면 속 움직임으로 안다

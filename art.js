@@ -346,7 +346,7 @@ function drawResults(k, L, Rz, now, H) {
 }
 
 const TITLE_FONT = '"Black Han Sans","Do Hyeon",' + FONT_KO, BOOT_FONT = '"VT323","SF Mono","Menlo","Consolas",monospace,' + FONT_KO;
-if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기 적발 일시정지'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
+if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기 적발 일시정지 AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다.'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
 function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 내 책상을 안경 너머로 본다. 초점이 잡히고 답이 뜬 순간 (시안 F 그대로)
   const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e';
   if (new URLSearchParams(location.search).get('hud') === '0') return []; // check only: 배경만
@@ -411,33 +411,35 @@ function drawEnding(k, L, G, now, H, info) {
     if (lt < 0.25 || lt > E2.shotLen - 0.2) { k.b.globalAlpha = 0.85; R(0, 0, L.W, L.H, '#000000'); k.b.globalAlpha = 1; } // 화면 전환
   }
   if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
+  const G1 = '#74ff8e', b = k.b, W = L.W, HH = L.H;
+  const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
+  const lens = al => { b.globalAlpha = 0.74 * al; R(0, 0, W, HH, '#061e0e'); b.globalAlpha = 0.13 * al; for (let y = 0; y < HH; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = 1; };
   if (t < E2.stats) {
-    if (!shot) { const ly = info.world ? L.H - 74 : L.H / 2 - 16;
-      if (info.world && t > E2.line1 - 1) { k.b.globalAlpha = 0.55 * fade(E2.line1 - 1, E2.stats - 0.3); R(0, ly - 22, L.W, 76, '#05050a'); k.b.globalAlpha = 1; }
-      line('AI는 답을 알려 줍니다.', ly, 20, C.white, fade(E2.line1, E2.stats - 0.3));
-      line('어디에 쓸지는 알려 주지 않습니다.', ly + 32, 20, C.hud, fade(E2.line2, E2.stats - 0.3)); }
+    if (!shot && t > E2.line1 - 1) { // 엔딩 문구: 타이틀과 같은 안경 화면. 끝나면 화면이 꺼진다
+      const al = Math.min(1, (t - (E2.line1 - 1)) / 0.8), off = Math.max(0, Math.min(1, (t - (E2.stats - 1.1)) / 0.9));
+      lens(al); const n = Math.floor((t - (E2.line1 - 0.8)) / 0.5);
+      ['LENS-OS 0.9b', '시험 ......... 전부 통과', '사용자 ....... 확인 불가', '전원 ......... 끄는 중'].slice(0, Math.max(0, Math.min(4, n))).forEach((ln, i) => text(ln, 65, 60 + i * 15.6, `400 12.5px ${BOOT_FONT}`, G1, 'left', '#0a4018'));
+      const big = (str, y, a2) => { if (a2 <= 0) return; b.globalAlpha = a2; const f = `400 31px ${TITLE_FONT}`; text(str, W / 2 + 2, y, f, 'rgba(255,60,60,0.45)', 'center'); text(str, W / 2 - 1.5, y, f, 'rgba(60,160,255,0.4)', 'center'); text(str, W / 2, y, f, G1, 'center', '#0a4018'); b.globalAlpha = 1; };
+      big('AI는 답을 알려 줍니다.', 168, fade(E2.line1, 0)); big('어디에 쓸지는 알려 주지 않습니다.', 210, fade(E2.line2, 0));
+      b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
+      if (off > 0) { const h = HH / 2 * Math.min(1, off * 1.6), w2 = off > 0.62 ? W / 2 * Math.min(1, (off - 0.62) / 0.3) : 0; R(0, 0, W, h, '#000000'); R(0, HH - h, W, h, '#000000'); R(0, 0, w2, HH, '#000000'); R(W - w2, 0, w2, HH, '#000000'); // 브라운관처럼 가운데 한 줄로 접혔다가 점이 되어 꺼진다
+        if (off > 0.55 && off < 0.98) { b.globalAlpha = 0.9; R(w2, HH / 2 - 1, W - w2 * 2, 2, '#eafff0'); b.globalAlpha = 1; } }
+    }
     return [];
   }
-  const a = Math.min(1, (t - E2.stats) / 0.8);
-  if (info.world) { k.b.globalAlpha = 0.82 * a; R(0, 0, L.W, L.H, '#05050a'); }
-  k.b.globalAlpha = a;
-  let y = 28;
-  T('AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다.', cx, y, 12, C.white, 'center', 800); y += 30;
-  TO(`타임어택 ${info.time}`, cx, y, 20, C.hud); y += 20;
-  T(info.rank ? `내 기록 ${info.rank}위${info.rank === 1 ? ' · 신기록!' : ''}` : '', cx, y, 11, C.gold, 'center', 800); y += 16;
-  const lx = cx - 150, rx = cx + 150; let ly = y + 6, ry = y + 6;
-  T('구간 기록', lx, ly, 11, H.c, 'center', 800); ly += 16;
-  for (const sp of info.splits) { T(`${sp.name}  ${sp.time}`, lx, ly, 11, '#c9c4d8', 'center', 700); ly += 15; }
-  T('내 기록 (이 기기)', rx, ry, 11, H.c, 'center', 800); ry += 16;
-  info.records.slice(0, 4).forEach((r, i) => { T(`${i + 1}. ${r.name}  ${r.time}`, rx, ry, 11, r.me ? C.gold : '#c9c4d8', 'center', r.me ? 800 : 700); ry += 15; });
-  y = Math.max(ly, ry) + 14;
-  T(`시험 ${st.exams}번 · 스캔 ${st.scans}회 · 적발 ${st.caught}번`, cx, y, 11, '#c9c4d8', 'center', 700); y += 17;
-  T(`AI가 고른 답 ${st.aiQ}개 · 내가 직접 고른 답 ${st.selfQ}개`, cx, y, 12, C.white, 'center', 800); y += 24;
-  T('이 게임은 AI와 함께 만들었습니다.', cx, y, 11, '#8f89a3', 'center', 700);
-  k.b.globalAlpha = 1;
-  const bw = 130, by = L.H - 44;
-  const b1 = k.button(cx - bw * 1.5 - 8, by, bw, 28, 'Enter 계속하기', Math.floor(now * 2) % 2 === 0);
-  const b3 = k.button(cx - bw / 2, by, bw, 28, 'N 이름 바꾸기', false);
-  const b2 = k.button(cx + bw / 2 + 8, by, bw, 28, 'X 새 타임어택', false, C.warn);
-  return [{ ...b1, key: 'continue' }, { ...b3, key: 'name' }, { ...b2, key: 'wipe' }];
+  const a = Math.min(1, (t - E2.stats) / 0.8); // 종료 기록: 같은 안경 화면에 줄줄이
+  R(0, 0, W, HH, '#000000'); b.globalAlpha = a; R(0, 0, W, HH, '#04140a'); lens(a); b.globalAlpha = a;
+  const tf = `400 30px ${TITLE_FONT}`; text('AI 안경으로 살아남기', W / 2 + 2, 66, tf, 'rgba(255,60,60,0.45)', 'center'); text('AI 안경으로 살아남기', W / 2 - 1.5, 66, tf, 'rgba(60,160,255,0.4)', 'center'); text('AI 안경으로 살아남기', W / 2, 66, tf, G1, 'center', '#0a4018');
+  const bf = sz => `400 ${sz}px ${BOOT_FONT}`, lx = W / 2 - 150, rx = W / 2 + 150; let y = 92;
+  const row = (l, v, col) => { text(l, lx, y, bf(13), G1, 'left', '#0a4018'); text(v, rx, y, bf(13), col || G1, 'right', '#0a4018'); y += 16; };
+  row('타임어택', info.time + (info.rank ? `  (내 기록 ${info.rank}위${info.rank === 1 ? ' · 신기록' : ''})` : ''), '#eafff0');
+  for (const sp of info.splits) row(`  ${sp.name}`, sp.time);
+  row('시험 응시', `${st.exams}번`); row('적발', `${st.caught}번`); row('직접 고른 답', `${st.selfQ}개`); row('AI가 고른 답', `${st.aiQ}개`, '#eafff0');
+  info.records.slice(0, 2).forEach((r, i) => row(i ? '' : '내 기록 (이 기기)', `${i + 1}. ${r.name}  ${r.time}`, r.me ? '#ffe98a' : G1));
+  text('이 게임은 AI와 함께 만들었습니다.', W / 2, y + 6, bf(11), '#9ad8a8', 'center', '#0a4018');
+  const defs = [['▶ 계속하기 [ENTER]', 'continue'], ['이름 바꾸기 [N]', 'name'], ['새 타임어택 [X]', 'wipe']], by = HH - 78, btns = []; b.font = bf(13);
+  const ws = defs.map(d => Math.ceil(b.measureText(d[0]).width) + 22), tot = ws.reduce((p, c) => p + c, 0) + 12 * 2; let bx = W / 2 - tot / 2;
+  defs.forEach(([lab, key], i) => { const on = i === 0 && Math.floor(now * 2) % 2 === 0; b.globalAlpha = a * (on ? 0.22 : 0.06); R(bx, by, ws[i], 24, G1); b.globalAlpha = a * (i === 0 ? 1 : 0.6); k.frame(bx, by, ws[i], 24, key === 'wipe' ? '#ffb86a' : G1, 1.5); b.globalAlpha = a; text(lab, bx + ws[i] / 2, by + 16.5, bf(13), key === 'wipe' ? '#ffb86a' : G1, 'center', '#0a4018'); btns.push({ x: bx, y: by, w: ws[i], h: 24, key }); bx += ws[i] + 12; });
+  b.globalAlpha = 1; b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
+  return btns;
 }
