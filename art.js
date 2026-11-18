@@ -248,11 +248,11 @@ function plate(k, x, y, w, h, H) {
 function drawResults(k, L, Rz, now, H) {
   const extras = (Rz.perfect ? 1 : 0) + (Rz.coach > 1 ? 1 : 0) + (Rz.bonus > 0 ? 1 : 0);
   const { R, T, TO } = k, C = PAL, w = Math.min(L.W - 40, 420), x = (L.W - w) / 2;
-  const h = 138 + (Rz.fee > 0 ? 18 : 0) + 19 + (extras ? 16 : 0) + 16 + (Rz.unlock ? 16 : 0) + 50, y = Math.round((L.H - h) / 2);
+  const h = 138 + (Rz.fee > 0 ? 18 : 0) + 19 + (extras ? 16 : 0) + 16 + (Rz.tut ? 0 : 16) + (Rz.unlock ? 16 : 0) + 50, y = Math.round((L.H - h) / 2);
   k.b.globalAlpha = 0.6; R(0, 0, L.W, L.H, PAL.dark); k.b.globalAlpha = 1;
-  const edge = Rz.caught ? C.bad : Rz.perfect ? C.gold : Rz.passed ? C.good : C.warn;
+  const edge = Rz.caught || Rz.audited ? C.bad : Rz.perfect ? C.gold : Rz.passed ? C.good : C.warn;
   R(x, y + 3, w, h, PAL.dark); R(x, y, w, h, '#1d1926'); k.frame(x, y, w, h, edge, 2);
-  TO(Rz.caught ? '적발!' : Rz.perfect ? '수석 합격!' : Rz.passed ? '합격!' : '불합격', L.W / 2, y + 26, 28, edge);
+  TO(Rz.audited ? '전수조사: 합격 취소' : Rz.caught ? '적발!' : Rz.perfect ? '수석 합격!' : Rz.passed ? '합격!' : '불합격', L.W / 2, y + 26, Rz.audited ? 22 : 28, edge);
   T(Rz.tierName, L.W / 2, y + 52, 12, '#c9c4d8', 'center', 700);
   // 채점표: 문항마다 O·X, 파란 밑줄은 AI가 고른 답
   const n = Rz.marks.length, cw = Math.min(30, Math.floor((w - 40) / n)), mx = L.W / 2 - (n * cw) / 2, my = y + 86;
@@ -273,6 +273,8 @@ function drawResults(k, L, Rz, now, H) {
   if (Rz.bonus > 0) extra.push(`시간 x${(1 + Rz.bonus).toFixed(2)}`);
   if (extra.length) { T(extra.join(' · '), L.W / 2, ly, 11, H.c, 'center', 700); ly += 16; }
   T(`직접 고른 답 ${Rz.self} · AI가 고른 답 ${Rz.ai}`, L.W / 2, ly, 11, '#c9c4d8', 'center', 700); ly += 16;
+  if (!Rz.tut) { const d = Math.round((Rz.heat - Rz.heat0) * 100), hc = Rz.audited || Rz.heat >= 0.66 ? C.bad : Rz.heat >= 0.33 ? C.warn : '#8f89a3';
+    T(Rz.audited ? '점수가 너무 완벽했다. 가끔은 일부러 틀려야 한다' : `전수조사 의심 ${Math.round(Rz.heat * 100)}% (${d >= 0 ? '+' : ''}${d}%)${Rz.perfect ? ' · 만점은 눈에 띈다' : ''}`, L.W / 2, ly, 11, hc, 'center', 800); ly += 16; }
   if (Rz.unlock) { let us = 12; while (k.TW(Rz.unlock, us, 800) > w - 20 && us > 9) us--; T(Rz.unlock, L.W / 2, ly, us, H.c, 'center', 800); }
   const btns = [], by = y + h - 38, gap = 8;
   const defs = [[Rz.canRetry ? 'R 다시 응시' : '응시료 부족', 'retry', Rz.canRetry]];

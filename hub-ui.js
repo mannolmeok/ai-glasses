@@ -39,7 +39,7 @@ const HUBUI = (() => {
       if (badge) { k.disc(ix + 74, iy + 12, 8, '#e8453e'); T(String(badge), ix + 74, iy + 12, 10, C.white, 'center', 800); }
       btns.push({ x: ix, y: iy, w: 96, h: 100, key });
     };
-    const tgBadge = G.flags.sold && soldOut(gearDef('lens')) ? 1 : 0;
+    const tgBadge = G.black || (G.flags.sold && soldOut(gearDef('lens'))) ? 1 : 0;
     icon(x + w / 2 - 130, 'AI마켓', 'app:shop', '#0f1722', (cx, cy) => T('AI', cx, cy, 22, C.hud, 'center', 800), shopNewCount());
     icon(x + w / 2 + 34, '텔레그램', 'app:tg', '#2aa3e0', (cx, cy) => k.poly([[cx - 16, cy], [cx + 16, cy - 13], [cx + 8, cy + 14], [cx - 2, cy + 5]], '#ffffff'), tgBadge);
     R(x, y + h - 22, w, 22, '#0d1f2c');
@@ -50,17 +50,24 @@ const HUBUI = (() => {
   function drawTg(k, r, hv, now) {
     const { R, T } = k, C = PAL, x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h);
     R(x, y, w, h, '#0e1621'); R(x, y, w, 24, '#17212b'); T('텔레그램', x + 10, y + 12, 13, '#5eb5f7', 'left', 800); T(`내 통장 ${won(STATE.shown)}원`, x + w - 8, y + 12, 11, C.gold, 'right', 800);
-    const want = G.flags.sold && soldOut(gearDef('lens')), done = !!G.flags.cam;
+    const want = G.flags.sold && soldOut(gearDef('lens')), done = !!G.flags.cam, bl = G.black;
     let by = y + 34;
     const bubble = (text, mine) => { const ls = wrap(k, text, w * 0.6, 11), bw = Math.max(...ls.map(l => k.TW(l, 11, 700))) + 16, bh = ls.length * 14 + 8, bx = mine ? x + w - 12 - bw : x + 12;
       R(bx, by, bw, bh, mine ? '#2b5278' : '#182533'); ls.forEach((l, i) => T(l, bx + 8, by + 11 + i * 14, 11, C.white, 'left', 700)); by += bh + 6; };
-    if (!want && !done) { T('새 대화가 없습니다', x + w / 2, y + h / 2 - 8, 12, '#6d7f8f', 'center', 800); T('모르는 사람이 보낸 메시지는 조심하세요', x + w / 2, y + h / 2 + 10, 10, '#4a5a6a', 'center', 700); }
+    if (!want && !done && !bl) { T('새 대화가 없습니다', x + w / 2, y + h / 2 - 8, 12, '#6d7f8f', 'center', 800); T('모르는 사람이 보낸 메시지는 조심하세요', x + w / 2, y + h / 2 + 10, 10, '#4a5a6a', 'center', 700); }
     else {
       T('"구해드림" · 해외 구매 대행', x + w / 2, by + 2, 10, '#6d7f8f', 'center', 700); by += 16;
-      bubble('사장님 초소형 카메라 찾으시죠? 요즘 한국에서 다 품절이라던데', false);
-      bubble('재고 있어요?', true);
-      bubble(`해외 창고에 딱 남았음. 요즘 귀해서 값은 좀 올랐어요. ${won(brokerCost())}원, 선입금`, false);
-      if (done) { bubble('입금했어요', true); bubble('확인. 택배로 보냄. 우리 서로 모르는 사이인 거 알죠', false); }
+      if (!bl) { bubble('사장님 초소형 카메라 찾으시죠? 요즘 한국에서 다 품절이라던데', false);
+        bubble('재고 있어요?', true);
+        bubble(`해외 창고에 딱 남았음. 요즘 귀해서 값은 좀 올랐어요. ${won(brokerCost())}원, 선입금`, false); }
+      if (bl) { // 다시 연락 온 브로커: 입막음비를 내거나, 제보당하거나
+        bubble('사장님 오랜만. 요즘 정부 단속 심해진 거 아시죠?', false);
+        bubble(`구매자 명단이 저한테 있거든요. ${won(bl.amount)}원 보내면 지워 드림. 안 보내면 제보합니다`, false);
+        const ok = G.money >= bl.amount;
+        btn(k, x + w - 12 - 170, y + h - 56, 170, 24, ok ? `입막음비 송금 · ${won(bl.amount)}원` : `${won(bl.amount - G.money)}원 모자람`, ok ? 'hush' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff' });
+        btn(k, x + 12, y + h - 56, 130, 24, '무시한다 (제보당함)', 'refuse', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da' });
+        T(bl.seen ? '다음 시험이 끝날 때까지 답이 없으면 제보한다' : '', x + w / 2, y + h - 66, 10, PAL.warn, 'center', 800);
+      } else if (done) { bubble('입금했어요', true); bubble('확인. 택배로 보냄. 우리 서로 모르는 사이인 거 알죠', false); }
       else { const ok = G.money >= brokerCost(); btn(k, x + w - 12 - 190, y + h - 56, 190, 24, ok ? `입금하기 · ${won(brokerCost())}원` : `${won(brokerCost() - G.money)}원 모자람`, ok ? 'broker' : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff' }); }
     }
     R(x, y + h - 22, w, 22, '#17212b');
@@ -191,9 +198,9 @@ const HUBUI = (() => {
       const per = 6, list = G.news.slice().reverse(), pages = Math.max(1, Math.ceil(list.length / per)); hv.npage = Math.max(0, Math.min(pages - 1, hv.npage || 0));
       if (!list.length) T('아직 알림이 없어요', x + w / 2, top + 60, 11, '#8fa0b8', 'center', 700);
       list.slice(hv.npage * per, hv.npage * per + per).forEach((n, i) => {
-        const ry = top + i * 42, col = { reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
+        const ry = top + i * 42, col = { tg: '#5eb5f7', reg: '#f6a234', shop: '#e8453e', model: '#8a5cff', exam: '#2f8a3a', act: '#f5cc4a', bot: '#45e5ee' }[n.kind] || '#8fa0b8';
         R(x + 6, ry, w - 12, 38, '#1a1f2c'); R(x + 6, ry, 3, 38, col);
-        T({ reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
+        T({ tg: '텔레그램', reg: '뉴스 속보', shop: 'AI마켓', model: 'AI 속보', exam: '시험', act: '새 막', bot: '대리 응시' }[n.kind] || '알림', x + 14, ry + 9, 9, col, 'left', 800);
         T(fmtRun(n.t), x + w - 12, ry + 9, 9, '#5a6474', 'right', 700);
         const ls = wrap(k, n.text, w - 28, 10).slice(0, 2); ls.forEach((ln, j) => T(ln, x + 14, ry + 21 + j * 11, 10, C.white, 'left', 700));
       });

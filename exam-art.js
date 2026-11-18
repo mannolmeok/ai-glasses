@@ -300,6 +300,7 @@ function drawExamHud(k, L, E, now, H) {
     T('AI 사용 감지', x, y - 10, 10, E.aiSus > 0.6 ? C.bad : '#c9c4d8', 'left', 800);
     R(x - 1, y - 1, w + 2, 6, '#0d0b13'); R(x, y, w, 4, '#3a2a30'); R(x, y, Math.round(w * E.aiSus), 4, E.aiSus > 0.6 ? C.bad : C.warn);
   }
+  if (live && E.staff.some(s => s.phase === 'peek' && s.peek.stage === 'sneak') && E.gear.predict >= 2) { k.b.globalAlpha = Math.floor(now * 8) % 2 ? 0.9 : 0.4; TO('발소리가 사라졌다…', L.W / 2, 96, 12, C.warn); k.b.globalAlpha = 1; } // 시선 예측 2단계부터 경고
   if (E.flash && E.flash.t < 1.6) { const a = E.flash.t < 1.2 ? 1 : (1.6 - E.flash.t) / 0.4; k.b.globalAlpha = a; TO(E.flash.text, L.W / 2, 96, 14, E.flash.col || C.warn); k.b.globalAlpha = 1; }
   const sec = Math.max(0, Math.ceil(E.timeLeft));
   TO(E.finalQ ? '--:--' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`, X.clock[0], X.clock[1], 12, E.timeLeft < 10 ? C.bad : H.c, 'right', '#0d2a30');
@@ -339,7 +340,7 @@ function drawExamOverlays(k, L, E, now, H) {
     const who = E.caughtBy || tier.staff[0];
     TO(E.T.mech.includes('tutorial') ? '걸렸다!' : '적발!', L.W / 2, L.H / 2 - 50, 44, C.bad);
     TO(CAUGHT_LINE[who.type] || CAUGHT_LINE.dean, L.W / 2, L.H / 2 + 2, 15, C.white);
-    const why = { alert: '재난문자에 폰이 울림', emp: 'EMP에 기기가 드러남', cctv: 'CCTV에 찍힘', pulse: 'AI 탐지 전파에 걸림', drone: '드론 전파에 걸림', screen: '화면 검사에 걸림', check: '책상 앞 검사에 걸림',
+    const why = { peek: '책상 밑에서 올려다보던 눈과 마주침', alert: '재난문자에 폰이 울림', emp: 'EMP에 기기가 드러남', cctv: 'CCTV에 찍힘', pulse: 'AI 탐지 전파에 걸림', drone: '드론 전파에 걸림', screen: '화면 검사에 걸림', check: '책상 앞 검사에 걸림',
       webcam: '웹캠에 찍힘', ai: 'AI 사용이 감지됨', omega: 'Ω가 스캔 박자를 읽음' }[E.caughtHow] || `${who.name}에게 걸림`;
     T(E.T.mech.includes('tutorial') ? `${why} · 혼나고 끝 (모의고사라 다행)` : `${why} · 이번 시험 0점`, L.W / 2, L.H / 2 + 30, 12, '#d6d2e0', 'center', 700);
   }

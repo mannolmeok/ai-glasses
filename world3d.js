@@ -602,6 +602,9 @@ const WORLD = (() => {
     else if (s.phase === 'help' && s.help) { // 손 든 수험생 쪽으로 가서 그쪽을 본다
       const k = clamp(s.help.k, 0, 1), tz = zOf(s.help.u);
       z = lerp(zOf(s.help.u0), tz, ease(k)); moving = k < 1; yaw = k < 1 ? (tz < zOf(s.help.u0) ? Math.PI : 0) : (s.side === 'L' ? -Math.PI / 2 : Math.PI / 2); headPitch = 0.25;
+    } else if (s.phase === 'peek' && s.peek) { // 책상 건너편 바닥에 쪼그려 앉아 책상 너머로 눈만 내밀고 올려다본다
+      const up = s.peek.stage === 'stare' ? clamp((tune.peek_stare - s.peek.t) / 0.25, 0, 1) : 0;
+      return { x: EX.my.x - 0.39, y: -1.1 + up * 0.28, z: EX.my.z + 0.04, yaw: 0.75, moving: false, headPitch: -0.7, hiddenNow: s.peek.stage !== 'stare' };
     } else if (s.phase === 'check' && s.check) { // 내 책상 앞으로 와서 수험표·계산기를 본다
       const ax = s.side === 'L' ? EX.AL : EX.AR, az = zOf(s.check.u0), tx = EX.my.x + (s.side === 'L' ? -0.3 : 0.3), tz = EX.my.z - 0.62, k = ease(clamp(s.check.k, 0, 1));
       x = lerp(ax, tx, k); z = lerp(az, tz, k); yaw = Math.atan2(EX.eye.x - x, EX.eye.z - z); moving = s.check.stage !== 'at'; headPitch = s.check.stage === 'at' ? 0.5 : 0;
@@ -629,7 +632,7 @@ const WORLD = (() => {
       const dist = Math.hypot(EX.eye.x - p.x, EX.eye.z - p.z);
       if (s.phase === 'help' && s.help && s.help.k >= 1) helping = s;
       poseModel(m, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, moving: p.moving, walk: s.walk, phase: s.phase === 'check' && s.check && s.check.stage === 'at' ? 'watch' : s.phase, now, headYaw, headPitch: p.headPitch,
-        predict: predict && !s.asleep, asleep: s.asleep, away: s.away, hidden: s.out || s.blink > 0, seated: p.seated, coneLen: s.phase === 'watch' ? Math.max(0.6, dist - 0.55) : 3.5 });
+        predict: predict && !s.asleep, asleep: s.asleep, away: s.away, hidden: s.out || s.blink > 0 || p.hiddenNow, seated: p.seated, coneLen: s.phase === 'watch' ? Math.max(0.6, dist - 0.55) : 3.5 });
     });
     if (EX.raise) { // 손 든 수험생
       EX.raise.visible = !!helping;
