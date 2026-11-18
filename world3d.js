@@ -9,7 +9,7 @@
 const WORLD = (() => {
   const RW = 640, RH = 360;
   const W = { ok: false, RW, RH };
-  if (typeof THREE === 'undefined') return Object.assign(W, { init() { }, renderExam() { }, renderHub() { }, renderTitle() { }, renderFigures() { }, pickChoice: () => -1, pickHub: () => null, hubLabels: () => [], figureLabels: () => [], hubRect: () => null });
+  if (typeof THREE === 'undefined') return Object.assign(W, { init() { }, renderExam() { }, renderHub() { }, renderTitle() { }, renderFigures() { }, renderEnding() { }, pickChoice: () => -1, pickHub: () => null, hubLabels: () => [], figureLabels: () => [], hubRect: () => null });
 
   let renderer = null, rt = null, post = null, postCam = null, postMat = null;
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), lerp = (a, b, k) => a + (b - a) * k;
@@ -343,8 +343,8 @@ const WORLD = (() => {
   }
 
   const EX = { scene: null, tier: -1, home: false };
-  const VIEWS_ROOM = { front: { yaw: 0, pitch: -0.1, fov: 62 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.8, pitch: -0.1, fov: 58 }, right: { yaw: -0.8, pitch: -0.1, fov: 58 } };
-  const VIEWS_VOID = { front: { yaw: 0.1, pitch: 0.18, fov: 60 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.1, pitch: 0.18, fov: 60 }, right: { yaw: 0.1, pitch: 0.18, fov: 60 } };
+  const VIEWS_ROOM = { result: { yaw: 0, pitch: -0.83, fov: 33 }, front: { yaw: 0, pitch: -0.1, fov: 62 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.8, pitch: -0.1, fov: 58 }, right: { yaw: -0.8, pitch: -0.1, fov: 58 } };
+  const VIEWS_VOID = { result: { yaw: 0, pitch: -0.83, fov: 33 }, front: { yaw: 0.1, pitch: 0.18, fov: 60 }, paper: { yaw: 0, pitch: -0.83, fov: 40 }, left: { yaw: 0.1, pitch: 0.18, fov: 60 }, right: { yaw: 0.1, pitch: 0.18, fov: 60 } };
   const VIEWS_TABLE = { paper: { yaw: 0, pitch: -0.08, fov: 62 }, left: { yaw: 0, pitch: -0.08, fov: 62 }, right: { yaw: 0, pitch: -0.08, fov: 62 } };
 
   function lights(sc, S, sky) {
@@ -673,7 +673,8 @@ const WORLD = (() => {
     if (EX.paperTex) {
       const q = E.qs[Math.min(E.qi, E.qs.length - 1)];
       const sig = [E.qi, E.part, E.ar, E.finalQ && Math.floor(now * 12), Math.min(3, Math.floor(E.scan * 3 + 1e-6)), E.ai, E.answers[E.qi], !!E.fb, E.scan > 0, q && q.pre, E.start > 0, E.breakT > 0, Math.floor((E.listen || 0) * 10), E.pulse && E.pulse.active > 0, E.pulse && E.pulse.warn > 0].join();
-      if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
+      if (E.result && !EX.home) { if (EX.paperSig !== 'result' + E.result.stamp) { EX.paperSig = 'result' + E.result.stamp; drawResultPaper(EX.paperTex.g, E.result); EX.paperTex.t.needsUpdate = true; } } // 채점된 성적 통지표가 책상 위에
+      else if (E.holding || sig !== EX.paperSig) { EX.paperSig = sig; (EX.home ? drawScreenTexture : drawPaperTexture)(EX.paperTex.g, E, now); EX.paperTex.t.needsUpdate = true; }
     }
     draw(EX.scene, cam, now);
   }
@@ -897,6 +898,66 @@ const WORLD = (() => {
     return o ? o.userData.action : null;
   }
 
+  // ---------- 엔딩: 처음으로 보이는 내 모습. AI 장비에 뒤덮여 있다 ----------
+  const END = { scene: null };
+  function buildEnding() {
+    if (END.scene) return;
+    const sc = new THREE.Scene(); sc.background = new THREE.Color(0x05050a); sc.fog = new THREE.Fog(0x05050a, 3, 9);
+    sc.add(new THREE.AmbientLight(0x8890c0, 0.5));
+    const key = new THREE.SpotLight(0xdfe8ff, 30, 9, 0.5, 0.6, 1.2); key.position.set(0.6, 3.6, 2.2); key.target.position.set(0, 1.2, 0); sc.add(key); sc.add(key.target);
+    const rim = new THREE.PointLight(0x45e5ee, 3, 4, 1.5); rim.position.set(-1.2, 1.6, -0.8); sc.add(rim);
+    const B = batch(); B.box(8, 0.02, 8, 0x14141c, 0, -0.01, 0); sc.add(B.mesh());
+    const me = makeHuman({ top: 0x3f5285, sleeve: 0x3f5285, leg: 0x2b2f3d, shirt: 0x3f5285, hair: 'spiky', hairC: 0x1f1a1c, hood: true, skin: 0xd9a57c });
+    me.root.rotation.y = 0; me.cone.visible = false; sc.add(me.root);
+    const M = 0x2a2c34, W2 = 0x15151a, glow = c => glowMat(c), leds = [];
+    const led = (p, w, h, d, c, x, y, z) => { const m = glow(c); bx(p, w, h, d, c, x, y, z, m); leds.push(m); return m; };
+    const H = me.head, Bd = me.body;
+    // 머리: 겹겹이 쌓인 안경과 렌즈, 이마의 세 번째 눈, 두개골 임플란트, 안테나, 귀의 이어폰 다발
+    for (let i = 0; i < 3; i++) { for (const sx of [-1, 1]) { bx(H, 0.085, 0.06, 0.012, W2, sx * 0.05, 0.02, 0.112 + i * 0.03); led(H, 0.07, 0.045, 0.006, i === 2 ? 0x45e5ee : 0x2a8f9a, sx * 0.05, 0.02, 0.12 + i * 0.03); } bx(H, 0.02, 0.01, 0.01, W2, 0, 0.03, 0.112 + i * 0.03); }
+    for (const sx of [-1, 1]) { bx(H, 0.04, 0.04, 0.09, M, sx * 0.05, 0.02, 0.24); led(H, 0.03, 0.03, 0.006, 0xff3048, sx * 0.05, 0.02, 0.288); } // 망원 렌즈
+    bx(H, 0.05, 0.05, 0.03, M, 0, 0.1, 0.11); led(H, 0.03, 0.03, 0.006, 0x7ad06a, 0, 0.1, 0.128);
+    bx(H, 0.16, 0.06, 0.16, M, 0, 0.16, -0.02); for (let i = 0; i < 4; i++) led(H, 0.012, 0.012, 0.012, i % 2 ? 0x45e5ee : 0xf5cc4a, -0.05 + i * 0.033, 0.195, 0.05);
+    for (const [ax, ah] of [[-0.06, 0.22], [0.02, 0.3], [0.07, 0.16]]) { bx(H, 0.008, ah, 0.008, 0x8a8f99, ax, 0.19 + ah / 2, -0.04); led(H, 0.02, 0.02, 0.02, 0xff3048, ax, 0.2 + ah, -0.04); }
+    for (const sx of [-1, 1]) { bx(H, 0.03, 0.07, 0.05, 0xf2f2f4, sx * 0.115, -0.01, 0); bx(H, 0.02, 0.04, 0.03, 0xf2f2f4, sx * 0.13, -0.06, 0.01); bx(H, 0.006, 0.3, 0.006, W2, sx * 0.12, -0.2, -0.02); }
+    bx(H, 0.006, 0.006, 0.2, W2, 0.06, 0.12, -0.1); bx(H, 0.006, 0.006, 0.2, W2, -0.05, 0.14, -0.1);
+    // 몸통: 단추마다 카메라, 가슴의 액정, 등에 진 배터리와 서버, 전선
+    for (let i = 0; i < 5; i++) { bx(Bd, 0.03, 0.03, 0.02, W2, 0, 1.36 - i * 0.11, 0.118); led(Bd, 0.014, 0.014, 0.006, 0xff3048, 0, 1.36 - i * 0.11, 0.13); }
+    bx(Bd, 0.14, 0.1, 0.02, W2, -0.1, 1.2, 0.118); led(Bd, 0.12, 0.08, 0.006, 0x0c3a1c, -0.1, 1.2, 0.13); led(Bd, 0.08, 0.012, 0.007, 0x7dff9a, -0.1, 1.21, 0.134);
+    bx(Bd, 0.36, 0.5, 0.18, M, 0, 1.15, -0.2); for (let i = 0; i < 5; i++) led(Bd, 0.3, 0.012, 0.006, i % 2 ? 0x45e5ee : 0x62d84a, 0, 0.98 + i * 0.09, -0.293);
+    bx(Bd, 0.008, 0.5, 0.008, 0xb8362e, 0.12, 1.5, -0.14); bx(Bd, 0.008, 0.5, 0.008, 0xf5cc4a, -0.1, 1.5, -0.15); bx(Bd, 0.008, 0.4, 0.008, 0x45e5ee, 0.02, 1.5, -0.16);
+    bx(Bd, 0.14, 0.1, 0.2, 0xd4d6de, 0.27, 1.5, 0); bx(Bd, 0.08, 0.08, 0.02, W2, 0.27, 1.5, 0.11); led(Bd, 0.03, 0.03, 0.006, 0xff3048, 0.3, 1.53, 0.124); // 어깨 위 CCTV
+    bx(Bd, 0.1, 0.18, 0.02, W2, 0.1, 0.62, 0.08); led(Bd, 0.08, 0.15, 0.006, 0x1c4a8a, 0.1, 0.62, 0.092); // 허벅지 폰
+    // 팔: 손목부터 줄줄이 찬 시계와 소매 액정
+    for (const [i, arm] of me.arms.entries()) { for (let j = 0; j < 4; j++) { bx(arm, 0.1, 0.035, 0.12, 0x20303a, 0, -0.5 + j * 0.09, 0); led(arm, 0.05, 0.025, 0.006, [0x45e5ee, 0x7dff9a, 0xf5cc4a, 0xff3048][(j + i) % 4], 0, -0.5 + j * 0.09, 0.062); } bx(arm, 0.006, 0.3, 0.006, W2, 0.05, -0.2, 0.03); }
+    me.arms[0].rotation.set(0, 0, 0.12); me.arms[1].rotation.set(0, 0, -0.12);
+    // 등에서 뻗어 나온 기계 팔 넷: 폰, 액정, 카메라, 시험지를 들고 있다
+    const mech = [];
+    for (const [sx, sy, hold] of [[-1, 1.5, 'phone'], [1, 1.5, 'cam'], [-1, 1.15, 'lcd'], [1, 1.15, 'paper']]) {
+      const a = pivot(Bd, sx * 0.16, sy, -0.2); a.rotation.set(0.5, 0, sx * -(sy > 1.3 ? 1.9 : 1.2));
+      bx(a, 0.035, 0.42, 0.035, 0x6c7590, 0, -0.21, 0); bx(a, 0.05, 0.05, 0.05, 0x9aa3b8, 0, -0.42, 0);
+      const f = pivot(a, 0, -0.42, 0); f.rotation.set(-1.3, 0, sx * 0.5); bx(f, 0.03, 0.36, 0.03, 0x6c7590, 0, -0.18, 0);
+      if (hold === 'phone') { bx(f, 0.09, 0.16, 0.012, W2, 0, -0.42, 0.02); led(f, 0.075, 0.14, 0.004, 0x1c4a8a, 0, -0.42, 0.028); }
+      else if (hold === 'cam') { bx(f, 0.1, 0.08, 0.08, 0xd4d6de, 0, -0.4, 0.02); led(f, 0.04, 0.04, 0.006, 0xff3048, 0, -0.4, 0.064); }
+      else if (hold === 'lcd') { bx(f, 0.16, 0.11, 0.012, W2, 0, -0.42, 0.02); led(f, 0.14, 0.09, 0.004, 0x0c3a1c, 0, -0.42, 0.028); led(f, 0.09, 0.012, 0.005, 0x7dff9a, 0, -0.41, 0.03); }
+      else bx(f, 0.16, 0.22, 0.004, 0xf6f2e6, 0, -0.44, 0.02);
+      mech.push({ a, f, sx });
+    }
+    END.mech = mech;
+    const cam = new THREE.PerspectiveCamera(40, RW / RH, 0.05, 30);
+    Object.assign(END, { scene: sc, cam, me, leds, rim });
+    END.mech = END.mech || [];
+  }
+  function renderEnding(t, now) { // 눈앞의 렌즈에서 시작해 천천히 물러나며 전신이 드러난다
+    if (!W.ok) return;
+    buildEnding();
+    const k = ease(clamp((t - 1.2) / 7.5, 0, 1)), d = lerp(0.55, 3.4, k), a = lerp(0.0, 0.35, k) + Math.sin(now * 0.2) * 0.03;
+    END.cam.position.set(Math.sin(a) * d, lerp(1.62, 1.25, k), Math.cos(a) * d); END.cam.lookAt(0, lerp(1.62, 1.05, k), 0);
+    END.me.head.rotation.set(Math.sin(now * 0.7) * 0.03, Math.sin(now * 0.4) * 0.05, 0);
+    (END.mech || []).forEach((m, i) => { m.f.rotation.x = -1.3 + Math.sin(now * 1.3 + i * 1.7) * 0.18; m.a.rotation.x = 0.5 + Math.sin(now * 0.9 + i) * 0.08; });
+    END.leds.forEach((m, i) => { const on = Math.sin(now * (2 + (i % 5)) + i) > -0.6; if (!m.userData.c) m.userData.c = m.color.getHex(); m.color.setHex(on ? m.userData.c : 0x101014); });
+    draw(END.scene, END.cam, now, 1.4);
+  }
+
   // ---------- figures: 감독관 줄 세우기 ----------
   const FIG = { scene: null };
   const FIG_TYPES = [['homeroom', 'dean', 'suneung', 'agent', 'robot', 'ta', 'prof', 'teacher'], ['cnproctor', 'don', 'don2', 'judge', 'alien', 'reaper', 'yeomra', 'omega']];
@@ -926,5 +987,5 @@ const WORLD = (() => {
     return FIG.ms.map(f => { _p.set(f.x, f.top ? 2.3 : -0.15, f.z).project(FIG.cam); return { text: f.label, x: (_p.x + 1) / 2 * RW, y: (1 - _p.y) / 2 * RH, pose: f.pose }; });
   }
 
-  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, pickChoice, pickHub, hubLabels, figureLabels, hubRect, layout: () => EX.layout });
+  return Object.assign(W, { init, renderExam, renderHub, renderTitle, renderFigures, renderEnding, pickChoice, pickHub, hubLabels, figureLabels, hubRect, layout: () => EX.layout });
 })();

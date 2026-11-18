@@ -130,6 +130,40 @@ function drawPaperTexture(g, E, now) {
   }
 }
 
+// ---- 성적 통지표: 시험이 끝나면 책상 위 시험지가 채점된 종이로 바뀐다 ----
+function drawResultPaper(g, Rz) {
+  const F = FONT_KO, ink = '#2a2838', red = '#d0282a';
+  g.textBaseline = 'alphabetic'; g.fillStyle = '#f6f2e6'; g.fillRect(0, 0, PAPER_W, PAPER_H);
+  g.fillStyle = ink; g.textAlign = 'center'; g.font = `800 44px ${F}`; g.fillText('성 적 통 지 표', PAPER_W / 2, 78);
+  let ns = 34; g.font = `700 ${ns}px ${F}`; while (g.measureText(Rz.tierName).width > PAPER_W - 100 && ns > 22) { ns -= 2; g.font = `700 ${ns}px ${F}`; }
+  g.fillText(Rz.tierName, PAPER_W / 2, 128); g.fillRect(40, 150, PAPER_W - 80, 4);
+  // 문항별 채점: 빨간 색연필 동그라미와 빗금. 밑줄은 AI가 고른 답
+  const n = Rz.marks.length, per = n > 20 ? 12 : n > 10 ? 9 : n, rows = Math.ceil(n / per), cw = Math.min(64, (PAPER_W - 100) / per), x0 = PAPER_W / 2 - cw * per / 2;
+  Rz.marks.forEach((m, i) => {
+    const cx = x0 + (i % per) * cw + cw / 2, cy = 214 + Math.floor(i / per) * 92;
+    g.fillStyle = '#6c6a80'; g.font = `700 20px ${F}`; g.fillText(String(i + 1), cx, cy - 26);
+    g.lineWidth = 6; g.strokeStyle = Rz.caught ? '#8a8676' : red; g.lineCap = 'round';
+    if (m.r === 'O' && !Rz.caught) { g.beginPath(); g.ellipse(cx, cy + 6, 20, 17, -0.3, 0.2, 6.6); g.stroke(); }
+    else if (m.r === 'X' || Rz.caught) { g.beginPath(); g.moveTo(cx - 16, cy + 22); g.lineTo(cx + 16, cy - 10); g.stroke(); }
+    else { g.fillStyle = '#8a8676'; g.fillRect(cx - 10, cy + 4, 20, 4); }
+    if (m.via === 'ai' || m.via === 'auto') { g.fillStyle = '#2fd3dd'; g.fillRect(cx - 18, cy + 34, 36, 5); }
+  });
+  let y = 214 + rows * 92 + 30;
+  g.fillStyle = ink; g.font = `800 40px ${F}`; g.fillText(Rz.caught ? '부정행위 · 0점 처리' : `정답 ${Rz.correct} / ${Rz.qn}   합격선 ${Rz.pass}점`, PAPER_W / 2, y); y += 40;
+  if (!Rz.caught) { g.fillStyle = red; g.font = `800 120px ${F}`; g.save(); g.translate(PAPER_W / 2 + 180, y + 70); g.rotate(-0.12); g.fillText(String(Rz.score), 0, 0); g.fillRect(-90, 14, 180, 6); g.fillRect(-90, 26, 180, 6); g.restore(); }
+  // 도장
+  g.save(); g.translate(PAPER_W / 2 - 150, y + 60); g.rotate(-0.16); g.strokeStyle = Rz.passed ? red : '#3a3a48'; g.fillStyle = g.strokeStyle; g.lineWidth = 8; g.globalAlpha = 0.85;
+  const st = Rz.stamp, sw = st.length > 3 ? 300 : 210; g.strokeRect(-sw / 2, -52, sw, 96); g.font = `800 ${st.length > 5 ? 46 : 64}px ${F}`; g.fillText(st, 0, 18); g.restore(); g.globalAlpha = 1;
+  y += 170; g.fillStyle = ink; g.fillRect(40, y - 36, PAPER_W - 80, 2);
+  const line = (t, size, col, w) => { let s2 = size; g.font = `${w || 700} ${s2}px ${F}`; while (g.measureText(t).width > PAPER_W - 90 && s2 > 20) { s2 -= 2; g.font = `${w || 700} ${s2}px ${F}`; } g.fillStyle = col; g.fillText(t, PAPER_W / 2, y); y += size + 16; };
+  if (Rz.fee > 0) line(`응시료 -${won(Rz.fee)}원`, 30, '#8a4a4a');
+  line(Rz.reward > 0 ? `${Rz.pay} +${won(Rz.reward)}원` : '상금 없음', 46, Rz.reward > 0 ? '#9a6a00' : '#6c6a80', 800);
+  const extra = []; if (Rz.perfect) extra.push(`만점 x${tune.jackpot_mult}`); if (Rz.coach > 1) extra.push(`면접 x${Rz.coach.toFixed(2)}`); if (Rz.bonus > 0) extra.push(`시간 x${(1 + Rz.bonus).toFixed(2)}`);
+  if (extra.length) line(extra.join(' · '), 28, '#17616a');
+  if (!Rz.tut) { const d = Math.round((Rz.heat - Rz.heat0) * 100); line(Rz.audited ? '점수가 너무 완벽했다. 가끔은 일부러 틀려야 한다' : `전수조사 의심 ${Math.round(Rz.heat * 100)}% (${d >= 0 ? '+' : ''}${d}%)`, 28, Rz.audited || Rz.heat >= 0.66 ? red : '#6c6a80', 800); }
+  if (Rz.unlock) line(Rz.unlock, 28, '#17616a', 800);
+}
+
 // ---- 토플 홈에디션: 고시원 노트북 화면 ----
 const SCREEN_W = 990, SCREEN_H = 600;
 const SCREEN_ROW = i => 170 + i * 108;
@@ -312,6 +346,7 @@ function drawExamHud(k, L, E, now, H) {
 
 function drawExamOverlays(k, L, E, now, H) {
   const { R, T, TO } = k, C = PAL, X = EXAM_LAYOUT, tier = E.T;
+  if (E.result) return; // 결과는 책상 위 성적 통지표로 본다
   if (E.hint && !E.caught && !E.over) {
     const tw = k.TW(E.hint, 12, 800) + 20, y = X.hintY + 34;
     R(L.W / 2 - tw / 2, y - 10, tw, 20, C.white); k.frame(L.W / 2 - tw / 2, y - 10, tw, 20, C.ol, 1);

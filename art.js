@@ -245,6 +245,14 @@ function plate(k, x, y, w, h, H) {
 }
 
 // ======================= 결과 · 허브 · 타이틀 · 엔딩 · figures =======================
+function drawResultButtons(k, L, Rz) { // 성적 통지표 아래: 다음에 할 일만
+  const defs = [[Rz.canRetry ? 'R 다시 응시' : '응시료 부족', 'retry', Rz.canRetry]];
+  if (Rz.next != null) defs.push([Rz.final ? 'N 엔딩 보기' : Rz.canNext ? 'N 다음 시험' : '응시료 부족', 'next', Rz.final || Rz.canNext]);
+  defs.push(['Enter 고시원으로', 'hub', true]);
+  const bw = 132, gap = 8, x0 = L.W / 2 - (defs.length * bw + (defs.length - 1) * gap) / 2, btns = [];
+  defs.forEach(([label, key, ok], i) => { const b = k.button(x0 + i * (bw + gap), L.H - 34, bw, 24, label, ok && key === Rz.focus, ok ? PAL.hud : '#5a5468'); if (ok) btns.push({ ...b, key }); });
+  return btns;
+}
 function drawResults(k, L, Rz, now, H) {
   const extras = (Rz.perfect ? 1 : 0) + (Rz.coach > 1 ? 1 : 0) + (Rz.bonus > 0 ? 1 : 0);
   const { R, T, TO } = k, C = PAL, w = Math.min(L.W - 40, 420), x = (L.W - w) / 2;
@@ -313,16 +321,20 @@ function drawTitle(k, L, now, hasSave, info) {
 
 function drawEnding(k, L, G, now, H, info) {
   const { R, T, TO } = k, C = PAL, cx = L.W / 2, t = info.t, st = G.stats;
-  R(0, 0, L.W, L.H, '#07060d');
+  if (!info.world) R(0, 0, L.W, L.H, '#07060d'); // 3D를 못 쓰면 검은 바탕
   if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
   const fade = (t0, t1) => Math.max(0, Math.min(1, (t - t0) / 0.8)) * (t1 ? Math.max(0, Math.min(1, (t1 - t) / 0.8)) : 1);
   const line = (str, y, size, col, a) => { if (a <= 0) return; k.b.globalAlpha = a; T(str, cx, y, size, col, 'center', 800); k.b.globalAlpha = 1; };
   if (t < 9.5) { // 문구: 한 줄씩, 천천히
-    line('AI는 답을 알려 줍니다.', L.H / 2 - 16, 20, C.white, fade(2.0, 9.2));
-    line('어디에 쓸지는 알려 주지 않습니다.', L.H / 2 + 16, 20, C.hud, fade(4.6, 9.2));
+    const ly = info.world ? L.H - 74 : L.H / 2 - 16;
+    if (info.world && t > 4) { k.b.globalAlpha = 0.55 * fade(4.0, 9.2); R(0, ly - 22, L.W, 76, '#05050a'); k.b.globalAlpha = 1; }
+    line('AI는 답을 알려 줍니다.', ly, 20, C.white, fade(5.0, 9.2));
+    line('어디에 쓸지는 알려 주지 않습니다.', ly + 32, 20, C.hud, fade(6.8, 9.2));
     return [];
   }
-  const a = Math.min(1, (t - 9.5) / 0.8); k.b.globalAlpha = a;
+  const a = Math.min(1, (t - 9.5) / 0.8);
+  if (info.world) { k.b.globalAlpha = 0.82 * a; R(0, 0, L.W, L.H, '#05050a'); }
+  k.b.globalAlpha = a;
   let y = 28;
   T('AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다.', cx, y, 12, C.white, 'center', 800); y += 30;
   TO(`타임어택 ${info.time}`, cx, y, 20, C.hud); y += 20;

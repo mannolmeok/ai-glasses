@@ -817,6 +817,8 @@ function finishExam() {
   RZ = { tier: E.tier, tierName: T.name, passed, perfect, caught: E.caught, correct, qn, score, pass, reward, bonus, coach, pay: T.pay, fee: E.fee,
     marks, self: E.selfN, ai: E.aiN, heat0, heat: G.heat, audited, tut, unlock, final, next: passed ? (final ? 'end' : E.tier + 1) : null, focus: passed ? 'next' : 'retry', canRetry: true, canNext: true };
   perfect ? sfx.top() : passed ? sfx.pass() : sfx.fail();
+  RZ.stamp = audited ? '합격 취소' : E.caught ? '부정행위' : perfect ? '수석 합격' : passed ? '합격' : '불합격';
+  if (E.layout === 'room') { E.result = RZ; E.prevView = E.view; E.view = 'result'; E.viewT = 0; E.holding = false; E.scan = 0; } // 책상 위 성적 통지표로 본다
   events.push({ type: 'result', passed, perfect, caught: E.caught, correct, reward, fee: E.fee });
   save(); scene = 'results';
 }
@@ -1056,7 +1058,8 @@ const scenes = {
     draw(B) {
       RZ.canRetry = G.money >= examFee(TIERS[RZ.tier]);
       RZ.canNext = RZ.next != null && !RZ.final && G.money >= examFee(TIERS[RZ.next]);
-      WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); BTNS = drawResults(B.k, B.L, RZ, now, hudSet()); drawNote(B);
+      if (E.result) E.viewT = Math.min(1, E.viewT + 0.03);
+      WORLD.renderExam(E, now); drawExamHud(B.k, B.L, E, now, hudSet()); BTNS = E.result ? drawResultButtons(B.k, B.L, RZ) : drawResults(B.k, B.L, RZ, now, hudSet()); drawNote(B);
     },
   },
   ending: {
@@ -1077,7 +1080,8 @@ const scenes = {
       if (pressed('KeyX')) act('wipe');
     },
     draw(B) {
-      BTNS = drawEnding(B.k, B.L, G, now, hudSet(), Object.assign(endingInfo(), { t: STATE.endT || 0 }));
+      if (WORLD.ok) WORLD.renderEnding(STATE.endT || 0, now);
+      BTNS = drawEnding(B.k, B.L, G, now, hudSet(), Object.assign(endingInfo(), { t: STATE.endT || 0, world: WORLD.ok }));
       if (STATE.wipeArm > 0) B.k.TO('한 번 더 누르면 저장을 지우고 새 타임어택 (기록은 남아요)', B.L.W / 2, B.L.H - 58, 11, PAL.warn);
     },
   },

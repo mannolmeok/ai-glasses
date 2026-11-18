@@ -231,12 +231,33 @@ const HUBUI = (() => {
     return { x: x - 6, y: y - 6, w: w + 12, h: h + 12 };
   }
 
+  function screenFx(k, r, now) { // 모니터 느낌: 주사선, 화소 격자, 비스듬한 반사, 가장자리 어둠, 깜빡임
+    const x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h), b = k.b;
+    b.save(); b.beginPath(); b.rect(x, y, w, h); b.clip();
+    b.globalAlpha = 0.07; b.fillStyle = '#000000'; for (let yy = y; yy < y + h; yy += 2) b.fillRect(x, yy, w, 0.6);
+    b.globalAlpha = 0.035; for (let xx = x; xx < x + w; xx += 3) b.fillRect(xx, y, 0.5, h);
+    const roll = y + ((now * 46) % (h + 80)) - 40; b.globalAlpha = 0.05; b.fillStyle = '#ffffff'; b.fillRect(x, roll, w, 26); // 천천히 내려가는 밝은 띠
+    let gr = b.createLinearGradient(x, y, x + w * 0.7, y + h); gr.addColorStop(0, 'rgba(255,255,255,0.10)'); gr.addColorStop(0.35, 'rgba(255,255,255,0.02)'); gr.addColorStop(0.36, 'rgba(255,255,255,0)'); b.globalAlpha = 1; b.fillStyle = gr; b.fillRect(x, y, w, h);
+    gr = b.createRadialGradient(x + w / 2, y + h / 2, h * 0.45, x + w / 2, y + h / 2, w * 0.72); gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,10,0.38)'); b.fillStyle = gr; b.fillRect(x, y, w, h);
+    b.globalAlpha = 0.02 + 0.015 * Math.sin(now * 50); b.fillStyle = '#9fd0ff'; b.fillRect(x, y, w, h);
+    b.restore(); b.globalAlpha = 1;
+    if (hover && inR({ x, y, w, h }, hover)) { const [mx, my] = hover; k.poly([[mx, my], [mx, my + 11], [mx + 3, my + 8], [mx + 8, my + 8]], '#101018'); k.poly([[mx + 1, my + 2], [mx + 1, my + 8], [mx + 3, my + 6], [mx + 5, my + 6]], '#ffffff'); } // 마우스 커서
+  }
+  function paperFx(k, r) { // 종이 느낌: 결, 압정, 접힌 그림자
+    const x = Math.round(r.x), y = Math.round(r.y), w = Math.round(r.w), h = Math.round(r.h), b = k.b;
+    b.save(); b.beginPath(); b.rect(x, y, w, h); b.clip();
+    b.globalAlpha = 0.05; b.fillStyle = '#5a4020'; for (let i = 0; i < 260; i++) b.fillRect(x + (i * 97) % w, y + (i * 61) % h, 2 + (i % 5), 0.6);
+    let gr = b.createLinearGradient(x, y, x, y + h); gr.addColorStop(0, 'rgba(0,0,0,0.10)'); gr.addColorStop(0.12, 'rgba(0,0,0,0)'); gr.addColorStop(0.9, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(60,30,0,0.14)'); b.globalAlpha = 1; b.fillStyle = gr; b.fillRect(x, y, w, h);
+    b.globalAlpha = 0.06; b.fillStyle = '#000000'; b.fillRect(x + w / 2 - 0.5, y + 6, 1, h - 12);
+    b.restore(); b.globalAlpha = 1;
+    for (const px of [x + 16, x + w - 16]) { k.disc(px + 1, y + 9, 5, 'rgba(0,0,0,0.35)'); k.disc(px, y + 8, 5, '#c0392b'); k.disc(px - 1, y + 7, 2, '#f08a7a'); }
+  }
   function draw(k, L, hv, now, hoverXY) {
     btns = []; hover = hoverXY; let rect = null;
     const z = hv.zoom * hv.zoom * (3 - 2 * hv.zoom);
-    if (hv.view === 'laptop') { if (hv.zoom >= 1) { rect = WORLD.hubRect('laptop'); if (rect) (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, rect, hv, now); } }
-    else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) drawBoard(k, rect, hv, now); } }
-    else if (hv.view === 'phone') rect = drawPhone(k, L, hv, now, z);
+    if (hv.view === 'laptop') { if (hv.zoom >= 1) { rect = WORLD.hubRect('laptop'); if (rect) { (hv.app === 'shop' ? drawShop : hv.app === 'tg' ? drawTg : drawDesk)(k, rect, hv, now); screenFx(k, rect, now); } } }
+    else if (hv.view === 'board') { if (hv.zoom >= 1) { rect = WORLD.hubRect('board'); if (rect) { drawBoard(k, rect, hv, now); paperFx(k, rect); } } }
+    else if (hv.view === 'phone') { rect = drawPhone(k, L, hv, now, z); if (z >= 1) screenFx(k, { x: rect.x + 6, y: rect.y + 6, w: rect.w - 12, h: rect.h - 12 }, now); }
     return { btns, rect };
   }
   return { draw };
