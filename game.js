@@ -994,9 +994,9 @@ function finishExam() {
   if (T.id === 'leet') G.flags.leet = true; // LEET를 한 번 치르고 나면 책상에 초콜릿이 놓여 있다
   let lampLine = null;
   if (!tut && passed) G.lastPass = { tier: E.tier, tierName: T.name, reward, mail: G.mail };
-  if (!tut && perfect && !final && !G.audit) { // 만점은 상금이 크지만 TV 밑 빨간 등이 하나 켜진다
+  if (!tut && perfect && !final && !G.audit && E.tier >= tune.lamp_from) { // 만점은 상금이 크지만 TV 밑 빨간 등이 하나 켜진다 (쉬운 초반 시험은 만점이어도 의심받지 않는다)
     const n = G.flags.perfN = (G.flags.perfN || 0) + 1;
-    if (n === 1) { tvNews({ tag: '사회', h: `${T.name} 사상 첫 만점자 나왔다`, s: '출제위원 "만점이 나올 수 없게 낸 시험인데…"', tk: ['수험생 커뮤니티 "사람 맞나" 술렁', '시험관리위 "답안지 원본 확인 중"', '내일 전국 흐리고 비'], icon: 'room', cap: '자료 화면 · 시험장' }); addNews('bot', '만점은 눈에 띄어요. TV 밑 빨간 등이 3개 켜지면 조사가 들어옵니다'); }
+    if (n === 1) { tvNews({ tag: '사회', h: `${T.name} 사상 첫 만점자 나왔다`, s: '출제위원 "만점이 나올 수 없게 낸 시험인데…"', tk: ['수험생 커뮤니티 "사람 맞나" 술렁', '시험관리위 "답안지 원본 확인 중"', '내일 전국 흐리고 비'], icon: 'room', cap: '자료 화면 · 시험장' }); }
     else tvNews({ tag: '속보', h: '잇따른 만점… 당국 "전수조사 검토"', s: `${T.name}에서도 만점 · 같은 수험번호`, tk: ['시험관리위 "고득점자 답안 재검증 준비"', '전자기기 반입 단속 강화', 'AI 안경 판매량 석 달 새 4배'], icon: 'paper', cap: '자료 화면 · 답안지' });
     addLamp();
     lampLine = G.lamps >= 3 ? '(감독관이 내 수험번호를 받아 적는다)' : G.lamps === 2 ? '(감독관이 내 답안지를 들고 어딘가로 전화를 건다)' : '감독관: …이 시험은 만점이 나올 수가 없는데.';

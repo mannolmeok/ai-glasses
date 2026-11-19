@@ -48,6 +48,7 @@ window.CONFIG = {
   heat_after: { value: 0.5, min: 0, max: 0.95, step: 0.05 },       // 전수조사에 걸려 합격이 취소된 뒤 남는 의심
   black_mult: { value: 4, min: 0.5, max: 30, step: 0.5 },          // 브로커 협박 금액 = 값 x 방금 합격한 시험의 문제당 상금
   probe_time: { value: 55, min: 20, max: 120, step: 5 },          // 재시험 5문제에 주는 시간(초)
+  lamp_from: { value: 5, min: 0, max: 24, step: 1 },                // 몇 번째 시험부터 만점이 의심받는가 (0부터 셈: 5 = 여섯 번째 7급 공무원). 그 전 시험은 만점이어도 빨간 등이 안 켜진다
   black_heat: { value: 0.5, min: 0, max: 1, step: 0.05 },          // 협박을 무시해 제보당하면 쌓이는 의심
 
   // ---- 시험마다 다른 장치 ----
