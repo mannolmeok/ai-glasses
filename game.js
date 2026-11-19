@@ -186,7 +186,7 @@ function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는
 const PLAY_KEY = 'ai-glasses-played';
 function netCountPlay() { // 이 기기가 처음으로 시험을 시작할 때 한 번: 응시자 수에 1을 더한다. 실패하면 다음에 게임을 열었을 때 다시
   if (!netOn() || NET.counted) return; NET.counted = true; try { if (localStorage.getItem(PLAY_KEY)) return; } catch (_) { return; }
-  netRpc('count_play', {}).then(() => { try { localStorage.setItem(PLAY_KEY, '1'); } catch (_) { } NET.plays = (NET.plays || 0) + 1; }).catch(() => { });
+  netRpc('count_play', {}).then(() => { try { localStorage.setItem(PLAY_KEY, '1'); } catch (_) { } NET.plays = (NET.plays || 0) + 1; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c) { c.plays = Math.max(c.plays || 0, NET.plays); localStorage.setItem(NET_KEY, JSON.stringify(c)); } } catch (_) { } /* 받아 둔 석차표에도 적어 둔다: 새로 고쳤을 때 숫자가 도로 줄어 보이지 않게 */ }).catch(() => { });
 }
 function netRank(t) { if (!netOn() || NET.rankFor === t) return; NET.rankFor = t; netRpc('rank_of', { p_t: t }).then(r => { NET.myRank = Number(r) || 0; }).catch(() => { NET.rankFor = 0; }); }
 function netSubmit(rec) { // 내 기록을 서버의 등록 함수에 낸다. 서버가 시간·응시 횟수·구간 기록을 검사하고, 이름을 걸러서 등수와 함께 돌려준다
