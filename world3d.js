@@ -750,8 +750,13 @@ const WORLD = (() => {
       const headYaw = s.phase === 'tell' && !s.fixed ? clamp(angTo(0, toMe - (m.yaw || 0), 1), -1.1, 1.1) : 0;
       const dist = Math.hypot(EX.eye.x - p.x, EX.eye.z - p.z);
       if (s.phase === 'help' && s.help && s.help.k >= 1) helping = s;
-      poseModel(m, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, moving: p.moving, walk: s.walk, phase: s.phase === 'check' && s.check && s.check.stage === 'at' ? 'watch' : s.phase, now, headYaw, headPitch: p.headPitch,
+      const frisk = i === 0 && E.intro && E.intro.kind === 'metal' && m.arms && m.arms.length > 1; // 입실 검사: 감독관이 내 앞 통로에 서서, 손에 든 탐지봉으로 나를 훑는다
+      if (frisk) { const sw = ease(clamp((E.intro.t - 0.5) / 2.2, 0, 1)), fx = EX.eye.x - 0.62, fz = EX.eye.z - 1.5, face = Math.atan2(EX.eye.x - fx, EX.eye.z - fz), swing = lerp(0.34, -0.3, sw);
+        p.x = fx; p.z = fz; p.yaw = face + swing; p.moving = false; p.headPitch = 0.14; p.hiddenNow = false; p.seated = false; }
+      poseModel(m, { x: p.x, y: p.y, z: p.z, yaw: p.yaw, moving: p.moving, walk: s.walk, phase: s.phase === 'check' && s.check && s.check.stage === 'at' ? 'watch' : frisk ? 'watch' : s.phase, now, headYaw: frisk ? -(p.yaw - Math.atan2(EX.eye.x - p.x, EX.eye.z - p.z)) : headYaw, headPitch: p.headPitch,
         predict: predict && !s.asleep, asleep: s.asleep, away: s.away, hidden: s.out || s.blink > 0 || p.hiddenNow, seated: p.seated, coneLen: s.phase === 'watch' ? Math.max(0.6, dist - 0.55) : 3.5 });
+      if (frisk) { const W2 = EX.gadget.wand, mt = E.intro.t; if (W2.parent !== m.arms[1]) { m.arms[1].add(W2); W2.position.set(0, -1.02, 0.1); W2.rotation.set(Math.PI / 2, 0, 0); W2.scale.setScalar(0.9); }
+        m.arms[1].rotation.set(-1.17 + Math.sin(mt * 4.2) * 0.05, 0, 0); m.arms[0].rotation.set(0, 0, 0); W2.visible = true; }
       if (GEN_ROOM && !m.robot && m.type !== 'omega') { // 상자 몸 대신 걷는 동작이 들어간 생성 모델
         if (!m.gen) { m.gen = animMesh('proctorWalk'); if (m.gen) { m.gen.scale.setScalar(1.76); EX.scene.add(m.gen); } }
         if (m.gen) { const shown = m.root.visible; m.root.visible = false; m.gen.visible = shown;
@@ -823,8 +828,8 @@ const WORLD = (() => {
         _ps.set(0, -0.012 - (1 - inn) * 0.3, -0.2).applyQuaternion(cam.quaternion); G2.shirt.position.copy(cam.position).add(_ps);
         const ys = [0.15, 0, -0.15], at = [0.9, 1.4, 1.9]; G2.stickers.forEach((m, i) => { const p = clamp((kt - at[i]) / 0.12, 0, 1); m.visible = p > 0; m.scale.setScalar(0.4 + 0.6 * p + (p < 1 ? 0.2 : 0)); });
         const ti = kt < 1.15 ? 0 : kt < 1.65 ? 1 : 2, out = kt > 2.3 ? ease(clamp((kt - 2.3) / 0.5, 0, 1)) : 0; G2.sArm.position.y += (ys[ti] - G2.sArm.position.y) * 0.3; G2.sArm.position.x = 0.05 + (1 - ease(clamp(kt / 0.7, 0, 1))) * 0.7 + out * 0.8; }
-      const mt = I && I.kind === 'metal' ? I.t : -1; G2.wand.visible = mt >= 0;
-      if (mt >= 0) { const sw = clamp((mt - 0.5) / 2.2, 0, 1); G2.wand.position.x = EX.eye.x + lerp(0.5, -0.45, ease(sw)); G2.wand.position.y = EX.eye.y - 0.32 + Math.sin(sw * 9) * 0.04; G2.wand.position.z = EX.eye.z - 0.55; G2.wandLed.color.setHex(mt > 1.5 && mt < 2.3 && Math.floor(now * 10) % 2 ? 0xff3030 : 0x3a1010); }
+      const mt = I && I.kind === 'metal' ? I.t : -1; if (mt < 0) G2.wand.visible = false; // 탐지봉은 감독관의 손에 붙어 있다 (위의 감독관 자세에서 붙인다)
+      if (mt >= 0) { G2.wandLed.color.setHex(mt > 1.5 && mt < 2.3 && Math.floor(now * 10) % 2 ? 0xff3030 : 0x3a1010); }
       G2.pcase.visible = st === 'case'; G2.eraser.visible = st === 'eraser';
       G2.open += ((on ? 1 : 0) - G2.open) * 0.3; G2.lid.rotation.x = -G2.open * 1.95; G2.caseFace.visible = G2.open > 0.04;
       if (st === 'case' && G2.open > 0.04) { drawGadgetScreen(G2.caseT.g, E, now, 'case'); G2.caseT.t.needsUpdate = true; }

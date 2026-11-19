@@ -456,8 +456,7 @@ function drawEnding(k, L, G, now, H, info) {
     k.b.globalAlpha = 0.08; for (let y = 0; y < L.H; y += 3) R(0, y, L.W, 1, '#000000'); k.b.globalAlpha = 1;
     if (Math.floor(now * 2) % 2) k.disc(24, 20, 4, C.bad); TO('REC', 34, 20, 11, C.white, 'left', '#101010');
     TO(shot.cam, 24, 38, 10, C.white, 'left', '#101010'); TO(`2031-03-${14 + i} 10:4${i}:${String(sec).padStart(2, '0')}`, L.W - 24, 20, 10, C.white, 'right', '#101010');
-    k.b.globalAlpha = 0.6; R(0, L.H - 58, L.W, 34, '#000000'); k.b.globalAlpha = 1;
-    if (lt > 0.6) T(shot.cap, cx, L.H - 41, 13, C.white, 'center', 800);
+    if (lt > 0.6) k.SUB(shot.cap, cx, L.H - 34, 15, '#ffffff', 'center'); // 영상 자막처럼: 검은 띠 없이 흰 글자에 테두리와 그림자
     if (lt < 0.25 || lt > E2.shotLen - 0.2) { k.b.globalAlpha = 0.85; R(0, 0, L.W, L.H, '#000000'); k.b.globalAlpha = 1; } // 화면 전환
   }
   if (t < 1.4) { k.b.globalAlpha = Math.max(0, 1 - t / 1.4); R(0, 0, L.W, L.H, '#ffffff'); k.b.globalAlpha = 1; } // 하얗게 날아간 화면이 걷힌다
