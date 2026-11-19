@@ -374,7 +374,7 @@ function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 �
   const tx = W - 65, tf = `400 46px ${TITLE_FONT}`, jit = (now * 0.29) % 1 < 0.035 ? Math.round(Math.sin(now * 90) * 3) : 0;
   (half ? [['전국', 106], ['석차표', 156]] : [['AI 안경으로', 106], ['살아남기', 156]]).forEach(([str, y], q) => { const s2 = scr(str, q); text(s2, tx + 2.5 + jit, y, tf, 'rgba(255,60,60,0.45)', 'right'); text(s2, tx - 2 + jit, y, tf, 'rgba(60,160,255,0.4)', 'right'); text(s2, tx + jit, y, tf, G1, 'right', '#0a4018'); });
   const rows = RK.rows, total = RK.total || rows.length, mineI = rows.findIndex(r => r.me), rankOf = i => rows[i].rank || i + 1, per = 10, pages = Math.max(1, Math.ceil(rows.length / per)), page = Math.max(0, Math.min(pages - 1, RK.page || 0)), btns = [];
-  if (half) { text(scr(RK.online ? `응시자 ${total.toLocaleString()}명` : `이 기기의 기록 ${total}개`, 3), tx, 178, bf(14), G1, 'right', '#0a4018'); text(scr(mineI >= 0 ? `내 석차 ${rankOf(mineI)}등` : '내 석차 미정', 4), tx, 194, bf(14), G1, 'right', '#0a4018'); }
+  if (half) { text(scr(RK.online ? `응시자 ${total.toLocaleString()}명` : `이 기기의 기록 ${total}개`, 3), tx, 178, bf(14), G1, 'right', '#0a4018'); text(scr(mineI >= 0 ? `내 석차 ${rankOf(mineI)}등` : '내 석차 미정', 4), tx, 194, bf(14), G1, 'right', '#0a4018'); if (RK.online && RK.runs > 0) text(scr(`누적 응시 ${RK.runs.toLocaleString()}회`, 5), tx, 210, bf(14), G1, 'right', '#0a4018'); }
   else if (info && info.best) text(scr(`내 최고 기록 ${info.best}`, 3), tx, 180, bf(11), '#d8f8e0', 'right', '#0a4018');
   if (rk > 0) { // 석차표 줄: 위에서부터 한 줄씩 채워진다
     const lh = 21.6, rx = fx + 13, rw = fw - 26, show = Math.floor(Math.max(0, (rk - 0.35) / 0.65) * 13), list = rows.slice(page * per, page * per + per);
@@ -384,7 +384,7 @@ function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 �
     if (!rows.length && show > 2) { text('아직 기록이 없습니다', fx + fw / 2, fy + fh / 2 - 6, bf(16.5), G1, 'center', '#0a4018'); text('엔딩을 보면 석차표에 오릅니다', fx + fw / 2, fy + fh / 2 + 16, bf(13), '#d8f8e0', 'center', '#0a4018'); }
     if (mineI >= 0 && show > 11) { b.globalAlpha = 0.5; text(':', rx, fy + 26 + 10 * lh - 6, bf(13), G1, 'left'); b.globalAlpha = 1; row(mineI, rows[mineI], fy + fh - 9, true); }
     if (rk >= 1) { const py = fy + fh + 15; b.globalAlpha = page > 0 ? 1 : 0.35; text('▲ 위로', fx, py, bf(12), G1, 'left', '#0a4018'); b.globalAlpha = page < pages - 1 ? 1 : 0.35; text('아래로 ▼', fx + fw, py, bf(12), G1, 'right', '#0a4018'); b.globalAlpha = 1;
-      text(rows.length ? `${page * per + 1}~${Math.min(rows.length, page * per + per)}등 / ${total.toLocaleString()}명` : '', fx + fw / 2, py, bf(12), G1, 'center', '#0a4018');
+      text(rows.length ? `${page * per + 1}~${Math.min(rows.length, page * per + per)}등 / ${(RK.listed != null ? RK.listed : total).toLocaleString()}명` : '', fx + fw / 2, py, bf(12), G1, 'center', '#0a4018');
       btns.push({ x: fx - 10, y: py - 16, w: fw / 3, h: 26, key: 'rank:up' }, { x: fx + fw * 2 / 3 + 10, y: py - 16, w: fw / 3, h: 26, key: 'rank:down' }); }
   }
   if (info && info.ios && rk <= 0) text('아이폰은 공유 → "홈 화면에 추가"로 열면 전체 화면', tx, HH - 104, bf(10), '#d8f8e0', 'right', '#0a4018');

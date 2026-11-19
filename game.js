@@ -167,11 +167,12 @@ function addRecord() { // 엔딩에 처음 닿은 순간의 기록
 const NET = { rows: null, total: 0, plays: 0, at: 0, n: 0, busy: false, err: false, myRank: 0, rankFor: 0 }, NET_KEY = 'ai-glasses-ranks', NET_TTL = 600;
 function netOn() { const o = CONFIG.online; return !!(o && o.url && o.key); }
 function netRpc(fn, body) { const o = CONFIG.online; return fetch(`${o.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: o.key, Authorization: `Bearer ${o.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => { if (!r.ok) return r.json().catch(() => ({})).then(j => { const e = new Error('net ' + r.status); e.bad = r.status === 400 && /^bad /.test(String(j && j.message || '')); throw e; }); return r.json(); }); } /* bad: 서버가 기록 자체를 거절함(다시 내도 소용없음) */
-function netCache() { if (NET.rows || !netOn()) return; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c && Array.isArray(c.rows)) { NET.rows = c.rows; NET.total = c.total || c.rows.length; NET.plays = c.plays || 0; NET.at = c.at || 0; NET.n = c.n || c.rows.length; } } catch (_) { } }
+function netCache() { if (NET.rows || !netOn()) return; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c && Array.isArray(c.rows)) { NET.rows = c.rows; NET.total = c.total || c.rows.length; NET.plays = c.plays || 0; NET.runs = c.runs || 0; NET.at = c.at || 0; NET.n = c.n || c.rows.length; } } catch (_) { } }
 function netLoad(n, force) { // n등까지 받는다. 이미 그만큼 받았고 10분이 안 지났으면 받지 않는다
   netCache(); const t = Date.now() / 1000; if (!netOn() || NET.busy || (!force && NET.rows && NET.n >= n && t - NET.at < NET_TTL)) return; NET.busy = true;
-  netRpc('top_records', { p_limit: n }).then(d => { NET.rows = (d.rows || []).filter(x => x && x.t > 0).map(x => ({ name: [...String(x.name || '익명')].slice(0, 8).join(''), t: Number(x.t) })); NET.total = Math.max(Number(d.total) || 0, NET.rows.length); NET.plays = Number(d.plays) || 0; NET.at = t; NET.n = n; NET.err = false; netRetry();
-    try { localStorage.setItem(NET_KEY, JSON.stringify({ rows: NET.rows, total: NET.total, plays: NET.plays, at: NET.at, n })); } catch (_) { } }).catch(() => { NET.err = true; NET.at = t - NET_TTL + 60; }).finally(() => { NET.busy = false; }); // 실패하면 1분 뒤에 다시
+  const pend = runPending(); // 모아 둔 응시 횟수가 있으면 석차표를 받기 직전에 한꺼번에 보낸다 (따로 요청을 늘리지 않으려고)
+  (pend > 0 ? netRpc('count_runs', { p_n: pend }).then(v => runPending(-(Number(v) || 0))).catch(() => { }) : Promise.resolve()).then(() => netRpc('top_records', { p_limit: n })).then(d => { NET.rows = (d.rows || []).filter(x => x && x.t > 0).map(x => ({ name: [...String(x.name || '익명')].slice(0, 8).join(''), t: Number(x.t) })); NET.total = Math.max(Number(d.total) || 0, NET.rows.length); NET.plays = Number(d.plays) || 0; NET.runs = Number(d.runs) || 0; NET.at = t; NET.n = n; NET.err = false; netRetry();
+    try { localStorage.setItem(NET_KEY, JSON.stringify({ rows: NET.rows, total: NET.total, plays: NET.plays, runs: NET.runs, at: NET.at, n })); } catch (_) { } }).catch(() => { NET.err = true; NET.at = t - NET_TTL + 60; }).finally(() => { NET.busy = false; }); // 실패하면 1분 뒤에 다시
 }
 function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는 데 성공했을 때(서버가 살아 있을 때) 이름까지 쓴 기록 가운데 아직 못 올린 것을 하나씩 낸다
   if (!netOn() || NET.retry) return; const rec = loadRecords().find(r => r.named && !r.up && !r.rej); if (!rec) return;
@@ -183,7 +184,10 @@ function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는
     .catch(e => { if (e && e.bad) { mark(m => { m.rej = true; }); return true; } return false; }) /* 거절이면 접고, 통신 실패면 다음 기회에 */
     .then(next => { NET.retry = false; if (next) netRetry(); });
 }
-const PLAY_KEY = 'ai-glasses-played';
+const PLAY_KEY = 'ai-glasses-played', RUN_KEY = 'ai-glasses-runs';
+function runPending(add) { // 아직 서버에 못 보낸 응시 횟수 (이 기기에 모아 둔다). add를 주면 더하거나 뺀다
+  try { let v = Math.max(0, Number(localStorage.getItem(RUN_KEY)) || 0); if (add) { v = Math.max(0, Math.min(200, v + add)); localStorage.setItem(RUN_KEY, String(v)); } return v; } catch (_) { return 0; } }
+function rankRuns() { return netOn() && NET.rows ? (NET.runs || 0) + runPending() : 0; } // 누적 응시 횟수: 서버의 합계 + 아직 못 보낸 내 몫
 function netCountPlay() { // 이 기기가 처음으로 시험을 시작할 때 한 번: 응시자 수에 1을 더한다. 실패하면 다음에 게임을 열었을 때 다시
   if (!netOn() || NET.counted) return; NET.counted = true; try { if (localStorage.getItem(PLAY_KEY)) return; } catch (_) { return; }
   netRpc('count_play', {}).then(() => { try { localStorage.setItem(PLAY_KEY, '1'); } catch (_) { } NET.plays = (NET.plays || 0) + 1; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c) { c.plays = Math.max(c.plays || 0, NET.plays); localStorage.setItem(NET_KEY, JSON.stringify(c)); } } catch (_) { } /* 받아 둔 석차표에도 적어 둔다: 새로 고쳤을 때 숫자가 도로 줄어 보이지 않게 */ }).catch(() => { });
@@ -496,7 +500,7 @@ function beginPart(p, firstEver) { // 교시·모듈·블록 하나를 시작
 }
 function startExam(ti) {
   if (G.audit) { G.mail = null; goHub('mail'); return true; } // 재시험 통보가 와 있으면 다른 시험은 못 본다: 통보부터 읽게 한다
-  ti = clamp(ti, 0, G.unlocked - 1); if (!CHECKED) netCountPlay();
+  ti = clamp(ti, 0, G.unlocked - 1); if (!CHECKED) netCountPlay(); if (!CHECKED && !STATE.titleBuild && netOn()) runPending(1); // 시험 한 번 = 한 판 (타이틀 뒤에 깔리는 시험장은 세지 않는다)
   const T = TIERS[ti], fee = examFee(T);
   if (G.money < fee) { sfx.no(); STATE.note = { text: `응시료 ${won(fee)}원이 모자라요`, t: 0 }; return false; }
   G.money -= fee; G.stats.fees += fee; STATE.shown = Math.min(STATE.shown, G.money);
@@ -1012,11 +1016,11 @@ function finishExam() {
 function settle() { if (G.pending > 0) { addMoney(G.pending); G.pending = 0; sfx.news(); save(); } } // 밀린 입금
 function titleExam() { // 타이틀 뒤에 깔리는 첫 시험장: 시험 상태를 만들어 두고 멈춰 둔다
   if (STATE.titleE && E === STATE.titleE) return;
-  const started = G.run.started, sc = scene; startExam(0); events.pop(); G.run.started = started; scene = sc;
+  const started = G.run.started, sc = scene; STATE.titleBuild = true; startExam(0); STATE.titleBuild = false; events.pop(); G.run.started = started; scene = sc;
   const q = E.qs[0]; STATE.titleE = E; E.titleKeep = { ar: E.ar, start: E.start };
   E.stageForce = 'used'; E.ar = true; E.ai = true; E.scan = 1; E.start = 0; E.view = 'paper'; E.prevView = 'paper'; E.viewT = 1; E.hint = null; E.showZones = false; if (q.aiPick == null) q.aiPick = q.answer; q.conf = 95; // 안경이 답을 잡은 장면
 }
-function leaveTitle(T0) { // 타이틀에서 바로 튜토리얼 시험으로: 같은 자리에서 고개를 든다. 안경 화면은 지직거리며 꺼진다
+function leaveTitle(T0) { if (!CHECKED && netOn()) runPending(1); /* 첫 시험은 타이틀 뒤의 시험장을 그대로 쓰므로 여기서 한 판으로 센다 */ // 타이틀에서 바로 튜토리얼 시험으로: 같은 자리에서 고개를 든다. 안경 화면은 지직거리며 꺼진다
   E = T0; E.stageForce = null; E.ar = E.titleKeep.ar; E.start = E.titleKeep.start; E.ai = false; E.scan = 0; E.prevView = 'paper'; E.view = E.layout === 'room' ? 'front' : 'paper'; E.viewT = 0; E.showZones = !G.hints.look;
   if (!G.run.done) G.run.started = true; ptrs.clear(); releases = []; STATE.titleOut = 0.9; scene = 'play'; events.push({ type: 'exam', tier: 0, fee: 0 });
 }
@@ -1254,7 +1258,7 @@ const scenes = {
     draw(B) {
       titleExam(); WORLD.renderExam(E, now); // 타이틀: 첫 시험장의 내 책상. 안경이 답을 잡은 순간
       const recs = loadRecords(), RK = STATE.rank || { k: 0, page: 0 };
-      BTNS = drawTitle(B.k, B.L, now, G.stats.exams > 0, { best: recs.length ? `${recs[0].name} ${fmtRun(recs[0].t)}` : '', ios: STATE.ios && !STATE.standalone, rank: (rows => ({ k: RK.k, page: RK.page, rows, total: rankTotal(rows), online: netOn() && !!NET.rows }))(rankRows()) });
+      BTNS = drawTitle(B.k, B.L, now, G.stats.exams > 0, { best: recs.length ? `${recs[0].name} ${fmtRun(recs[0].t)}` : '', ios: STATE.ios && !STATE.standalone, rank: (rows => ({ k: RK.k, page: RK.page, rows, total: rankTotal(rows), listed: netOn() && NET.rows ? Math.max(NET.total, rows.length) : rows.length, runs: rankRuns(), online: netOn() && !!NET.rows }))(rankRows()) });
     },
   },
   rankin: {
