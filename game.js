@@ -198,7 +198,7 @@ function cleanName(v) { return [...String(v || '').replace(/[^0-9A-Za-z가-힣�
 function safeName(v, seed) { const n = cleanName(v).replace(/[ㄱ-ㅎㅏ-ㅣ]/g, ''), low = n.toLowerCase(); return !n || BAD_NAMES.some(w => low.includes(w)) ? anonName(seed) : n; } // 비었거나 금칙어면 익명 + 번호
 function rankRows() { // 석차표에 올릴 줄. me: 내 기록, rank: 받아 온 목록 밖에 있을 때의 등수
   const a = loadRecords(), mine = a.find(r => r.id === G.run.rec) || a[0], typing = STATE.rin && STATE.rin.phase === 'type';
-  if (params.get('ranks')) return ['김수험', '답안봇최고', '계단왕', '뇌임플란트', '고시원장', '만점자', '지우개액정', '필통속폰', '군용렌즈', '재시험통과', '창턱고양이', '초콜릿참기', '나', '조사관'].map((name, i) => ({ name, t: 662 + i * 37 + (i * i) % 11, me: name === '나' })); // check only
+  if (params.get('ranks')) return ['김수험', '답안봇최고', '벼락치기', '뉴럴링코', '고시원장', '만점자', '지우개액정', '필통속폰', '군용렌즈', '재시험통과', '삼수생', '컵라면', '나', '조사관'].map((name, i) => ({ name, t: 662 + i * 37 + (i * i) % 11, me: name === '나' })); // check only
   if (netOn() && NET.rows) {
     const rows = NET.rows.map(r => ({ name: r.name, t: r.t })); netLoad(STATE.rank && STATE.rank.open || STATE.rin ? 100 : 30);
     if (mine) { const i = typing ? -1 : rows.findIndex(r => r.name === mine.name && r.t === mine.t);
@@ -490,7 +490,7 @@ function beginPart(p, firstEver) { // 교시·모듈·블록 하나를 시작
   E.timeLeft = E.timeTotal; E.partOver = false;
   if (p > 0) {
     E.sus *= tune.session_keep; E.breakT = tune.break_time;
-    if (E.T.id === 'leet' && p === 1) E.stairs = { phase: 'intro', t: 0, steps: 0, last: null, left: tune.stairs_time, stumble: 0, result: null }; // 쉬는 시간: 계단 앞에 서 있다
+    if (E.T.id === 'leet' && p === 1 && CONFIG.eggs.stairs) E.stairs = { phase: 'intro', t: 0, steps: 0, last: null, left: tune.stairs_time, stumble: 0, result: null }; // 쉬는 시간: 계단 앞에 서 있다
     if (T.swap && T.swap[p]) { E.staff = T.swap[p].map((type, i) => newStaff({ type, name: PROCTOR_NAME[type] }, i, T)); flash('감독관 교대', PAL.hud); } // 블록마다 새 감독관
   }
 }
@@ -1093,7 +1093,7 @@ function hubAction(a) { // 방에서 누른 물건
   else if (a === 'log') enterView('phone');
   else if (a === 'mail' && (G.mail || G.audit)) enterView('mail');
   else if (a === 'tv') enterView('tv');
-  else if (a === 'choco' && G.flags.leet) { const n = G.flags.choco = (G.flags.choco || 0) + 1; hv.chocoT = now; STATE.say = { text: ['…참자. 단맛을 억제하는 게 좋다고 그랬어.', '…안 돼. 단맛을 억제해야 머리가 맑아진다고 했어.', '(초콜릿이 나를 보고 있다)'][(n - 1) % 3], t: 0 }; sfx.flip(); }
+  else if (a === 'choco' && G.flags.leet && CONFIG.eggs.choco) { const n = G.flags.choco = (G.flags.choco || 0) + 1; hv.chocoT = now; STATE.say = { text: ['…참자. 단맛을 억제하는 게 좋다고 그랬어.', '…안 돼. 단맛을 억제해야 머리가 맑아진다고 했어.', '(초콜릿이 나를 보고 있다)'][(n - 1) % 3], t: 0 }; sfx.flip(); }
   else if (a === 'parcel' && hv.parcel && hv.parcel.phase === 'wait') { hv.parcel.phase = 'open'; hv.parcel.t = 0; sfx.open(); }
 }
 function openParcels() { // 상자를 열지 않고 시험 보러 가도 장비는 쓴다
@@ -1264,7 +1264,7 @@ const scenes = {
   hub: {
     update(dt) { updateHub(dt); },
     draw(B) {
-      const hv = STATE.hv; if (WORLD.ok) drawLaptop(); hv.mail = !!(G.mail || G.audit); hv.choco = !!G.flags.leet; hv.tvNew = G.tv.length > G.tvSeen;
+      const hv = STATE.hv; if (WORLD.ok) drawLaptop(); hv.mail = !!(G.mail || G.audit); hv.choco = !!G.flags.leet && CONFIG.eggs.choco; hv.tvNew = G.tv.length > G.tvSeen;
       if (WORLD.ok) HUBUI.tv(WORLD.tvTex().g, G.tv[G.tv.length - 1], now, hv.view === 'tv' || hv.tvNew); // 새 뉴스가 있으면 TV가 켜져 있다
       WORLD.renderHub(G, now, STATE.hoverAct, hv); drawHubHud(B);
     },

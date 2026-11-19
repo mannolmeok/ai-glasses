@@ -1268,7 +1268,7 @@ const WORLD = (() => {
     const exit = canvasTex(128, 64, false); { const g = exit.g; g.fillStyle = '#1c8a4a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.font = `800 22px ${FONT}`; g.textAlign = 'center'; g.fillText('2F 고사실', 64, 40); exit.t.needsUpdate = true; }
     plane(sc, 0.5, 0.25, new THREE.MeshBasicMaterial({ map: exit.t, fog: false }), 0, 2.2, 2.44, 0, Math.PI);
     // 계단 끝 위층 바닥 안쪽 구석에 앉은 작은 검은 고양이 (오르는 내내, 다 올라서도 보이는 자리)
-    const cat = pivot(sc, -0.5, top, zt - 1.35), ck = 0x0c0c10; cat.rotation.y = 0.3; cat.scale.setScalar(1.5);
+    const cat = pivot(sc, -0.5, top, zt - 1.35), ck = 0x0c0c10; cat.rotation.y = 0.3; cat.scale.setScalar(1.5); cat.visible = !!CONFIG.eggs.cat;
     bx(cat, 0.1, 0.13, 0.13, ck, 0, 0.065, 0); bx(cat, 0.085, 0.05, 0.05, ck, 0, 0.025, 0.07);
     const chead = pivot(cat, 0, 0.16, 0.035); bx(chead, 0.095, 0.08, 0.08, ck, 0, 0.02, 0); for (const s of [-1, 1]) { bx(chead, 0.028, 0.035, 0.02, ck, s * 0.032, 0.072, 0); bx(chead, 0.016, 0.014, 0.004, 0, s * 0.022, 0.028, 0.041, glowMat(0xffd83a)); }
     const ctail = pivot(cat, 0.04, 0.02, -0.06); bx(ctail, 0.022, 0.022, 0.14, ck, 0, 0, -0.07); bx(ctail, 0.022, 0.07, 0.022, ck, 0, 0.035, -0.14);

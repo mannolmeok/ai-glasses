@@ -324,6 +324,8 @@ window.CONFIG = {
   // 대리 응시는 사람 수에 따라 이름이 바뀐다: [몇 명부터, 이름]
   // 온라인 석차표(Supabase). 둘 다 비어 있으면 이 기기의 기록만 쓴다. key는 공개용(anon) 키만 넣는다
   online: { url: 'https://ihuuplhpyjnvxsmqdxjs.supabase.co', key: 'sb_publishable_L01UcbYFw98DcsPKhjTI7g_292HWyyn' },
+  // 숨은 장면 스위치. 지금은 전부 꺼 둔다. 다시 넣으려면 true로 바꾸면 된다 (코드는 그대로 남아 있다)
+  eggs: { stairs: false, cat: false, choco: false }, // stairs: LEET 쉬는 시간의 계단 질주 · cat: 계단 끝의 고양이 · choco: 고시원 책상의 초콜릿
   bot_names: [[1, '대리 응시 챗봇'], [10, '로봇청소기 개조'], [25, '대리 응시 안드로이드'], [50, '내 클론'], [100, '평행우주의 나']],
   bot_milestones: [10, 25, 50, 100], // 대리 응시가 이 인원을 넘을 때마다 수입 x2
 };
