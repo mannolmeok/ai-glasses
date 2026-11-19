@@ -346,30 +346,73 @@ function drawResults(k, L, Rz, now, H) {
 }
 
 const TITLE_FONT = '"Black Han Sans","Do Hyeon",' + FONT_KO, BOOT_FONT = '"VT323","SF Mono","Menlo","Consolas",monospace,' + FONT_KO;
-if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기 적발 일시정지 AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다.'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
+if (document.fonts) { document.fonts.load('400 40px "Black Han Sans"', 'AI 안경으로 살아남기 적발 일시정지 AI는 답을 알려 줍니다. 어디에 쓸지는 알려 주지 않습니다. 전국 석차표 응시자 이름 등록'); document.fonts.load('400 16px "VT323"', 'LENS-OS 0.9b ENTER'); }
 function drawTitle(k, L, now, hasSave, info) { // 타이틀: 첫 시험장의 내 책상을 안경 너머로 본다. 초점이 잡히고 답이 뜬 순간 (시안 F 그대로)
-  const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e';
+  const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e', RK = info.rank || { k: 0, rows: [] }, rk = RK.k, mix = (p, q) => p + (q - p) * rk;
   if (new URLSearchParams(location.search).get('hud') === '0') return []; // check only: 배경만
-  const fx = 165, fy = 132, fw = 210, fh = 150; // 초점 틀: 보기 네 개가 있는 자리
+  const fx = mix(165, 55), fy = mix(132, 46), fw = mix(210, 315), fh = mix(150, 257); // 초점 틀: 보기 네 개가 있는 자리. 석차표일 때는 왼쪽 위까지 커진다
   const wc = typeof worldCanvas !== 'undefined' && worldCanvas; // 초점 밖은 흐리고 어둡게: 3D 화면을 흐리게 다시 그리고, 초점 안만 뚫어 둔다
-  if (wc && wc.width && 'filter' in b) { try { b.save(); b.filter = 'blur(2.5px) brightness(0.6)'; b.drawImage(wc, 0, 0, W, HH); b.restore(); b.clearRect(fx, fy, fw, fh); } catch (e) { b.restore(); } }
+  if (wc && wc.width && 'filter' in b) { try { b.save(); b.filter = 'blur(2.5px) brightness(0.6)'; b.drawImage(wc, 0, 0, W, HH); b.restore(); if (rk <= 0) b.clearRect(fx, fy, fw, fh); } catch (e) { b.restore(); } }
   else { b.globalAlpha = 0.4; R(0, 0, W, fy, '#000000'); R(0, fy + fh, W, HH - fy - fh, '#000000'); R(0, fy, fx, fh, '#000000'); R(fx + fw, fy, W - fx - fw, fh, '#000000'); b.globalAlpha = 1; }
   b.globalAlpha = 0.38; R(0, 0, W, HH, '#061e0e'); b.globalAlpha = 1;
+  if (rk > 0) { b.globalAlpha = 0.72 * rk; R(fx, fy, fw, fh, '#04160a'); b.globalAlpha = 1; } // 석차표: 틀 안을 어둡게 깔고 순위 줄을 쓴다
   b.globalAlpha = 0.13; for (let y = 0; y < HH; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = 1;
-  const pulse = Math.max(0, 0.3 - (now % 3.6)) / 0.3, gx = pulse * 26, gy = pulse * 18, l = 20, x0 = fx - gx, y0 = fy - gy, x1 = fx + fw + gx, y1 = fy + fh + gy; // 3.6초마다 초점을 다시 잡는다
+  const pulse = rk > 0 ? 0 : Math.max(0, 0.3 - (now % 3.6)) / 0.3, gx = pulse * 26, gy = pulse * 18, l = 20, x0 = fx - gx, y0 = fy - gy, x1 = fx + fw + gx, y1 = fy + fh + gy; // 3.6초마다 초점을 다시 잡는다
   for (const [cx, cy, sx, sy] of [[x0, y0, 1, 1], [x1, y0, -1, 1], [x0, y1, 1, -1], [x1, y1, -1, -1]]) { R(sx > 0 ? cx : cx - l, sy > 0 ? cy : cy - 2, l, 2, G1); R(sx > 0 ? cx : cx - 2, sy > 0 ? cy : cy - l, 2, l, G1); }
   const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
-  const n = Math.min(4, 1 + Math.floor((now % 14) / 0.4));
-  ['LENS-OS 0.9b', '초점 ......... 고정', '정답 ......... 수신', '감독관 ....... 등 돌림'].slice(0, n).forEach((ln, i) => text(ln, 65, 60 + i * 15.6, `400 12.5px ${BOOT_FONT}`, G1, 'left', '#0a4018'));
+  const moving = rk > 0 && rk < 1, half = rk >= 0.5, bf = sz => `400 ${sz}px ${BOOT_FONT}`;
+  const scr = (str, salt) => !moving ? str : [...str].map((ch, i) => ch === ' ' ? ' ' : (Math.abs(Math.sin((i + 1) * 12.9898 + salt * 7.13 + Math.floor(now * 30) * 78.233) * 43758.5453) % 1) < 0.25 + Math.abs(rk - 0.5) * 1.5 ? ch : '▓░▒#'[(i + Math.floor(now * 30)) % 4]).join(''); // 글자가 지지직 흐트러졌다 맞춰진다
+  if (rk < 1) { b.globalAlpha = 1 - Math.min(1, rk * 2.5); const n = Math.min(4, 1 + Math.floor((now % 14) / 0.4)); // 왼쪽 위 부팅 줄: 석차표로 바뀌면 사라진다
+    ['LENS-OS 0.9b', '초점 ......... 고정', '정답 ......... 수신', '감독관 ....... 등 돌림'].slice(0, n).forEach((ln, i) => text(ln, 65, 60 + i * 15.6, bf(12.5), G1, 'left', '#0a4018')); b.globalAlpha = 1; }
   const tx = W - 65, tf = `400 46px ${TITLE_FONT}`, jit = (now * 0.29) % 1 < 0.035 ? Math.round(Math.sin(now * 90) * 3) : 0;
-  [['AI 안경으로', 106], ['살아남기', 156]].forEach(([str, y]) => { text(str, tx + 2.5 + jit, y, tf, 'rgba(255,60,60,0.45)', 'right'); text(str, tx - 2 + jit, y, tf, 'rgba(60,160,255,0.4)', 'right'); text(str, tx + jit, y, tf, G1, 'right', '#0a4018'); });
-  if (info && info.best) text(`내 최고 기록 ${info.best}`, tx, 180, `400 11px ${BOOT_FONT}`, '#d8f8e0', 'right', '#0a4018');
-  if (info && info.ios) text('아이폰은 공유 → "홈 화면에 추가"로 열면 전체 화면', W / 2, HH - 24, `400 10px ${BOOT_FONT}`, '#d8f8e0', 'center', '#0a4018');
-  const label = hasSave ? '▶ 이어서 하기 [ENTER]' : '▶ 시험 시작 [ENTER]'; b.font = `400 16px ${BOOT_FONT}`; const bw = Math.ceil(b.measureText(label).width) + 30, bh = 28, bx = tx - bw, by = HH - 60 - bh, on = Math.floor(now * 2) % 2 === 0;
-  b.globalAlpha = on ? 0.16 : 0.06; R(bx, by, bw, bh, G1); b.globalAlpha = 1; k.frame(bx, by, bw, bh, G1, 1.5); text(label, bx + bw / 2, by + bh / 2 + 5, `400 16px ${BOOT_FONT}`, G1, 'center', 'rgba(116,255,142,0.5)');
+  (half ? [['전국', 106], ['석차표', 156]] : [['AI 안경으로', 106], ['살아남기', 156]]).forEach(([str, y], q) => { const s2 = scr(str, q); text(s2, tx + 2.5 + jit, y, tf, 'rgba(255,60,60,0.45)', 'right'); text(s2, tx - 2 + jit, y, tf, 'rgba(60,160,255,0.4)', 'right'); text(s2, tx + jit, y, tf, G1, 'right', '#0a4018'); });
+  const rows = RK.rows, total = RK.total || rows.length, mineI = rows.findIndex(r => r.me), rankOf = i => rows[i].rank || i + 1, per = 10, pages = Math.max(1, Math.ceil(rows.length / per)), page = Math.max(0, Math.min(pages - 1, RK.page || 0)), btns = [];
+  if (half) { text(scr(RK.online ? `응시자 ${total.toLocaleString()}명` : `이 기기의 기록 ${total}개`, 3), tx, 178, bf(14), G1, 'right', '#0a4018'); text(scr(mineI >= 0 ? `내 석차 ${rankOf(mineI)}등` : '내 석차 미정', 4), tx, 194, bf(14), G1, 'right', '#0a4018'); }
+  else if (info && info.best) text(scr(`내 최고 기록 ${info.best}`, 3), tx, 180, bf(11), '#d8f8e0', 'right', '#0a4018');
+  if (rk > 0) { // 석차표 줄: 위에서부터 한 줄씩 채워진다
+    const lh = 21.6, rx = fx + 13, rw = fw - 26, show = Math.floor(Math.max(0, (rk - 0.35) / 0.65) * 13), list = rows.slice(page * per, page * per + per);
+    const row = (i, r, y, inv) => { if (inv) { R(rx - 3, y - 15.5, rw + 6, 20.5, G1); } const col = inv ? '#06200e' : G1, gl = inv ? null : '#0a4018', nm = [...r.name].slice(0, 8).join('');
+      text(scr(`${rankOf(i)}등`, i), rx, y, bf(16.5), col, 'left', gl); text(scr(nm, i + 20), rx + 48, y, bf(16.5), col, 'left', gl); text(scr(fmtRunT(r.t), i + 40), rx + rw, y, bf(16.5), col, 'right', gl); };
+    list.forEach((r, i) => { if (i < show) row(page * per + i, r, fy + 26 + i * lh, false); });
+    if (!rows.length && show > 2) { text('아직 기록이 없습니다', fx + fw / 2, fy + fh / 2 - 6, bf(16.5), G1, 'center', '#0a4018'); text('엔딩을 보면 석차표에 오릅니다', fx + fw / 2, fy + fh / 2 + 16, bf(13), '#d8f8e0', 'center', '#0a4018'); }
+    if (mineI >= 0 && show > 11) { b.globalAlpha = 0.5; text(':', rx, fy + 26 + 10 * lh - 6, bf(13), G1, 'left'); b.globalAlpha = 1; row(mineI, rows[mineI], fy + fh - 9, true); }
+    if (rk >= 1) { const py = fy + fh + 15; b.globalAlpha = page > 0 ? 1 : 0.35; text('▲ 위로', fx, py, bf(12), G1, 'left', '#0a4018'); b.globalAlpha = page < pages - 1 ? 1 : 0.35; text('아래로 ▼', fx + fw, py, bf(12), G1, 'right', '#0a4018'); b.globalAlpha = 1;
+      text(rows.length ? `${page * per + 1}~${Math.min(rows.length, page * per + per)}등 / ${total.toLocaleString()}명` : '', fx + fw / 2, py, bf(12), G1, 'center', '#0a4018');
+      btns.push({ x: fx - 10, y: py - 16, w: fw / 3, h: 26, key: 'rank:up' }, { x: fx + fw * 2 / 3 + 10, y: py - 16, w: fw / 3, h: 26, key: 'rank:down' }); }
+  }
+  if (info && info.ios && rk <= 0) text('아이폰은 공유 → "홈 화면에 추가"로 열면 전체 화면', tx, HH - 104, bf(10), '#d8f8e0', 'right', '#0a4018');
+  const label = scr(half ? '◀ 돌아가기 [ESC]' : hasSave ? '▶ 이어서 하기 [ENTER]' : '▶ 시험 시작 [ENTER]', 9); b.font = bf(16); const bw = Math.ceil(b.measureText(label).width) + 30, bh = 28, bx = tx - bw, by = HH - 60 - bh, on = Math.floor(now * 2) % 2 === 0;
+  b.globalAlpha = on ? 0.16 : 0.06; R(bx, by, bw, bh, G1); b.globalAlpha = 1; k.frame(bx, by, bw, bh, G1, 1.5); text(label, bx + bw / 2, by + bh / 2 + 5, bf(16), G1, 'center', 'rgba(116,255,142,0.5)');
+  if (rk < 1) { // 화면 맨 아래 흐르는 석차 줄: 누르면 석차표로 바뀐다
+    const ty = HH - 37, th = 20, tl = 30, tr = W - 30; b.globalAlpha = (1 - rk) * 0.4; R(tl, ty, tr - tl, 1, G1); b.globalAlpha = 1 - rk;
+    b.font = bf(13); const lab = '석차표', lw = Math.ceil(b.measureText(lab).width) + 10; R(tl, ty + 4, lw, 15, G1); text(lab, tl + lw / 2, ty + 15.5, bf(13), '#06200e', 'center');
+    const str = rows.length ? rows.slice(0, 10).map((r, i) => `${i + 1}등 ${r.name} ${fmtRunT(r.t)}`).join('   ·   ') + '   ·   ' : '아직 기록이 없습니다 · 엔딩을 보면 석차표에 오릅니다   ·   ';
+    const sw = b.measureText(str).width, off = (now * 26) % sw; b.save(); b.beginPath(); b.rect(tl + lw + 8, ty, tr - tl - lw - 8, th); b.clip(); for (let x = tl + lw + 8 - off; x < tr; x += sw) text(str, x, ty + 15.5, bf(13), G1, 'left', '#0a4018'); b.restore(); b.globalAlpha = 1;
+    if (rk <= 0) btns.push({ x: 0, y: ty - 6, w: W, h: HH - ty + 6, key: 'rank:open' });
+  }
   b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
-  return [{ x: 0, y: 0, w: W, h: HH, key: 'start' }];
+  if (rk >= 1) btns.push({ x: bx, y: by, w: bw, h: bh, key: 'rank:close' }); else if (rk <= 0) btns.push({ x: 0, y: 0, w: W, h: HH, key: 'start' });
+  return btns;
 }
+function drawRankIn(k, L, now, RI, rows, total, online) { // 엔딩 뒤 이름 입력(시안 B): 석차표에서 내 자리가 벌어지고, 그 줄에 이름을 써 넣는다
+  const { R } = k, b = k.b, W = L.W, HH = L.H, G1 = '#74ff8e', bf = sz => `400 ${sz}px ${BOOT_FONT}`, btns = [];
+  const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
+  b.globalAlpha = 0.74; R(0, 0, W, HH, '#061e0e'); b.globalAlpha = 0.13; for (let y = 0; y < HH; y += 1.5) R(0, y, W, 0.5, '#000000'); b.globalAlpha = 1;
+  const tf = `400 30px ${TITLE_FONT}`; text('전국 석차표', W / 2 + 2, 52, tf, 'rgba(255,60,60,0.45)', 'center'); text('전국 석차표', W / 2 - 1.5, 52, tf, 'rgba(60,160,255,0.4)', 'center'); text('전국 석차표', W / 2, 52, tf, G1, 'center', '#0a4018');
+  const mi = rows.findIndex(r => r.me), rankOf = i => rows[i].rank || i + 1, type = RI.phase === 'type', myRank = mi >= 0 ? rankOf(mi) : 0;
+  text(type ? `${myRank}등으로 진입! 이름을 남기세요` : RI.phase === 'send' ? '전송 중…' : `${myRank}등 · ${RI.msg || '등록되었습니다'}`, W / 2, 76, bf(15), '#ffe98a', 'center', '#0a4018');
+  const x0 = 165, x1 = W - 165, lh = 23, from = Math.max(0, Math.min(mi - 3, rows.length - 6)), list = rows.slice(from, from + 6), y0 = 108;
+  list.forEach((r, j) => { const i = from + j, y = y0 + j * lh, inv = r.me; if (inv) R(x0 - 7, y - 16.5, x1 - x0 + 14, 22, G1); const col = inv ? '#06200e' : G1, gl = inv ? null : '#0a4018';
+    const nm = inv ? (type ? RI.name : (RI.name || r.name)) : r.name; text(`${rankOf(i)}등`, x0, y, bf(16.5), col, 'left', gl); text(nm, x0 + 50, y, bf(16.5), col, 'left', gl); text(fmtRunT(r.t), x1, y, bf(16.5), col, 'right', gl);
+    if (inv && type) { b.font = bf(16.5); const cx = x0 + 50 + b.measureText(nm).width + 2; if (Math.floor(now * 2) % 2 === 0) R(cx, y - 13, 7, 15, '#06200e'); if (!nm) { b.globalAlpha = 0.55; text('여기를 눌러 이름 입력 (8자까지)', x0 + 64, y, bf(14), '#06200e', 'left'); b.globalAlpha = 1; } } });
+  text(online ? `응시자 ${total.toLocaleString()}명` : '이 기기의 기록에 남습니다', W / 2, y0 + 6 * lh + 6, bf(12), '#d8f8e0', 'center', '#0a4018');
+  const by = HH - 84, bh = 26, defs = type ? [['등록 [ENTER]', 'rin:ok', true], ['이름 없이 넘기기', 'rin:skip', false]] : RI.phase === 'done' ? [['▶ 계속하기 [ENTER]', 'rin:go', true]] : [];
+  b.font = bf(15); const ws = defs.map(d => Math.ceil(b.measureText(d[0]).width) + 30), tot = ws.reduce((p, c) => p + c, 0) + 12 * Math.max(0, defs.length - 1); let bx = W / 2 - tot / 2;
+  defs.forEach(([lab, key, fill], i) => { if (fill) R(bx, by, ws[i], bh, G1); else { b.globalAlpha = 0.08; R(bx, by, ws[i], bh, G1); b.globalAlpha = 1; } k.frame(bx, by, ws[i], bh, G1, 1.5); text(lab, bx + ws[i] / 2, by + 18, bf(15), fill ? '#06200e' : G1, 'center', fill ? null : '#0a4018'); btns.push({ x: bx, y: by, w: ws[i], h: bh, key }); bx += ws[i] + 12; });
+  b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);
+  return btns;
+}
+function fmtRunT(sec) { sec = Math.max(0, Math.floor(sec)); const h = Math.floor(sec / 3600), m = Math.floor(sec % 3600 / 60), s = sec % 60; return h ? `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}` : `${m}:${String(s).padStart(2, '0')}`; }
 function drawLensScreen(k, L, now, o) { // 타이틀과 같은 안경 화면: 적발(빨강) · 일시정지(초록). o: col, glow, tint, lines, big, y
   const b = k.b, W = L.W, HH = L.H, R = k.R;
   const text = (str, x, y, font, col, align, glow) => { b.font = font; b.textAlign = align; b.textBaseline = 'alphabetic'; b.shadowColor = glow || 'transparent'; b.shadowBlur = glow ? 4 * (k.S || HUD_SCALE) : 0; b.fillStyle = col; b.fillText(str, x, y); b.shadowBlur = 0; b.shadowColor = 'transparent'; };
@@ -437,7 +480,7 @@ function drawEnding(k, L, G, now, H, info) {
   row('시험 응시', `${st.exams}번`); row('적발', `${st.caught}번`); row('직접 고른 답', `${st.selfQ}개`); row('AI가 고른 답', `${st.aiQ}개`, '#eafff0');
   info.records.slice(0, 2).forEach((r, i) => row(i ? '' : '내 기록 (이 기기)', `${i + 1}. ${r.name}  ${r.time}`, r.me ? '#ffe98a' : G1));
   text('이 게임은 AI와 함께 만들었습니다.', W / 2, y + 6, bf(11), '#9ad8a8', 'center', '#0a4018');
-  const defs = [['▶ 계속하기 [ENTER]', 'continue'], ['이름 바꾸기 [N]', 'name'], ['새 타임어택 [X]', 'wipe']], by = HH - 78, btns = []; b.font = bf(13);
+  const defs = [[info.named ? '▶ 계속하기 [ENTER]' : '▶ 석차표에 등록 [ENTER]', 'continue'], [info.named ? '석차표 보기 [N]' : '이름 남기기 [N]', 'name'], ['새 타임어택 [X]', 'wipe']], by = HH - 78, btns = []; b.font = bf(13);
   const ws = defs.map(d => Math.ceil(b.measureText(d[0]).width) + 22), tot = ws.reduce((p, c) => p + c, 0) + 12 * 2; let bx = W / 2 - tot / 2;
   defs.forEach(([lab, key], i) => { const on = i === 0 && Math.floor(now * 2) % 2 === 0; b.globalAlpha = a * (on ? 0.22 : 0.06); R(bx, by, ws[i], 24, G1); b.globalAlpha = a * (i === 0 ? 1 : 0.6); k.frame(bx, by, ws[i], 24, key === 'wipe' ? '#ffb86a' : G1, 1.5); b.globalAlpha = a; text(lab, bx + ws[i] / 2, by + 16.5, bf(13), key === 'wipe' ? '#ffb86a' : G1, 'center', '#0a4018'); btns.push({ x: bx, y: by, w: ws[i], h: 24, key }); bx += ws[i] + 12; });
   b.globalAlpha = 1; b.textAlign = 'left'; b.drawImage(rimFor('land'), 0, 0);

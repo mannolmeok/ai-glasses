@@ -159,8 +159,71 @@ function loadRecords() { try { const a = JSON.parse(localStorage.getItem(REC_KEY
 function writeRecords(a) { try { localStorage.setItem(REC_KEY, JSON.stringify(a.sort((x, y) => x.t - y.t).slice(0, 20))); } catch (_) { } }
 function addRecord() { // 엔딩에 처음 닿은 순간의 기록
   const a = loadRecords(), id = Date.now(), last = a.find(r => r.name && r.name !== '나');
-  a.push({ id, name: (last && last.name) || '나', t: Math.round(G.run.t), date: new Date().toISOString().slice(0, 10), exams: G.stats.exams, caught: G.stats.caught });
+  a.push({ id, name: (last && last.name) || '나', t: Math.round(G.run.t), date: new Date().toISOString().slice(0, 10), exams: G.stats.exams, caught: G.stats.caught, splits: [1, 2, 3].map(n => Math.round(actSplit(n).t)) });
   writeRecords(a); G.run.done = true; G.run.rec = id;
+}
+// ---- 온라인 석차표: 서버(Supabase)가 정해져 있으면 전체 기록, 아니면 이 기기의 기록 ----
+// 전송량을 아낀다: 타이틀의 흐르는 줄은 30등까지만, 석차표를 열 때만 100등까지. 받은 것은 10분 동안 기기에 두고 다시 받지 않는다.
+const NET = { rows: null, total: 0, at: 0, n: 0, busy: false, err: false, myRank: 0, rankFor: 0 }, NET_KEY = 'ai-glasses-ranks', NET_TTL = 600;
+function netOn() { const o = CONFIG.online; return !!(o && o.url && o.key); }
+function netRpc(fn, body) { const o = CONFIG.online; return fetch(`${o.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: o.key, Authorization: `Bearer ${o.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => { if (!r.ok) return r.json().catch(() => ({})).then(j => { const e = new Error('net ' + r.status); e.bad = r.status === 400 && /^bad /.test(String(j && j.message || '')); throw e; }); return r.json(); }); } /* bad: 서버가 기록 자체를 거절함(다시 내도 소용없음) */
+function netCache() { if (NET.rows || !netOn()) return; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c && Array.isArray(c.rows)) { NET.rows = c.rows; NET.total = c.total || c.rows.length; NET.at = c.at || 0; NET.n = c.n || c.rows.length; } } catch (_) { } }
+function netLoad(n, force) { // n등까지 받는다. 이미 그만큼 받았고 10분이 안 지났으면 받지 않는다
+  netCache(); const t = Date.now() / 1000; if (!netOn() || NET.busy || (!force && NET.rows && NET.n >= n && t - NET.at < NET_TTL)) return; NET.busy = true;
+  netRpc('top_records', { p_limit: n }).then(d => { NET.rows = (d.rows || []).filter(x => x && x.t > 0).map(x => ({ name: [...String(x.name || '익명')].slice(0, 8).join(''), t: Number(x.t) })); NET.total = Math.max(Number(d.total) || 0, NET.rows.length); NET.at = t; NET.n = n; NET.err = false; netRetry();
+    try { localStorage.setItem(NET_KEY, JSON.stringify({ rows: NET.rows, total: NET.total, at: NET.at, n })); } catch (_) { } }).catch(() => { NET.err = true; NET.at = t - NET_TTL + 60; }).finally(() => { NET.busy = false; }); // 실패하면 1분 뒤에 다시
+}
+function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는 데 성공했을 때(서버가 살아 있을 때) 이름까지 쓴 기록 가운데 아직 못 올린 것을 하나씩 낸다
+  if (!netOn() || NET.retry) return; const rec = loadRecords().find(r => r.named && !r.up && !r.rej); if (!rec) return;
+  const mark = f => { const a = loadRecords(), m = a.find(r => r.id === rec.id); if (m) { f(m); writeRecords(a); } };
+  if (!rec.splits) { mark(m => { m.rej = true; }); netRetry(); return; } /* 구간 기록이 없는 옛 기록은 서버가 받지 않는다 */
+  NET.retry = true;
+  netRpc('submit_record', { p_name: rec.name, p_t: rec.t, p_exams: rec.exams || 0, p_caught: rec.caught || 0, p_splits: rec.splits, p_ver: 2 })
+    .then(d => { mark(m => { m.up = true; if (d && d.rank) m.rank = Number(d.rank); if (d && d.name) m.name = d.name; }); return true; })
+    .catch(e => { if (e && e.bad) { mark(m => { m.rej = true; }); return true; } return false; }) /* 거절이면 접고, 통신 실패면 다음 기회에 */
+    .then(next => { NET.retry = false; if (next) netRetry(); });
+}
+function netRank(t) { if (!netOn() || NET.rankFor === t) return; NET.rankFor = t; netRpc('rank_of', { p_t: t }).then(r => { NET.myRank = Number(r) || 0; }).catch(() => { NET.rankFor = 0; }); }
+function netSubmit(rec) { // 내 기록을 서버의 등록 함수에 낸다. 서버가 시간·응시 횟수·구간 기록을 검사하고, 이름을 걸러서 등수와 함께 돌려준다
+  return netRpc('submit_record', { p_name: rec.name, p_t: rec.t, p_exams: rec.exams || 0, p_caught: rec.caught || 0, p_splits: rec.splits || null, p_ver: 2 }).then(d => { NET.myRank = Number(d.rank) || 0; NET.rankFor = rec.t; netLoad(100, true); return d; });
+}
+const BAD_NAMES = ['시발', '씨발', '씨바', '시바', '병신', '븅신', '좆', '존나', '졸라', '개새', '새끼', '지랄', '느금', '니애미', '애미', '애비', '창녀', '걸레', '섹스', '자지', '보지', '강간', '자살', '일베', 'fuck', 'shit', 'sex', 'bitch', 'dick', 'pussy', 'nigg', 'rape'];
+function anonName(seed) { return '익명' + String(Math.abs(Math.floor(seed)) % 10000).padStart(4, '0'); }
+function cleanName(v) { return [...String(v || '').replace(/[^0-9A-Za-z가-힣ㄱ-ㅎㅏ-ㅣ]/g, '')].slice(0, 8).join(''); } // 한글·영문·숫자만, 8자까지
+function safeName(v, seed) { const n = cleanName(v).replace(/[ㄱ-ㅎㅏ-ㅣ]/g, ''), low = n.toLowerCase(); return !n || BAD_NAMES.some(w => low.includes(w)) ? anonName(seed) : n; } // 비었거나 금칙어면 익명 + 번호
+function rankRows() { // 석차표에 올릴 줄. me: 내 기록, rank: 받아 온 목록 밖에 있을 때의 등수
+  const a = loadRecords(), mine = a.find(r => r.id === G.run.rec) || a[0], typing = STATE.rin && STATE.rin.phase === 'type';
+  if (params.get('ranks')) return ['김수험', '답안봇최고', '계단왕', '뇌임플란트', '고시원장', '만점자', '지우개액정', '필통속폰', '군용렌즈', '재시험통과', '창턱고양이', '초콜릿참기', '나', '조사관'].map((name, i) => ({ name, t: 662 + i * 37 + (i * i) % 11, me: name === '나' })); // check only
+  if (netOn() && NET.rows) {
+    const rows = NET.rows.map(r => ({ name: r.name, t: r.t })); netLoad(STATE.rank && STATE.rank.open || STATE.rin ? 100 : 30);
+    if (mine) { const i = typing ? -1 : rows.findIndex(r => r.name === mine.name && r.t === mine.t);
+      if (i >= 0) rows[i].me = true; else { rows.push({ name: mine.name, t: mine.t, me: true }); rows.sort((x, y) => x.t - y.t); const k = rows.findIndex(r => r.me); if (k >= NET.rows.length && NET.total > NET.rows.length) { if (STATE.rin || (STATE.rank && STATE.rank.open)) netRank(mine.t); rows[k].rank = (NET.rankFor === mine.t && NET.myRank) || mine.rank || NET.total + 1; } /* 목록 밖이면 등록 때 받은 등수를 쓰고, 석차표를 열었을 때만 다시 묻는다 */ } }
+    return rows;
+  }
+  if (netOn()) netLoad(30);
+  return a.map(r => ({ name: r.name || '나', t: r.t, me: r === mine }));
+}
+function rankTotal(rows) { return netOn() && NET.rows ? Math.max(NET.total, rows.length) : rows.length; }
+function startRankIn() { // 엔딩 뒤: 석차표에서 내 자리에 이름을 써 넣는다
+  const recs = loadRecords(), me = recs.find(r => r.id === G.run.rec); if (!me) { G.endSeen = true; save(); goHub(null); return; }
+  const el = document.getElementById('nameIn'); el.value = me.name && me.name !== '나' ? me.name : '';
+  STATE.rin = { phase: me.named ? 'done' : 'type', t: 0, name: el.value, msg: '' }; scene = 'rankin'; ptrs.clear(); if (netOn()) netLoad(100);
+}
+function updateRankIn(dt) {
+  const RI = STATE.rin, el = document.getElementById('nameIn'), taps = takeTaps(); takeReleases(); RI.t += dt;
+  const leave = () => { el.blur(); STATE.rin = null; G.endSeen = true; save(); goHub(null); };
+  const key = (() => { for (const [x, y] of taps) { const b = hitBtn(BTNS, x, y); if (b) return b.key; } return null; })();
+  if (RI.phase === 'type') {
+    if (el.value !== cleanName(el.value)) el.value = cleanName(el.value); RI.name = el.value;
+    if (document.activeElement !== el && !('ontouchstart' in window)) { try { el.focus({ preventScroll: true }); } catch (_) { } }
+    const done = skip => { const recs = loadRecords(), me = recs.find(r => r.id === G.run.rec); el.blur(); if (!me) { leave(); return; }
+      me.name = safeName(skip ? '' : RI.name, me.id); me.named = true; RI.name = me.name; writeRecords(recs); // 이름 없이 넘겨도 "익명 + 번호"로 등재한다
+      const ok = skip ? '이름 없이 등록되었습니다' : '등록되었습니다';
+      if (netOn()) { RI.phase = 'send'; RI.t = 0; netSubmit(me).then(d => { const r2 = loadRecords(), m2 = r2.find(r => r.id === G.run.rec); if (m2) { m2.up = true; if (d && d.rank) m2.rank = Number(d.rank); if (d && d.name) { m2.name = d.name; RI.name = d.name; } writeRecords(r2); } RI.msg = ok; }).catch(e => { if (e && e.bad) { const r2 = loadRecords(), m2 = r2.find(r => r.id === G.run.rec); if (m2) { m2.rej = true; writeRecords(r2); } } RI.msg = '서버에 올리지 못했어요 · 이 기기에는 저장됨'; }).finally(() => { if (STATE.rin === RI) { RI.phase = 'done'; RI.t = 0; } }); }
+      else { RI.phase = 'done'; RI.t = 0; RI.msg = ok; }
+      sfx.ai(); };
+    if (key === 'rin:ok' || pressed('Enter')) done(false); else if (key === 'rin:skip' || pressed('Escape')) done(true);
+  } else if (RI.phase === 'done') { if (RI.t > 0.4 && (key === 'rin:go' || pressed('Enter') || pressed('Space'))) leave(); }
 }
 function endingInfo() {
   const recs = loadRecords(), rank = recs.findIndex(r => r.id === G.run.rec) + 1;
@@ -269,6 +332,7 @@ const down = new Set(), hit = new Set();
 const pressed = code => hit.has(code); // true for one step after the key goes down
 let lastLookKey = null;
 addEventListener('keydown', e => {
+  if (e.target && e.target.id === 'nameIn') { if (!e.isComposing && (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Escape')) hit.add(e.code === 'Escape' ? 'Escape' : 'Enter'); return; } /* 이름을 치는 동안 게임 단축키는 쉰다 */
   if (dlgOpen()) { if (e.code === 'Escape') closeDialog(); return; } // 글자 창이 열려 있으면 게임은 키를 받지 않는다
   startAudio();
   if (!e.repeat) {
@@ -288,6 +352,7 @@ let releases = [];
 function toBuf(e) { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) / r.width * EXAM_LAYOUT.W, (e.clientY - r.top) / r.height * EXAM_LAYOUT.H]; }
 canvas.addEventListener('pointerdown', e => {
   startAudio();
+  if (scene === 'rankin' && STATE.rin && STATE.rin.phase === 'type') { try { document.getElementById('nameIn').focus({ preventScroll: true }); } catch (_) { } } /* 휴대폰 자판은 누른 순간에만 띄울 수 있다 */
   const [x, y] = toBuf(e), W = EXAM_LAYOUT.W, z = EXAM_LAYOUT.zone;
   ptr.taps.push([x, y]);
   ptrs.set(e.pointerId, { x, y, t0: performance.now() / 1000, moved: 0, zone: x < W * z ? 'L' : x > W * (1 - z) ? 'R' : y < EXAM_LAYOUT.H * 0.2 ? 'T' : 'C' });
@@ -1163,17 +1228,31 @@ const scenes = {
     },
   },
   title: {
-    update() {
+    update(dt) {
       takeReleases(); titleExam();
+      const RK = STATE.rank || (STATE.rank = { open: false, k: 0, page: 0 }), taps = takeTaps();
+      RK.k = clamp(RK.k + (RK.open ? 1 : -1) * dt / 0.6, 0, 1); // 석차표: 화면은 그대로, 글자만 0.6초에 걸쳐 바뀐다
       const start = () => { const T0 = STATE.titleE; STATE.titleE = null; if (G.stats.exams > 0) { E = null; goHub(null); } else leaveTitle(T0); };
-      if (takeTaps().length) { start(); return; }
-      if (pressed('Enter') || pressed('Space')) start();
+      let key = null; for (const [x, y] of taps) { const h = (BTNS || []).find(q => x >= q.x && x <= q.x + q.w && y >= q.y && y <= q.y + q.h); if (h) key = h.key; }
+      if (RK.open) {
+        if (key === 'rank:close' || pressed('Escape') || pressed('Backspace')) { RK.open = false; sfx.flip(); }
+        else if (key === 'rank:up' || pressed('ArrowUp')) { RK.page = Math.max(0, RK.page - 1); sfx.turn(); }
+        else if (key === 'rank:down' || pressed('ArrowDown')) { RK.page = Math.min(Math.max(0, Math.ceil(rankRows().length / 10) - 1), RK.page + 1); sfx.turn(); }
+        return;
+      }
+      if (RK.k > 0) return;
+      if (key === 'rank:open' || pressed('KeyR')) { RK.open = true; RK.page = 0; sfx.news(); if (netOn()) netLoad(100); return; }
+      if (key === 'start' || pressed('Enter') || pressed('Space')) start();
     },
     draw(B) {
       titleExam(); WORLD.renderExam(E, now); // 타이틀: 첫 시험장의 내 책상. 안경이 답을 잡은 순간
-      const recs = loadRecords();
-      BTNS = drawTitle(B.k, B.L, now, G.stats.exams > 0, { best: recs.length ? `${recs[0].name} ${fmtRun(recs[0].t)}` : '', ios: STATE.ios && !STATE.standalone });
+      const recs = loadRecords(), RK = STATE.rank || { k: 0, page: 0 };
+      BTNS = drawTitle(B.k, B.L, now, G.stats.exams > 0, { best: recs.length ? `${recs[0].name} ${fmtRun(recs[0].t)}` : '', ios: STATE.ios && !STATE.standalone, rank: (rows => ({ k: RK.k, page: RK.page, rows, total: rankTotal(rows), online: netOn() && !!NET.rows }))(rankRows()) });
     },
+  },
+  rankin: {
+    update(dt) { updateRankIn(dt); },
+    draw(B) { const rows = rankRows(); B.k.R(0, 0, B.L.W, B.L.H, '#04140a'); BTNS = drawRankIn(B.k, B.L, now, STATE.rin, rows, rankTotal(rows), netOn()); },
   },
   hub: {
     update(dt) { updateHub(dt); },
@@ -1236,8 +1315,8 @@ const scenes = {
       const ready = STATE.endT > ENDING_STATS, taps = takeTaps();
       if (!ready) { if ((taps.length || pressed('Enter') || pressed('Space')) && STATE.endT > 1.5) STATE.endT = ENDING_STATS; return; }
       const act = key => {
-        if (key === 'continue') { G.endSeen = true; save(); goHub(null); }
-        else if (key === 'name') askName();
+        if (key === 'continue') { const me = loadRecords().find(r => r.id === G.run.rec); if (me && !me.named) startRankIn(); else { G.endSeen = true; save(); goHub(null); } } // 처음이면 석차표에 이름부터 남긴다
+        else if (key === 'name') startRankIn();
         else if (key === 'wipe') { if (STATE.wipeArm > 0) wipe(); else STATE.wipeArm = 2.5; }
       };
       for (const [x, y] of taps) { const b = hitBtn(BTNS, x, y); if (b) { act(b.key); return; } }
@@ -1248,7 +1327,7 @@ const scenes = {
     draw(B) {
       const et = STATE.endT || 0, shot = endShotAt(et);
       if (WORLD.ok) { if (shot) WORLD.renderTableau(shot.kind, now); else WORLD.renderEnding(et - END_T.me + 1.2, now); }
-      BTNS = drawEnding(B.k, B.L, G, now, hudSet(), Object.assign(endingInfo(), { t: STATE.endT || 0, world: WORLD.ok }));
+      BTNS = drawEnding(B.k, B.L, G, now, hudSet(), Object.assign(endingInfo(), { t: STATE.endT || 0, world: WORLD.ok, named: !!(loadRecords().find(r => r.id === G.run.rec) || {}).named }));
       if (STATE.wipeArm > 0) B.k.TO('한 번 더 누르면 저장을 지우고 새 타임어택 (기록은 남아요)', B.L.W / 2, B.L.H - 58, 11, PAL.warn);
     },
   },
@@ -1343,6 +1422,8 @@ if (params.get('lamps')) G.lamps = clamp(Number(params.get('lamps')), 0, 3); // 
 if (params.get('tvn')) { const T0 = TIERS[Number(params.get('tier')) || 6]; G.tv.push({ 1: { tag: '사회', h: `${T0.name} 사상 첫 만점자 나왔다`, s: '출제위원 "만점이 나올 수 없게 낸 시험인데…"', icon: 'room', cap: '자료 화면 · 시험장' }, 2: { tag: '속보', h: '잇따른 만점… 당국 "전수조사 검토"', s: `${T0.name}에서도 만점 · 같은 수험번호`, icon: 'paper', cap: '자료 화면 · 답안지' }, 3: { tag: '속보', h: '"AI 안경으로 시험 본다" 익명 제보', s: '제보자 "장비 판 사람이 나… 돈을 안 주더라"', icon: 'tip', cap: '제보 영상 · 모자이크' }, 4: { tag: '속보', h: '"AI 안경 부정 응시" 수험생 검거', s: `${T0.name} 합격 취소 · 벌금 1,200,000원`, icon: 'cuffs', cap: '현장 화면' }, 5: { tag: '사회', h: '재검증 결과 "이상 없음"', s: `${T0.name} 만점자, 조사관 앞에서 다시 풀어 통과`, icon: 'stamp', cap: '자료 화면 · 판정' } }[params.get('tvn')]); }
 if (params.get('audit') || scene === 'probe') { const ti = Number(params.get('tier')) || 6; G.audit = { tier: ti, tierName: TIERS[ti].name, reward: 1200000, mail: null }; G.unlocked = Math.max(G.unlocked, ti + 1); }
 if (params.get('guide')) { const n = Number(params.get('guide')); if (n >= 2) { G.hints.scan = true; G.hints.pick = true; } if (n >= 3) G.hints.front = true; if (n >= 4) G.hints.look = true; } // check only: 조작 안내 단계
+if (scene === 'rankin') { G.run.t = 1107; G.stats.exams = 31; G.stats.caught = 2; addRecord(); startRankIn(); if (params.get('name')) { document.getElementById('nameIn').value = params.get('name'); } if (params.get('phase') === 'done') { STATE.rin.phase = 'done'; STATE.rin.msg = '등록되었습니다'; } }
+if (params.get('ranks') === '2') STATE.rank = { open: true, k: 1, page: 0 }; else if (params.get('ranks') === '3') STATE.rank = { open: true, k: 0.45, page: 0 };
 if (params.get('choco')) { G.flags.leet = true; if (params.get('choco') === '1') STATE.hv.chocoT = 0.4; STATE.say = { text: '…참자. 단맛을 억제하는 게 좋다고 그랬어.', t: 0 }; }
 if (params.get('tip')) { G.flags.tip = true; STATE.tipAmount = 6400000; }
 if (scene === 'probe') { startProbe(); const P = STATE.probe; P.phase = params.get('phase') || 'in'; P.t = Number(params.get('t')) || 0; P.qi = Number(params.get('q')) || 0; if (P.phase !== 'in' && P.phase !== 'play') { P.qi = 4; P.correct = P.phase === 'fail' ? 1 : 4; } if (params.get('pick')) P.mark = { c: 1, t: 9 }; }

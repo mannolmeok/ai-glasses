@@ -321,6 +321,8 @@ window.CONFIG = {
     { id: 'offbeat', name: '엇박자 칩', group: 'glass', unlock: 23, caps: [0, 0, 2], mult: 3, step: 0.5, ladder: ['엇박자 칩', '무작위 신경 칩'] },
   ],
   // 대리 응시는 사람 수에 따라 이름이 바뀐다: [몇 명부터, 이름]
+  // 온라인 석차표(Supabase). 둘 다 비어 있으면 이 기기의 기록만 쓴다. key는 공개용(anon) 키만 넣는다
+  online: { url: 'https://ihuuplhpyjnvxsmqdxjs.supabase.co', key: 'sb_publishable_L01UcbYFw98DcsPKhjTI7g_292HWyyn' },
   bot_names: [[1, '대리 응시 챗봇'], [10, '로봇청소기 개조'], [25, '대리 응시 안드로이드'], [50, '내 클론'], [100, '평행우주의 나']],
   bot_milestones: [10, 25, 50, 100], // 대리 응시가 이 인원을 넘을 때마다 수입 x2
 };
