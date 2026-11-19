@@ -638,7 +638,7 @@ function drawExamOverlays(k, L, E, now, H) {
       b.strokeStyle = '#ffffff'; b.lineWidth = 5.2; b.beginPath(); b.arc(x, y, 34.1, 0, 7); b.stroke(); b.restore();
       if (arrow) k.SUB(arrow, x, y + 1, 31, '#ffffff', 'center'); };
     const cap = str => k.SUB(str, W / 2, HH - 30, 22, '#ffffff', 'center');
-    if (gd.k === 'hold') { if (!gd.on) spot(150, 216, null); /* 흰 시험지 위에서는 흰 고리가 안 보여서 책상 나무 위에 둔다 */ cap('책상을 꾹 누르면 안경이 문제를 읽는다'); }
+    if (gd.k === 'hold') { if (!gd.on) { b.save(); b.shadowColor = 'rgba(0,0,0,0.55)'; b.shadowBlur = 4 * HUD_SCALE; spot(372, 196, null); b.restore(); } /* 가운데에서 살짝 오른쪽. 흰 시험지 위라 이 고리에만 옅은 그림자 */ cap('책상을 꾹 누르면 안경이 문제를 읽는다'); }
     else if (gd.k === 'up') { spot(W / 2, 43, '↑'); cap('화면 위쪽을 누르면 정면을 본다'); }
     else if (gd.k === 'sides') { spot(51, 173, '←'); spot(W - 51, 173, '→'); cap('양옆을 누르면 그쪽으로 고개를 돌린다'); }
     else if (gd.k === 'end') cap('감독관이 볼 때는 손을 뗀다. 이제 시작!');

@@ -103,9 +103,12 @@ function addMoney(v, tag, text, col) {
 function shopItems(tab) {
   if (tab === 'model') return CONFIG.models.map((m, i) => ({ m, i, fresh: !!G.fresh.model && i === G.gear.model + 1 })).filter(o => modelOpen(o.i)).reverse();
   const open = CONFIG.gear.filter(d => gearOpen(d) && gearCap(d) > 0);
-  return tab === 'new' ? open.filter(d => G.fresh[d.id]) : open.filter(d => d.group === tab);
+  if (tab !== 'new') return open.filter(d => d.group === tab);
+  const nm = G.gear.model + 1; // 신상 탭: 새로 들어온 장비 + 새로 나온 AI 모델
+  return (modelNew() ? [{ m: CONFIG.models[nm], i: nm, fresh: true }] : []).concat(open.filter(d => G.fresh[d.id]));
 }
-function shopNewCount() { return Object.keys(G.fresh).length; }
+function modelNew() { return !!G.fresh.model && modelOpen(G.gear.model + 1); } // 아직 안 본 새 AI 모델이 있나
+function shopNewCount() { return shopItems('new').length; } // 신상 탭에 실제로 뜨는 것만 센다 (새 장비 + 새 AI 모델)
 function phoneUnread() { return Math.max(0, G.news.length - G.seen); }
 function markShown(id) { STATE.shownIds.add(id); }
 function addNews(kind, text) { G.news.push({ kind, text, t: Math.floor(G.run.t) }); if (G.news.length > 60) { const cut = G.news.length - 60; G.news.splice(0, cut); G.seen = Math.max(0, G.seen - cut); } }
@@ -957,7 +960,7 @@ function enterView(v, instant) {
 }
 function leaveView() { // 방으로 물러난 뒤: 본 신상은 NEW를 떼고, 주문한 게 있으면 택배가 온다
   const hv = STATE.hv, v = hv.view;
-  if (v === 'laptop') { for (const id of STATE.shownIds) delete G.fresh[id]; STATE.shownIds.clear(); if (hv.order.length && !hv.parcel) hv.parcelT = 0.7; }
+  if (v === 'laptop') { for (const id of STATE.shownIds) delete G.fresh[id]; STATE.shownIds.clear(); for (const id of Object.keys(G.fresh)) if (id !== 'model' && !shopItems('new').some(d => d.id === id)) delete G.fresh[id]; /* 진열되지 않는 신상 표시는 지운다 */ if (hv.order.length && !hv.parcel) hv.parcelT = 0.7; }
   if (v === 'phone') G.seen = G.news.length;
   if (v === 'tv') G.tvSeen = G.tv.length;
   if (v === 'mail') { if (G.mail) G.mail = null; else if (G.audit) { hv.view = 'room'; hv.zoom = 0; startProbe(); return; } } // 읽은 통지표는 치운다. 재시험 통보를 내려놓으면 바로 조사실로

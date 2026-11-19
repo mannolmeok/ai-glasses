@@ -95,7 +95,7 @@ const HUBUI = (() => {
     const items = list.slice(hv.page * per, hv.page * per + per), top = 58, cw = 190, ch = 150;
     if (!list.length) { T(hv.tab === 'new' ? '새로 들어온 상품이 없어요' : '아직 입고된 상품이 없어요', LW / 2, 120, 15, '#5a6474', 'center', 800); T('시험에 처음 합격하면 신상이 들어와요', LW / 2, 144, 11, '#8a94a4', 'center', 700); }
     items.forEach((it, i) => {
-      const cx = 6 + i * (cw + 8), cy = top, isModel = hv.tab === 'model';
+      const cx = 6 + i * (cw + 8), cy = top, isModel = !!it.m;
       let id, name, sub, eff, isNew, label, key, off, state = '';
       if (isModel) {
         const m = it.m, cur = G.gear.model === it.i, owned = G.gear.model > it.i, next = G.gear.model + 1 === it.i, cost = modelCost(it.i), ok = G.money >= cost;
