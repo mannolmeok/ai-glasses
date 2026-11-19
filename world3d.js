@@ -1262,9 +1262,8 @@ const WORLD = (() => {
     plane(sc, 0.4, 0.2, new THREE.MeshBasicMaterial({ map: sign.t, fog: false }), -0.84, top + 1.9, zt - 0.6, 0, Math.PI / 2);
     const exit = canvasTex(128, 64, false); { const g = exit.g; g.fillStyle = '#1c8a4a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.font = `800 22px ${FONT}`; g.textAlign = 'center'; g.fillText('2F 고사실', 64, 40); exit.t.needsUpdate = true; }
     plane(sc, 0.5, 0.25, new THREE.MeshBasicMaterial({ map: exit.t, fog: false }), 0, 2.2, 2.44, 0, Math.PI);
-    // 계단 끝 창턱에 앉은 작은 검은 고양이
-    bx(sc, 1.04, 0.04, 0.16, 0x8f8a7e, 0, top + 1.33, zt - 1.6); // 창턱
-    const cat = pivot(sc, 0.24, top + 1.35, zt - 1.58), ck = 0x0c0c10; cat.rotation.y = 0.35; cat.scale.setScalar(1.25);
+    // 계단 끝 위층 바닥 안쪽 구석에 앉은 작은 검은 고양이 (오르는 내내, 다 올라서도 보이는 자리)
+    const cat = pivot(sc, -0.5, top, zt - 1.35), ck = 0x0c0c10; cat.rotation.y = 0.3; cat.scale.setScalar(1.5);
     bx(cat, 0.1, 0.13, 0.13, ck, 0, 0.065, 0); bx(cat, 0.085, 0.05, 0.05, ck, 0, 0.025, 0.07);
     const chead = pivot(cat, 0, 0.16, 0.035); bx(chead, 0.095, 0.08, 0.08, ck, 0, 0.02, 0); for (const s of [-1, 1]) { bx(chead, 0.028, 0.035, 0.02, ck, s * 0.032, 0.072, 0); bx(chead, 0.016, 0.014, 0.004, 0, s * 0.022, 0.028, 0.041, glowMat(0xffd83a)); }
     const ctail = pivot(cat, 0.04, 0.02, -0.06); bx(ctail, 0.022, 0.022, 0.14, ck, 0, 0, -0.07); bx(ctail, 0.022, 0.07, 0.022, ck, 0, 0.035, -0.14);
@@ -1279,7 +1278,7 @@ const WORLD = (() => {
     c.position.set((S.last === 'L' ? -0.05 : 0.05) * (run ? 1 : 0) + (S.stumble > 0 ? Math.sin(now * 60) * 0.03 : 0), ST.i * ST_H + 1.52 + bob, -ST.i * ST_D + 0.55);
     c.rotation.set(ST.pitch + (S.stumble > 0 ? -0.12 : 0), ST.yaw, run ? (S.last === 'L' ? 0.035 : -0.035) : 0);
     const fov = run ? 78 : 70; if (Math.abs(c.fov - fov) > 0.5) { c.fov += (fov - c.fov) * 0.2; c.updateProjectionMatrix(); }
-    ST.ctail.rotation.y = Math.sin(now * 1.7) * 0.5; ST.chead.rotation.y = clamp((c.position.x - ST.cat.position.x) * 0.9, -0.8, 0.8) - 0.35; ST.chead.rotation.z = Math.sin(now * 0.6) > 0.94 ? 0.25 : 0; // 꼬리를 흔들고, 올라오는 나를 눈으로 따라온다
+    ST.ctail.rotation.y = Math.sin(now * 1.7) * 0.5; ST.chead.rotation.y = clamp((c.position.x - ST.cat.position.x) * 0.9, -0.8, 0.8) - 0.3; ST.chead.rotation.z = Math.sin(now * 0.6) > 0.94 ? 0.25 : 0; // 꼬리를 흔들고, 올라오는 나를 눈으로 따라온다
     c.updateMatrixWorld(); draw(ST.scene, c, now);
   }
 
