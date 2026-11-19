@@ -63,7 +63,7 @@ function rewardAt(x) { // x번째 시험의 문제당 상금. 사이 값은 등�
 }
 function gearDef(id) { return CONFIG.gear.find(g => g.id === id); }
 function actIndex() { return TIERS[G.unlocked - 1].act - 1; }      // 지금 도달한 막 (0부터)
-function gearCap(d) { return d.caps[actIndex()]; }                 // 이번 막에서 살 수 있는 최고 단계
+function gearCap(d) { const c = d.caps[actIndex()]; return d.gate && !G.cleared[d.gate.tier] ? Math.min(c, d.gate.lv) : c; }                 // 이번 막에서 살 수 있는 최고 단계
 function gearMax(d) { return d.caps[d.caps.length - 1]; }
 function gearOpen(d) { return d.unlock < 0 || !!G.cleared[d.unlock]; }
 function gearName(id, lv) { const d = gearDef(id); return d.ladder ? d.ladder[clamp(lv, 1, d.ladder.length) - 1] : d.name; }
@@ -164,14 +164,14 @@ function addRecord() { // 엔딩에 처음 닿은 순간의 기록
 }
 // ---- 온라인 석차표: 서버(Supabase)가 정해져 있으면 전체 기록, 아니면 이 기기의 기록 ----
 // 전송량을 아낀다: 타이틀의 흐르는 줄은 30등까지만, 석차표를 열 때만 100등까지. 받은 것은 10분 동안 기기에 두고 다시 받지 않는다.
-const NET = { rows: null, total: 0, at: 0, n: 0, busy: false, err: false, myRank: 0, rankFor: 0 }, NET_KEY = 'ai-glasses-ranks', NET_TTL = 600;
+const NET = { rows: null, total: 0, plays: 0, at: 0, n: 0, busy: false, err: false, myRank: 0, rankFor: 0 }, NET_KEY = 'ai-glasses-ranks', NET_TTL = 600;
 function netOn() { const o = CONFIG.online; return !!(o && o.url && o.key); }
 function netRpc(fn, body) { const o = CONFIG.online; return fetch(`${o.url}/rest/v1/rpc/${fn}`, { method: 'POST', headers: { apikey: o.key, Authorization: `Bearer ${o.key}`, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(r => { if (!r.ok) return r.json().catch(() => ({})).then(j => { const e = new Error('net ' + r.status); e.bad = r.status === 400 && /^bad /.test(String(j && j.message || '')); throw e; }); return r.json(); }); } /* bad: 서버가 기록 자체를 거절함(다시 내도 소용없음) */
-function netCache() { if (NET.rows || !netOn()) return; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c && Array.isArray(c.rows)) { NET.rows = c.rows; NET.total = c.total || c.rows.length; NET.at = c.at || 0; NET.n = c.n || c.rows.length; } } catch (_) { } }
+function netCache() { if (NET.rows || !netOn()) return; try { const c = JSON.parse(localStorage.getItem(NET_KEY) || 'null'); if (c && Array.isArray(c.rows)) { NET.rows = c.rows; NET.total = c.total || c.rows.length; NET.plays = c.plays || 0; NET.at = c.at || 0; NET.n = c.n || c.rows.length; } } catch (_) { } }
 function netLoad(n, force) { // n등까지 받는다. 이미 그만큼 받았고 10분이 안 지났으면 받지 않는다
   netCache(); const t = Date.now() / 1000; if (!netOn() || NET.busy || (!force && NET.rows && NET.n >= n && t - NET.at < NET_TTL)) return; NET.busy = true;
-  netRpc('top_records', { p_limit: n }).then(d => { NET.rows = (d.rows || []).filter(x => x && x.t > 0).map(x => ({ name: [...String(x.name || '익명')].slice(0, 8).join(''), t: Number(x.t) })); NET.total = Math.max(Number(d.total) || 0, NET.rows.length); NET.at = t; NET.n = n; NET.err = false; netRetry();
-    try { localStorage.setItem(NET_KEY, JSON.stringify({ rows: NET.rows, total: NET.total, at: NET.at, n })); } catch (_) { } }).catch(() => { NET.err = true; NET.at = t - NET_TTL + 60; }).finally(() => { NET.busy = false; }); // 실패하면 1분 뒤에 다시
+  netRpc('top_records', { p_limit: n }).then(d => { NET.rows = (d.rows || []).filter(x => x && x.t > 0).map(x => ({ name: [...String(x.name || '익명')].slice(0, 8).join(''), t: Number(x.t) })); NET.total = Math.max(Number(d.total) || 0, NET.rows.length); NET.plays = Number(d.plays) || 0; NET.at = t; NET.n = n; NET.err = false; netRetry();
+    try { localStorage.setItem(NET_KEY, JSON.stringify({ rows: NET.rows, total: NET.total, plays: NET.plays, at: NET.at, n })); } catch (_) { } }).catch(() => { NET.err = true; NET.at = t - NET_TTL + 60; }).finally(() => { NET.busy = false; }); // 실패하면 1분 뒤에 다시
 }
 function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는 데 성공했을 때(서버가 살아 있을 때) 이름까지 쓴 기록 가운데 아직 못 올린 것을 하나씩 낸다
   if (!netOn() || NET.retry) return; const rec = loadRecords().find(r => r.named && !r.up && !r.rej); if (!rec) return;
@@ -182,6 +182,11 @@ function netRetry() { // 못 올린 기록 다시 올리기: 석차표를 받는
     .then(d => { mark(m => { m.up = true; if (d && d.rank) m.rank = Number(d.rank); if (d && d.name) m.name = d.name; }); return true; })
     .catch(e => { if (e && e.bad) { mark(m => { m.rej = true; }); return true; } return false; }) /* 거절이면 접고, 통신 실패면 다음 기회에 */
     .then(next => { NET.retry = false; if (next) netRetry(); });
+}
+const PLAY_KEY = 'ai-glasses-played';
+function netCountPlay() { // 이 기기가 처음으로 시험을 시작할 때 한 번: 응시자 수에 1을 더한다. 실패하면 다음에 게임을 열었을 때 다시
+  if (!netOn() || NET.counted) return; NET.counted = true; try { if (localStorage.getItem(PLAY_KEY)) return; } catch (_) { return; }
+  netRpc('count_play', {}).then(() => { try { localStorage.setItem(PLAY_KEY, '1'); } catch (_) { } NET.plays = (NET.plays || 0) + 1; }).catch(() => { });
 }
 function netRank(t) { if (!netOn() || NET.rankFor === t) return; NET.rankFor = t; netRpc('rank_of', { p_t: t }).then(r => { NET.myRank = Number(r) || 0; }).catch(() => { NET.rankFor = 0; }); }
 function netSubmit(rec) { // 내 기록을 서버의 등록 함수에 낸다. 서버가 시간·응시 횟수·구간 기록을 검사하고, 이름을 걸러서 등수와 함께 돌려준다
@@ -203,7 +208,7 @@ function rankRows() { // 석차표에 올릴 줄. me: 내 기록, rank: 받아 �
   if (netOn()) netLoad(30);
   return a.map(r => ({ name: r.name || '나', t: r.t, me: r === mine }));
 }
-function rankTotal(rows) { return netOn() && NET.rows ? Math.max(NET.total, rows.length) : rows.length; }
+function rankTotal(rows) { return netOn() && NET.rows ? Math.max(NET.plays || 0, NET.total, rows.length) : rows.length; } // 응시자 수 = 게임을 플레이한 사람 수 (서버가 세지 않으면 등재된 기록 수)
 function startRankIn() { // 엔딩 뒤: 석차표에서 내 자리에 이름을 써 넣는다
   const recs = loadRecords(), me = recs.find(r => r.id === G.run.rec); if (!me) { G.endSeen = true; save(); goHub(null); return; }
   const el = document.getElementById('nameIn'); el.value = me.name && me.name !== '나' ? me.name : '';
@@ -491,7 +496,7 @@ function beginPart(p, firstEver) { // 교시·모듈·블록 하나를 시작
 }
 function startExam(ti) {
   if (G.audit) { G.mail = null; goHub('mail'); return true; } // 재시험 통보가 와 있으면 다른 시험은 못 본다: 통보부터 읽게 한다
-  ti = clamp(ti, 0, G.unlocked - 1);
+  ti = clamp(ti, 0, G.unlocked - 1); if (!CHECKED) netCountPlay();
   const T = TIERS[ti], fee = examFee(T);
   if (G.money < fee) { sfx.no(); STATE.note = { text: `응시료 ${won(fee)}원이 모자라요`, t: 0 }; return false; }
   G.money -= fee; G.stats.fees += fee; STATE.shown = Math.min(STATE.shown, G.money);
@@ -757,7 +762,7 @@ function examHint() { // 첫 시험(모의평가)에서만, 한 번에 하나
   if (E.rising) return '누가 보고 있어요! 손 떼기';
   // 첫 시험의 조작 안내: 한 번에 하나씩, 해 보면 다음으로 (책상 꾹 → 위 → 양옆 → 손 떼기)
   if (!G.hints.scan) { if (E.view === 'paper') E.guide = { k: 'hold', on: E.holding }; return null; }
-  if (E.ai && !E.fb && !G.hints.pick) return E.ar ? 'AI가 고른 보기를 눌러 마킹 (1~4)' : E.gear.lens >= 2 ? '지우개 액정의 번호를 보고, 그 보기를 눌러 마킹 (1~4)' : '필통 속 폰의 번호를 보고, 그 보기를 눌러 마킹 (1~4)';
+  if (E.ai && !E.fb && !G.hints.pick) return E.ar ? 'AI가 고른 보기를 눌러 마킹 (1~4)' : E.gear.lens >= 1 ? '지우개 액정의 번호를 보고, 그 보기를 눌러 마킹 (1~4)' : '필통 속 폰의 번호를 보고, 그 보기를 눌러 마킹 (1~4)';
   if (!G.hints.front) { if (E.view === 'front') G.hints.front = true; else E.guide = { k: 'up' }; return null; }
   if (!G.hints.look) { E.guide = { k: 'sides' }; return null; }
   if (!G.hints.end) { E.guideT = (E.guideT || 0) + 1 / 60; if (E.guideT > 3.6) G.hints.end = true; else if (E.view === 'paper') E.guide = { k: 'end' }; return null; }
@@ -941,7 +946,9 @@ function unlockNews(ti) { // 처음 합격: 신상 입고, 새 AI 모델, 다음
   if (T.news) { addNews('reg', T.news); out.push('뉴스 속보'); }
   const gear = CONFIG.gear.filter(d => d.unlock === ti && d.caps[T.act - 1] > 0);
   for (const d of gear) { G.fresh[d.id] = true; addNews('shop', `신상 입고: ${d.name}${d.ladder ? ` "${d.ladder[0]}"` : ''} · ${GEAR_BLURB[d.id]}`); }
-  if (gear.length) out.push(`신상 입고 ${gear.length}종`);
+  const gated = CONFIG.gear.filter(d => d.gate && d.gate.tier === ti && G.gear[d.id] === d.gate.lv); /* 묶여 있던 다음 단계가 들어온다 */
+  for (const d of gated) { G.fresh[d.id] = true; addNews('shop', `신상 입고: ${d.name} "${gearName(d.id, d.gate.lv + 1)}"`); }
+  if (gear.length + gated.length) out.push(`신상 입고 ${gear.length + gated.length}종`);
   CONFIG.models.forEach((m, i) => { if (m.rel === ti) { G.fresh.model = true; addNews('model', `속보: ${m.name} 출시! ${m.note}. AI마켓에서 구독하세요`); out.push(`${m.name} 출시`); } });
   const nx = TIERS[ti + 1];
   if (nx && nx.act !== T.act) { // 새 막: 가진 장비의 다음 단계가 풀린다
@@ -1031,8 +1038,8 @@ function leaveView() { // 방으로 물러난 뒤: 본 신상은 NEW를 떼고, 
   if (v === 'mail') { if (G.mail) G.mail = null; else if (G.audit) { hv.view = 'room'; hv.zoom = 0; startProbe(); return; } } // 읽은 통지표는 치운다. 재시험 통보를 내려놓으면 바로 조사실로
   hv.view = 'room'; save();
 }
-function soldOut(d) { return d.id === 'lens' && G.gear.lens === 0 && !G.flags.cam; } // 초소형 카메라는 품절: 텔레그램 브로커에게서만
-function brokerCost() { return Math.ceil(gearCost('lens', 0) * tune.broker_markup); }
+function soldOut(d) { return d.id === 'lens' && G.gear.lens === 1 && !G.flags.cam && gearCap(d) > 1; } // 2단계 초소형 카메라는 품절: 텔레그램 브로커에게서만 (편입 합격 뒤에 들어온다)
+function brokerCost() { return Math.ceil(gearCost('lens', 1) * tune.broker_markup); }
 function buyGear(id, viaBroker) {
   const d = gearDef(id), lv = G.gear[id], cost = viaBroker ? brokerCost() : gearCost(id), hv = STATE.hv;
   if (d && soldOut(d) && !viaBroker) { sfx.no(); if (!G.flags.sold) { G.flags.sold = true; addNews('reg', '초소형 카메라 전국 품절. 쇼핑몰들 판매 중단 · 텔레그램에 "구해 드림" 글이 돈다'); } STATE.note = { text: '품절되었습니다', t: 0 }; save(); return; }

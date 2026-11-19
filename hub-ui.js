@@ -109,7 +109,7 @@ const HUBUI = (() => {
         if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '상위 시험에서 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
       }
       R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, off ? '#d0d5de' : '#2a8f9a', 2);
-      R(cx + 8, cy + 8, 46, 46, '#eef1f6'); drawGear(k, id, cx + 31, cy + 31, 38, 3);
+      R(cx + 8, cy + 8, 46, 46, '#eef1f6'); drawGear(k, id, cx + 31, cy + 31, 38, id === 'lens' ? Math.max(1, Math.min(G.gear.lens + 1, gearCap(gearDef('lens')))) : 3); /* 촬영·표시 장비는 카드에 적힌 단계의 그림 */
       if (isNew) { R(cx + cw - 42, cy + 4, 38, 14, '#e8453e'); T('NEW', cx + cw - 23, cy + 11, 10, C.white, 'center', 800); }
       // 이름은 그림 오른쪽에 크게, 구분선 아래 효과는 검은 글씨로 또렷하게, 지금 가진 것은 맨 아래 작게
       const nl = wrap(k, name, cw - 70, 15).slice(0, 2); nl.forEach((ln, j) => T(ln, cx + 62, cy + (nl.length > 1 ? 24 : 32) + j * 18, 15, '#12161f', 'left', 800));

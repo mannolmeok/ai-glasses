@@ -146,7 +146,7 @@ window.CONFIG = {
     // ---- 1막 대한민국 ----
     { id: 'mock', act: 1, name: '고3 6월 모의평가', subject: '국어 영역', gen: 'spell', qn: 5, time: 60, room: 'hs', sec: [], mech: ['tutorial'], fee: 0,
       staff: [{ type: 'homeroom', name: '담임 선생님' }],
-      stand: [3.6, 5.2], walk: [1.6, 2.6], tell: 1.3, watch: 1.4, speed: 0.1, cross: 0.1, feint: 0, sus: 0.6, ai: 0, reward: 200, pay: '용돈',
+      stand: [3.6, 5.2], walk: [1.6, 2.6], tell: 1.3, watch: 1.4, speed: 0.1, cross: 0.1, feint: 0, sus: 0.8, ai: 0, reward: 200, pay: '용돈',
       head: ['2026학년도 6월 고3 전국연합학력평가', '국어 영역'], lines: ['6월 모의평가', '1교시 국어 · 08:40 ~ 10:00'] },
     { id: 'suneung', act: 1, name: '대학수학능력시험', subject: '수학 영역', gen: 'eq', qn: 8, time: 100, room: 'suneung', sec: [], mech: ['metal'],
       staff: [{ type: 'suneung', name: '정감독관' }, { type: 'homeroom', name: '부감독관' }],
@@ -288,7 +288,8 @@ window.CONFIG = {
   // kind: count(대리 응시: 사람 수만큼), group: glass(안경) · device(안경 밖 AI 기기)
   gear: [
     { id: 'lens', name: '촬영·표시 장비', group: 'glass', unlock: -1, caps: [3, 5, 7], mult: 4, step: 1.5,
-      ladder: ['초소형 카메라', '지우개 액정', '중고 AI 안경', '실리콘밸리 시제품 안경', '군용 정찰 렌즈', '스마트 콘택트렌즈', '뇌 임플란트'] },
+      gate: { lv: 1, tier: 2 }, // 1단계까지만 팔다가, 2번 시험(편입)에 합격하면 2단계 초소형 카메라가 들어온다 (재고 1개 → 품절 → 텔레그램)
+      ladder: ['지우개 액정', '초소형 카메라', '중고 AI 안경', '실리콘밸리 시제품 안경', '군용 정찰 렌즈', '스마트 콘택트렌즈', '뉴럴링코'] },
     { id: 'predict', name: '시선 예측', group: 'glass', unlock: 0, caps: [2, 4, 6], mult: 3, step: 2,
       ladder: ['눈치', '사이드미러 스티커', '후방 카메라', '감독관 동선 AI', '예지몽', '1초 뒤 미래 보기'] },
     { id: 'stealth', name: '스텔스 코팅', group: 'glass', unlock: 1, caps: [2, 4, 6], mult: 3, step: 2,

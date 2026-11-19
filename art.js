@@ -206,7 +206,14 @@ function drawBot(k, x, y, t, i) {
 function drawGear(k, id, cx, cy, s, lv) {
   const { R, disc, ring, line, poly } = k, C = PAL, u = s / 24;
   const X = v => Math.round(cx + v * u), Y = v => Math.round(cy + v * u), S = v => Math.max(1, Math.round(v * u));
-  if (id === 'lens' || id === 'stealth') {
+  if (id === 'lens' && lv === 1) { // 지우개 액정: 흰 지우개에 파란 종이 띠, 그 위의 작은 화면
+    R(X(-11), Y(-6), S(22), S(12), C.ol); R(X(-10), Y(-5), S(6), S(10), '#f4f1e8'); R(X(-4), Y(-5), S(14), S(10), '#2b5f8a');
+    R(X(-2), Y(-3), S(10), S(6), '#0b0b0e'); R(X(1), Y(-2), S(4), S(1), '#7dffb0'); R(X(1), Y(0), S(4), S(1), '#7dffb0'); R(X(1), Y(2), S(4), S(1), '#7dffb0'); R(X(1), Y(-1), S(1), S(1), '#7dffb0'); R(X(4), Y(1), S(1), S(1), '#7dffb0');
+  } else if (id === 'lens' && lv === 2) { // 초소형 카메라: 셔츠 단추, 가운데 구멍이 렌즈
+    disc(X(0), Y(0), S(10), C.ol); disc(X(0), Y(0), S(9), '#e9e4d6'); disc(X(0), Y(0), S(6), '#cfc8b4');
+    disc(X(0), Y(0), S(4), C.ol); disc(X(0), Y(0), S(3), '#16202c'); disc(X(1), Y(-1), S(1), '#7fd6ff');
+    for (const [hx, hy] of [[-5, -5], [5, -5], [-5, 5], [5, 5]]) R(X(hx), Y(hy), S(1), S(1), C.ol);
+  } else if (id === 'lens' || id === 'stealth') {
     const tint = id === 'stealth' ? '#6b4fa0' : ['#bfe8ff', '#9fe0ff', '#7fd6ff', '#5fe0e8', '#45e5ee'][Math.min(4, Math.floor(lv / 2))];
     for (const sx of [-6, 6]) { disc(X(sx), Y(0), S(6), C.ol); disc(X(sx), Y(0), S(5), tint); R(X(sx - 3), Y(-3), S(2), S(1), C.white); }
     R(X(-1), Y(-1), S(2), S(1), C.ol); R(X(-12), Y(-2), S(2), S(1), C.ol); R(X(11), Y(-2), S(2), S(1), C.ol);

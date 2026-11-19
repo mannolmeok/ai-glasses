@@ -381,7 +381,7 @@ function lensGlow(side, hex) {
 
 // ---- 장비 단계별 HUD: 장비가 바뀌면 화면이 바뀐다 ----
 // case(필통 속 폰) · eraser(지우개 액정): 맨눈이라 HUD가 없다. used(중고 안경)부터 안경 HUD.
-function hudStage(E) { if (E.stageForce) return E.stageForce; const lv = E.gear.lens; if (!E.ar) return lv >= 2 ? 'eraser' : 'case'; return lv >= 7 ? 'brain' : lv >= 6 ? 'contact' : lv >= 5 ? 'mil' : lv >= 4 ? 'proto' : 'used'; }
+function hudStage(E) { if (E.stageForce) return E.stageForce; const lv = E.gear.lens; if (!E.ar) return lv >= 1 ? 'eraser' : 'case'; return lv >= 7 ? 'brain' : lv >= 6 ? 'contact' : lv >= 5 ? 'mil' : lv >= 4 ? 'proto' : 'used'; }
 const HUD_INK = { used: '#74ff8e', proto: '#7fe9ff', mil: '#ffb23a', contact: '#7fe9ff', brain: '#ffd678' };
 function choiceConf(q) { // 보기 네 개의 확신도 (고른 보기는 q.conf, 나머지는 남은 몫을 나눈다)
   const rest = 100 - q.conf, w = [0, 1, 2, 3].map(i => i === q.aiPick ? 0 : (q.elim.includes(i) ? 1 : 3) + ((i * 7 + q.aiPick * 3) % 3)), sum = w.reduce((a, b) => a + b, 0) || 1;
@@ -638,7 +638,7 @@ function drawExamOverlays(k, L, E, now, H) {
       b.strokeStyle = '#ffffff'; b.lineWidth = 5.2; b.beginPath(); b.arc(x, y, 34.1, 0, 7); b.stroke(); b.restore();
       if (arrow) k.SUB(arrow, x, y + 1, 31, '#ffffff', 'center'); };
     const cap = str => k.SUB(str, W / 2, HH - 30, 22, '#ffffff', 'center');
-    if (gd.k === 'hold') { if (!gd.on) { b.save(); b.shadowColor = 'rgba(0,0,0,0.55)'; b.shadowBlur = 4 * HUD_SCALE; spot(372, 196, null); b.restore(); } /* 가운데에서 살짝 오른쪽. 흰 시험지 위라 이 고리에만 옅은 그림자 */ cap('책상을 꾹 누르면 안경이 문제를 읽는다'); }
+    if (gd.k === 'hold') { if (!gd.on) { b.save(); b.shadowColor = 'rgba(0,0,0,0.55)'; b.shadowBlur = 4 * HUD_SCALE; spot(372, 196, null); b.restore(); } /* 가운데에서 살짝 오른쪽. 흰 시험지 위라 이 고리에만 옅은 그림자 */ cap('책상을 꾹 누르면 카메라가 문제를 읽는다'); }
     else if (gd.k === 'up') { spot(W / 2, 43, '↑'); cap('화면 위쪽을 누르면 정면을 본다'); }
     else if (gd.k === 'sides') { spot(51, 173, '←'); spot(W - 51, 173, '→'); cap('양옆을 누르면 그쪽으로 고개를 돌린다'); }
     else if (gd.k === 'end') cap('감독관이 볼 때는 손을 뗀다. 이제 시작!');
