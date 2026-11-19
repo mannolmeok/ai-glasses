@@ -953,8 +953,11 @@ const WORLD = (() => {
     bx(tv, 0.4, 0.27, 0.07, 0, 0, 0.155, 0, hm('tv', 0x2a2930)); bx(tv, 0.14, 0.02, 0.09, 0x1b1a20, 0, 0.01, 0); bx(tv, 0.012, 0.1, 0.012, 0x4a4a52, 0.13, 0.33, -0.01).rotation.z = -0.35; bx(tv, 0.012, 0.1, 0.012, 0x4a4a52, 0.09, 0.33, -0.01).rotation.z = 0.3;
     const tvT = canvasTex(640, 360, true), tvFace = plane(tv, 0.36, 0.2025, new THREE.MeshBasicMaterial({ map: tvT.t, fog: false }), 0, 0.178, 0.036);
     const tvLamps = [-1, 0, 1].map(i => { const m = glowMat(0x3a1a1c); bx(tv, 0.016, 0.016, 0.008, 0, i * 0.034, 0.05, 0.036, m); return m; });
+    // 책상 위 초콜릿: 누르면 집었다가 내려놓는다 (단맛은 참는 거라고 했다)
+    const choco = pivot(sc, -0.76, 0.762, -0.3); choco.rotation.y = 0.45; choco.userData.action = 'choco';
+    bx(choco, 0.13, 0.018, 0.055, 0x5a2c16, 0, 0.009, 0); bx(choco, 0.075, 0.02, 0.057, 0xc8302e, -0.03, 0.009, 0); bx(choco, 0.05, 0.021, 0.02, 0xf0d9a0, -0.03, 0.009, 0); for (let i = 0; i < 2; i++) bx(choco, 0.004, 0.019, 0.055, 0x3e1c0c, 0.025 + i * 0.03, 0.0095, 0);
     const cam = new THREE.PerspectiveCamera(60, RW / RH, 0.02, 30); cam.rotation.order = 'YXZ';
-    HUB.mail = mail; Object.assign(HUB, { tv, tvT, tvFace, tvLamps });
+    HUB.mail = mail; Object.assign(HUB, { tv, tvT, tvFace, tvLamps, choco });
     Object.assign(HUB, { screenT, boardT, boardFace, heldMail, mailT, mailFace, held, heldT, heldFace, scene: sc, cam, hot, cork, corkFace, shop, shopFace, camLed, phoneT, phone, sign, gear, bots, lensM, parcel, lidA, lidB, wallM, winMat, act: 1, sigs: {}, anchors: [
       ['exams', new THREE.Vector3(-0.74, 1.4, Z0 + 0.05)],
       ['gear', new THREE.Vector3(-0.42, 1.02, -0.38)],
@@ -968,7 +971,7 @@ const WORLD = (() => {
     const c = new THREE.Vector3(), n = new THREE.Vector3(), q = new THREE.Quaternion();
     const poseAt = (obj, dist, lift = 0) => { obj.updateMatrixWorld(true); obj.getWorldPosition(c); obj.getWorldQuaternion(q); n.set(0, 0, 1).applyQuaternion(q); const p = c.clone().addScaledVector(n, dist); p.y += lift; return { pos: p, look: c.clone() }; };
     sc.updateMatrixWorld(true);
-    HUB.pickables.push(mail, tv);
+    HUB.pickables.push(mail, tv, choco);
     HUB.poses = { tv: (() => { const p = poseAt(tvFace, 0.36, 0); p.pos.y -= 0.075; p.look.y -= 0.022; return p; })(), mail: { pos: new THREE.Vector3(-0.56, 1.1, 0.26), look: new THREE.Vector3(-0.62, 0.76, -0.02) }, laptop: poseAt(shopFace, 0.24, 0.0), board: (() => { const p = poseAt(corkFace, 0.5, 0.0); return { pos: new THREE.Vector3(p.look.x + 0.07, p.look.y + 0.015, p.look.z + 0.52), look: p.look }; })(), phone: { pos: new THREE.Vector3(0.0, 1.12, 0.22), look: new THREE.Vector3(0.05, 0.77, -0.2) } };
   }
   function drawCork(G) { // 방에서 보이는 일정표: 이번 막에서 합격한 시험과 다음 시험만
@@ -1026,6 +1029,7 @@ const WORLD = (() => {
     HUB.bots.forEach((b, i) => { b.visible = i < g.bot && !hid.bot; b.position.y = 1.475 + (i < g.bot ? Math.abs(Math.sin(now * 3 + i)) * 0.006 : 0); });
     HUB.lensM.color.setHex(g.stealth ? 0x8a6cd6 : [0xbfe8ff, 0x9fe0ff, 0x7fd6ff, 0x5fe0e8, 0x45e5ee][Math.min(4, Math.floor(g.lens / 2))]);
     HUB.mail.visible = !!(hv && hv.mail);
+    { const u = hv && hv.chocoT != null ? clamp((now - hv.chocoT) / 1.3, 0, 1) : 1, lift = Math.sin(u * Math.PI); HUB.choco.visible = !!(hv && hv.choco); HUB.choco.position.y = 0.762 + lift * 0.09; HUB.choco.rotation.z = lift * 0.35; }
     HUB.tvLamps.forEach((m, i) => m.color.setHex(i < (G.lamps || 0) ? (i === G.lamps - 1 && hv && hv.tvNew && Math.floor(now * 3) % 2 ? 0xff9a8a : 0xff3b30) : 0x3a1a1c)); HUB.tvT.t.needsUpdate = true;
     const pc = hv && hv.parcel;
     HUB.parcel.visible = !!pc;
@@ -1258,8 +1262,14 @@ const WORLD = (() => {
     plane(sc, 0.4, 0.2, new THREE.MeshBasicMaterial({ map: sign.t, fog: false }), -0.84, top + 1.9, zt - 0.6, 0, Math.PI / 2);
     const exit = canvasTex(128, 64, false); { const g = exit.g; g.fillStyle = '#1c8a4a'; g.fillRect(0, 0, 128, 64); g.fillStyle = '#ffffff'; g.font = `800 22px ${FONT}`; g.textAlign = 'center'; g.fillText('2F 고사실', 64, 40); exit.t.needsUpdate = true; }
     plane(sc, 0.5, 0.25, new THREE.MeshBasicMaterial({ map: exit.t, fog: false }), 0, 2.2, 2.44, 0, Math.PI);
+    // 계단 끝 창턱에 앉은 작은 검은 고양이
+    bx(sc, 1.04, 0.04, 0.16, 0x8f8a7e, 0, top + 1.33, zt - 1.6); // 창턱
+    const cat = pivot(sc, 0.24, top + 1.35, zt - 1.58), ck = 0x0c0c10; cat.rotation.y = 0.35; cat.scale.setScalar(1.25);
+    bx(cat, 0.1, 0.13, 0.13, ck, 0, 0.065, 0); bx(cat, 0.085, 0.05, 0.05, ck, 0, 0.025, 0.07);
+    const chead = pivot(cat, 0, 0.16, 0.035); bx(chead, 0.095, 0.08, 0.08, ck, 0, 0.02, 0); for (const s of [-1, 1]) { bx(chead, 0.028, 0.035, 0.02, ck, s * 0.032, 0.072, 0); bx(chead, 0.016, 0.014, 0.004, 0, s * 0.022, 0.028, 0.041, glowMat(0xffd83a)); }
+    const ctail = pivot(cat, 0.04, 0.02, -0.06); bx(ctail, 0.022, 0.022, 0.14, ck, 0, 0, -0.07); bx(ctail, 0.022, 0.07, 0.022, ck, 0, 0.035, -0.14);
     const cam = new THREE.PerspectiveCamera(72, RW / RH, 0.03, 30); cam.rotation.order = 'YXZ';
-    Object.assign(ST, { scene: sc, cam });
+    Object.assign(ST, { scene: sc, cam, cat, chead, ctail });
   }
   function renderStairs(S, now) {
     if (!W.ok) return; buildStairs();
@@ -1269,6 +1279,7 @@ const WORLD = (() => {
     c.position.set((S.last === 'L' ? -0.05 : 0.05) * (run ? 1 : 0) + (S.stumble > 0 ? Math.sin(now * 60) * 0.03 : 0), ST.i * ST_H + 1.52 + bob, -ST.i * ST_D + 0.55);
     c.rotation.set(ST.pitch + (S.stumble > 0 ? -0.12 : 0), ST.yaw, run ? (S.last === 'L' ? 0.035 : -0.035) : 0);
     const fov = run ? 78 : 70; if (Math.abs(c.fov - fov) > 0.5) { c.fov += (fov - c.fov) * 0.2; c.updateProjectionMatrix(); }
+    ST.ctail.rotation.y = Math.sin(now * 1.7) * 0.5; ST.chead.rotation.y = clamp((c.position.x - ST.cat.position.x) * 0.9, -0.8, 0.8) - 0.35; ST.chead.rotation.z = Math.sin(now * 0.6) > 0.94 ? 0.25 : 0; // 꼬리를 흔들고, 올라오는 나를 눈으로 따라온다
     c.updateMatrixWorld(); draw(ST.scene, c, now);
   }
 

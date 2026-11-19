@@ -631,12 +631,24 @@ function drawExamHud(k, L, E, now, H) {
 function drawExamOverlays(k, L, E, now, H) {
   const { R, T, TO } = k, C = PAL, X = EXAM_LAYOUT, tier = E.T;
   if (E.result || E.intro) return; // 결과는 책상 위 성적 통지표로 본다. 입실 검사 중에는 그 장면의 자막만
+  if (E.guide && !E.caught && !E.over && E.start <= 0) { // 첫 시험 조작 안내: 누를 자리에 손가락과 고리, 아래에 자막
+    const gd = E.guide, b = k.b, W = L.W, HH = L.H, u = (now % 1.6) / 1.6;
+    const spot = (x, y, arrow) => { // 시안 B의 치수 그대로: 지름 73의 흰 고리(굵기 5) + 바깥으로 10짜리 옅은 흰 테. 움직임 없음
+      b.save(); b.strokeStyle = 'rgba(255,255,255,0.25)'; b.lineWidth = 10.5; b.beginPath(); b.arc(x, y, 36.7 + 5.25, 0, 7); b.stroke();
+      b.strokeStyle = '#ffffff'; b.lineWidth = 5.2; b.beginPath(); b.arc(x, y, 34.1, 0, 7); b.stroke(); b.restore();
+      if (arrow) k.SUB(arrow, x, y + 1, 31, '#ffffff', 'center'); };
+    const cap = str => k.SUB(str, W / 2, HH - 30, 22, '#ffffff', 'center');
+    if (gd.k === 'hold') { if (!gd.on) spot(150, 216, null); /* 흰 시험지 위에서는 흰 고리가 안 보여서 책상 나무 위에 둔다 */ cap('책상을 꾹 누르면 안경이 문제를 읽는다'); }
+    else if (gd.k === 'up') { spot(W / 2, 43, '↑'); cap('화면 위쪽을 누르면 정면을 본다'); }
+    else if (gd.k === 'sides') { spot(51, 173, '←'); spot(W - 51, 173, '→'); cap('양옆을 누르면 그쪽으로 고개를 돌린다'); }
+    else if (gd.k === 'end') cap('감독관이 볼 때는 손을 뗀다. 이제 시작!');
+  }
   if (E.hint && !E.caught && !E.over) {
     const tw = k.TW(E.hint, 12, 800) + 20, y = X.hintY + 34;
     if (CONFIG.hud_style === 'viewfinder') { k.b.globalAlpha = 0.5; R(L.W / 2 - tw / 2, y - 9, tw, 18, '#0a0c0e'); k.b.globalAlpha = 1; T(E.hint, L.W / 2, y, 11, '#f4f1e8', 'center', 700); }
     else { R(L.W / 2 - tw / 2, y - 10, tw, 20, C.white); k.frame(L.W / 2 - tw / 2, y - 10, tw, 20, C.ol, 1); T(E.hint, L.W / 2, y, 12, C.ink, 'center', 800); }
   }
-  if (E.showZones && (E.view === 'front' || E.view === 'paper') && !E.caught && !E.over && E.start <= 0 && E.layout === 'room') {
+  if (E.showZones && !E.guide && !(E.tier === 0 && G.stats.exams === 0) && (E.view === 'front' || E.view === 'paper') && !E.caught && !E.over && E.start <= 0 && E.layout === 'room') {
     const zw = Math.round(L.W * X.zone);
     if (CONFIG.hud_style === 'viewfinder') { if (Math.floor(now * 2) % 2 === 0) { k.M('◀ HOLD', 24, L.H / 2, 9, '#f4f1e8', 'left', 700); k.M('HOLD ▶', L.W - 24, L.H / 2, 9, '#f4f1e8', 'right', 700); } }
     else { k.b.globalAlpha = 0.14; R(0, 0, zw, L.H, C.white); R(L.W - zw, 0, zw, L.H, C.white); k.b.globalAlpha = 1;

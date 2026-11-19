@@ -129,7 +129,7 @@ function adopt(s) { // 저장된 값을 새 게임 틀에 얹는다 (빠진 칸�
   g.run = Object.assign(b.run, s.run || {}); g.opts = Object.assign(b.opts, s.opts || {});
   for (const k of ['cleared', 'best']) { g[k] = TIERS.map((_, i) => (s[k] && s[k][i]) || b[k][i]); }
   g.fresh = s.fresh || {}; g.news = Array.isArray(s.news) ? s.news : []; g.hints = s.hints || {}; g.flags = s.flags || {}; g.seen = s.seen || 0;
-  g.pending = Number(s.pending) || 0; g.mail = s.mail || null; g.heat = clamp(Number(s.heat) || 0, 0, 1); g.black = s.black || null;
+  g.pending = Number(s.pending) || 0; g.mail = s.mail || null; g.heat = clamp(Number(s.heat) || 0, 0, 1); g.black = s.black || null; if (g.flags && g.cleared[TIERS.findIndex(t => t.id === 'leet')]) g.flags.leet = true;
   g.lamps = s.lamps != null ? clamp(Number(s.lamps) || 0, 0, 3) : Math.min(2, Math.floor(g.heat * 3)); g.audit = s.audit || null; g.tv = Array.isArray(s.tv) ? s.tv : []; g.tvSeen = Number(s.tvSeen) || 0; g.lastPass = s.lastPass || null; // 전수조사: 예전 저장의 의심 %는 등 개수로 옮긴다
   g.unlocked = clamp(Math.floor(g.unlocked) || 1, 1, TIERS.length); g.money = Number(g.money) || 0;
   return g;
@@ -680,17 +680,19 @@ function getCaught() {
   sfx.caught(); events.push({ type: 'caught', how: E.caughtHow });
 }
 function examHint() { // 첫 시험(모의평가)에서만, 한 번에 하나
+  E.guide = null;
   if (E.dead) return E.dead === 'water' ? '안경이 물을 먹어 켜지지 않는다 · 직접 풀기' : E.dead === 'sticker' ? '단추 카메라가 가려졌다 · 직접 풀기' : 'EMP에 장비가 전부 꺼졌다 · 직접 풀기';
   const q0 = E.qs[E.qi]; if (E.rising && (E.layout === 'table' || (q0 && q0.kind === 'essay'))) return '보고 있어요! 손 떼기';
   if (q0 && q0.kind === 'essay' && !G.hints.essay) return '서술형: 가운데를 꾹 눌러 한 줄 읽고(위험) 옮겨 쓰기(안전)';
   if (E.layout === 'table' && !G.hints.iv && !E.ai) return '화면 왼쪽을 꾹: AI 답변 읽기 · 면접관이 볼 땐 떼기 (←)';
   if (E.tier !== 0 || G.stats.exams > 0) return null;
   if (E.rising) return '누가 보고 있어요! 손 떼기';
-  if (!G.hints.look) return '화면 양옆을 꾹: 누르는 동안 고개 돌려 감독관 보기 (← →)';
-  if (E.view === 'left' || E.view === 'right') return G.hints.desk ? null : '떼면 시험지로 돌아옵니다 · 위를 꾹: 정면 (↑)';
-  if (E.view === 'front') return G.hints.scan ? null : '떼면 시험지로 돌아옵니다';
-  if (!E.ai && !G.hints.scan) return E.holding ? null : '아무도 안 볼 때 책상을 꾹: AI 스캔 (Space). 떼면 처음부터';
+  // 첫 시험의 조작 안내: 한 번에 하나씩, 해 보면 다음으로 (책상 꾹 → 위 → 양옆 → 손 떼기)
+  if (!G.hints.scan) { if (E.view === 'paper') E.guide = { k: 'hold', on: E.holding }; return null; }
   if (E.ai && !E.fb && !G.hints.pick) return E.ar ? 'AI가 고른 보기를 눌러 마킹 (1~4)' : E.gear.lens >= 2 ? '지우개 액정의 번호를 보고, 그 보기를 눌러 마킹 (1~4)' : '필통 속 폰의 번호를 보고, 그 보기를 눌러 마킹 (1~4)';
+  if (!G.hints.front) { if (E.view === 'front') G.hints.front = true; else E.guide = { k: 'up' }; return null; }
+  if (!G.hints.look) { E.guide = { k: 'sides' }; return null; }
+  if (!G.hints.end) { E.guideT = (E.guideT || 0) + 1 / 60; if (E.guideT > 3.6) G.hints.end = true; else if (E.view === 'paper') E.guide = { k: 'end' }; return null; }
   return null;
 }
 function pickAt(x, y) { return E.layout === 'table' ? arRowAt(E, x, y) : WORLD.pickChoice(x, y); }
@@ -910,6 +912,7 @@ function finishExam() {
   G.pending = (G.pending || 0) + reward; loop('result'); if (reward > 0) loop('reward'); // 돈은 고시원에 돌아갈 때 입금 문자로 들어온다
   if (reward > 0) addNews('bank', `[입금] ${T.pay} ${won(reward)}원${perfect ? ` (수석 x${tune.jackpot_mult})` : ''}`);
   if (!tut) G.mail = { tier: E.tier, tierName: T.name, marks, correct, qn, pass, score, caught: E.caught, passed, stamp: audited ? '합격 취소' : E.caught ? '부정행위' : perfect ? '수석 합격' : passed ? '합격' : '불합격' };
+  if (T.id === 'leet') G.flags.leet = true; // LEET를 한 번 치르고 나면 책상에 초콜릿이 놓여 있다
   let lampLine = null;
   if (!tut && passed) G.lastPass = { tier: E.tier, tierName: T.name, reward, mail: G.mail };
   if (!tut && perfect && !final && !G.audit) { // 만점은 상금이 크지만 TV 밑 빨간 등이 하나 켜진다
@@ -1015,6 +1018,7 @@ function hubAction(a) { // 방에서 누른 물건
   else if (a === 'log') enterView('phone');
   else if (a === 'mail' && (G.mail || G.audit)) enterView('mail');
   else if (a === 'tv') enterView('tv');
+  else if (a === 'choco' && G.flags.leet) { const n = G.flags.choco = (G.flags.choco || 0) + 1; hv.chocoT = now; STATE.say = { text: ['…참자. 단맛을 억제하는 게 좋다고 그랬어.', '…안 돼. 단맛을 억제해야 머리가 맑아진다고 했어.', '(초콜릿이 나를 보고 있다)'][(n - 1) % 3], t: 0 }; sfx.flip(); }
   else if (a === 'parcel' && hv.parcel && hv.parcel.phase === 'wait') { hv.parcel.phase = 'open'; hv.parcel.t = 0; sfx.open(); }
 }
 function openParcels() { // 상자를 열지 않고 시험 보러 가도 장비는 쓴다
@@ -1035,6 +1039,7 @@ function updateHub(dt) {
   }
   const taps = takeTaps(); takeReleases();
   if (scene !== 'hub') return;
+  if (STATE.say) { STATE.say.t += dt; if (STATE.say.t > 2.8) STATE.say = null; }
   if (hv.tip) { // 브로커의 제보: 폰에 메시지가 다 뜨면 TV를 올려다본다
     hv.tip.t += dt; hv.zoom = Math.min(1, hv.zoom + dt / tune.zoom_time);
     if (hv.tip.t > 6 || (hv.tip.t > 1.5 && taps.length)) { hv.tip = null; G.flags.tip = false; G.seen = G.news.length; enterView('tv'); save(); }
@@ -1134,6 +1139,7 @@ function drawHubHud(B) { // 고시원 방: 물건 이름표, 돈, 타임어택 �
   }
   if (hv.view === 'mail' && hv.zoom >= 1 && hv.target !== 'room') k.TO(G.mail || !G.audit ? '아무 데나 눌러 내려놓기' : '아무 데나 눌러 조사실로', L.W / 2, L.H - 8, 9, '#c9c4d8');
   if (hv.view === 'tv' && hv.zoom >= 1 && hv.target !== 'room') k.TO('아무 데나 눌러 돌아가기', L.W / 2, L.H - 8, 9, '#c9c4d8');
+  if (STATE.say && hv.view === 'room') { const a = Math.min(1, STATE.say.t / 0.15, (2.8 - STATE.say.t) / 0.3); if (a > 0) { k.b.globalAlpha = a; k.SUB(STATE.say.text, L.W / 2, L.H - 46, 13, '#ffffff', 'center'); k.b.globalAlpha = 1; } }
   for (const p of STATE.pops) if (p.scene === 'hub' && p.t >= 0) { const tx = p.text || ('+' + won(p.v) + '원'), pw = k.TW(tx, 11, 700) + 20, py = 58 - p.t * 12; k.b.globalAlpha = 0.6 * Math.max(0, Math.min(1, (1.4 - p.t) / 0.3)); k.R(L.W / 2 - pw / 2, py - 9, pw, 18, '#0a0a0e'); k.b.globalAlpha = 1; k.T(tx, L.W / 2, py, 11, PAL.white, 'center', 700); }
   drawNote(B);
 }
@@ -1169,7 +1175,7 @@ const scenes = {
   hub: {
     update(dt) { updateHub(dt); },
     draw(B) {
-      const hv = STATE.hv; if (WORLD.ok) drawLaptop(); hv.mail = !!(G.mail || G.audit); hv.tvNew = G.tv.length > G.tvSeen;
+      const hv = STATE.hv; if (WORLD.ok) drawLaptop(); hv.mail = !!(G.mail || G.audit); hv.choco = !!G.flags.leet; hv.tvNew = G.tv.length > G.tvSeen;
       if (WORLD.ok) HUBUI.tv(WORLD.tvTex().g, G.tv[G.tv.length - 1], now, hv.view === 'tv' || hv.tvNew); // 새 뉴스가 있으면 TV가 켜져 있다
       WORLD.renderHub(G, now, STATE.hoverAct, hv); drawHubHud(B);
     },
@@ -1333,6 +1339,8 @@ if (scene === 'play' || scene === 'pause' || scene === 'results') {
 if (params.get('lamps')) G.lamps = clamp(Number(params.get('lamps')), 0, 3); // check only: 전수조사 장면들
 if (params.get('tvn')) { const T0 = TIERS[Number(params.get('tier')) || 6]; G.tv.push({ 1: { tag: '사회', h: `${T0.name} 사상 첫 만점자 나왔다`, s: '출제위원 "만점이 나올 수 없게 낸 시험인데…"', icon: 'room', cap: '자료 화면 · 시험장' }, 2: { tag: '속보', h: '잇따른 만점… 당국 "전수조사 검토"', s: `${T0.name}에서도 만점 · 같은 수험번호`, icon: 'paper', cap: '자료 화면 · 답안지' }, 3: { tag: '속보', h: '"AI 안경으로 시험 본다" 익명 제보', s: '제보자 "장비 판 사람이 나… 돈을 안 주더라"', icon: 'tip', cap: '제보 영상 · 모자이크' }, 4: { tag: '속보', h: '"AI 안경 부정 응시" 수험생 검거', s: `${T0.name} 합격 취소 · 벌금 1,200,000원`, icon: 'cuffs', cap: '현장 화면' }, 5: { tag: '사회', h: '재검증 결과 "이상 없음"', s: `${T0.name} 만점자, 조사관 앞에서 다시 풀어 통과`, icon: 'stamp', cap: '자료 화면 · 판정' } }[params.get('tvn')]); }
 if (params.get('audit') || scene === 'probe') { const ti = Number(params.get('tier')) || 6; G.audit = { tier: ti, tierName: TIERS[ti].name, reward: 1200000, mail: null }; G.unlocked = Math.max(G.unlocked, ti + 1); }
+if (params.get('guide')) { const n = Number(params.get('guide')); if (n >= 2) { G.hints.scan = true; G.hints.pick = true; } if (n >= 3) G.hints.front = true; if (n >= 4) G.hints.look = true; } // check only: 조작 안내 단계
+if (params.get('choco')) { G.flags.leet = true; if (params.get('choco') === '1') STATE.hv.chocoT = 0.4; STATE.say = { text: '…참자. 단맛을 억제하는 게 좋다고 그랬어.', t: 0 }; }
 if (params.get('tip')) { G.flags.tip = true; STATE.tipAmount = 6400000; }
 if (scene === 'probe') { startProbe(); const P = STATE.probe; P.phase = params.get('phase') || 'in'; P.t = Number(params.get('t')) || 0; P.qi = Number(params.get('q')) || 0; if (P.phase !== 'in' && P.phase !== 'play') { P.qi = 4; P.correct = P.phase === 'fail' ? 1 : 4; } if (params.get('pick')) P.mark = { c: 1, t: 9 }; }
 if (scene === 'ending') { STATE.endT = Number(params.get('t')) || 0; G.stats.scans = 214; G.run.t = 5025; G.run.splits = TIERS.map((_, i) => 200 * (i + 1)); G.cleared = TIERS.map(() => true); G.unlocked = TIERS.length; G.run.rec = -1; }
