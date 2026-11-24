@@ -7,7 +7,9 @@
 'use strict';
 
 const HUBUI = (() => {
-  const SHOP_TABS = [['new', '신상'], ['glass', '안경'], ['device', 'AI 기기'], ['model', 'AI 모델 구독']];
+  const SHOP_TABS = [['glass', '안경'], ['aux', '보조 장비'], ['cover', '위장'], ['model', 'AI 모델']];
+  const GEAR_ICON = { lens: 0, aux: 9, cover: 20 }, ICON_IMG = new Image(); ICON_IMG.src = 'assets/gear-icons.jpg'; const MODEL_IMG = new Image(); MODEL_IMG.src = 'assets/model-icons.jpg'; /* AI 모델 15종 그림 (96px 격자, 4칸씩) */ // 힉스필드로 뽑은 제품 그림 (96px 격자, 8칸씩)
+  function gearIcon(k, id, lv, x, y, s) { const n = GEAR_ICON[id] + Math.max(1, lv) - 1; if (GEAR_ICON[id] == null || !ICON_IMG.complete || !ICON_IMG.naturalWidth) return false; k.b.drawImage(ICON_IMG, (n % 8) * 96, Math.floor(n / 8) * 96, 96, 96, x, y, s, s); return true; }
   const PHONE_TABS = [['news', '알림'], ['log', '기록'], ['set', '설정']];
   let btns = [], hover = null;
   const inR = (b, p) => p && p[0] >= b.x && p[0] <= b.x + b.w && p[1] >= b.y && p[1] <= b.y + b.h;
@@ -31,7 +33,7 @@ const HUBUI = (() => {
   function lapHead(k, title, col, bg) { k.R(0, 0, LW, 26, bg); k.T(title, 10, 13, 15, col, 'left', 800); k.T(`${won(STATE.shown)}원`, LW - 8, 13, 13, PAL.gold, 'right', 800); }
   function lapFoot(k, hv, backLabel, bg, pages, pkey) {
     k.R(0, LH - 28, LW, 28, bg);
-    const out = !!(G.flags.sold || G.black); // 품절·협박 사건 전에는 바탕화면이 없는 것처럼: 뒤로 = 방으로
+    const out = deskOpen(); // 품절·협박 사건 전에는 바탕화면이 없는 것처럼: 뒤로 = 방으로
     btn(k, 6, LH - 24, 92, 20, out ? backLabel : '< 방으로', 'back', { bg: '#1d2433', col: '#4a5a6a', fg: '#ffffff', size: 12 });
     if (out && !G.flags.deskSeen && Math.floor(now * 2) % 2 === 0) k.disc(96, LH - 23, 5, '#e8453e'); // 바탕화면에 새 소식: 빨간 점이 깜빡인다
     if (pages > 1) { const pg = hv.page;
@@ -43,7 +45,7 @@ const HUBUI = (() => {
   function drawDesk(k, hv, now) {
     const { R, T } = k, C = PAL;
     for (let i = 0; i < 8; i++) R(0, i * 30, LW, 30, ['#16324a', '#183a52', '#1a425a', '#1c4a60', '#1e5266', '#205a6a', '#22626c', '#24686c'][i]);
-    T('고시원 노트북', 10, 13, 12, '#c9e6f0', 'left', 700); T(`${won(STATE.shown)}원`, LW - 8, 13, 13, C.gold, 'right', 800);
+    T('내 노트북', 10, 13, 12, '#c9e6f0', 'left', 700); T(`${won(STATE.shown)}원`, LW - 8, 13, 13, C.gold, 'right', 800);
     const icon = (ix, label, key, col, glyph, badge) => {
       const iy = 54, hot = inR({ x: ix, y: iy, w: 120, h: 126 }, hover);
       if (hot) { k.b.globalAlpha = 0.25; R(ix, iy, 120, 126, '#ffffff'); k.b.globalAlpha = 1; }
@@ -52,7 +54,7 @@ const HUBUI = (() => {
       if (badge) { k.disc(ix + 94, iy + 12, 11, '#e8453e'); T(String(badge), ix + 94, iy + 12, 13, C.white, 'center', 800); }
       btns.push({ x: ix, y: iy, w: 120, h: 126, key });
     };
-    const tgBadge = G.black || (G.flags.sold && soldOut(gearDef('lens'))) ? 1 : 0;
+    const tgBadge = G.black || (G.flags.sold && soldOut(gearDef('lens'))) || helperPending() ? 1 : 0;
     icon(60, 'AI마켓', 'app:shop', '#0f1722', (cx, cy) => T('AI', cx, cy, 30, C.hud, 'center', 800), shopNewCount());
     icon(220, '텔레그램', 'app:tg', '#2aa3e0', (cx, cy) => k.poly([[cx - 22, cy], [cx + 22, cy - 18], [cx + 11, cy + 19], [cx - 3, cy + 7]], '#ffffff'), tgBadge);
     lapFoot(k, hv, '< 방으로', '#0d1f2c', 1);
@@ -64,6 +66,15 @@ const HUBUI = (() => {
     let by = 34;
     const bubble = (text, mine) => { const ls = wrap(k, text, 250, 12), bw = Math.max(...ls.map(l => k.TW(l, 12, 700))) + 16, bh = ls.length * 15 + 8, bx = mine ? LW - 10 - bw : 10;
       R(bx, by, bw, bh, mine ? '#2b5278' : '#182533'); ls.forEach((l, i) => T(l, bx + 8, by + 12 + i * 15, 12, C.white, 'left', 700)); by += bh + 5; };
+    const hp = helperPending(), hl = helperLast(), hh = hp || (!want ? hl : null);
+    if (!bl && hh && !(want && !hp)) { // 의문의 조력자: 정해진 시험 앞에서 먼저 연락한다
+      T('의문의 조력자', 12, by - 2, 10, '#5eb5f7', 'left', 800); by += 10;
+      const cost = helperCost(hh), has = tgHas(hh.id); hh.lines.slice(has ? -1 : -3).forEach(([t, mine]) => bubble(t, mine));
+      if (has) { bubble('보냈어요', true); bubble(hh.done, false); T(`받은 것: ${hh.name} · ${hh.effect}`, 12, LH - 50, 10, '#8fd8a8', 'left', 800); }
+      else { T(`${hh.name} · ${hh.effect}`, 12, LH - 78, 10, '#9fc4e0', 'left', 800); T(hh.need ? '이게 없으면 다음 시험을 볼 수 없다' : '없어도 시험은 볼 수 있다', 12, LH - 49, 9, hh.need ? '#ffb0b0' : '#8a9aa8', 'left', 700);
+        const ok = G.money >= cost; btn(k, LW - 10 - 220, LH - 62, 220, 26, ok ? `송금 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`, ok ? 'tgbuy:' + hh.id : null, { off: !ok, bg: '#2b5278', col: '#5eb5f7', fg: '#ffffff', size: 13 }); }
+      lapFoot(k, hv, '< 바탕화면', '#17212b', 1); return;
+    }
     if (!want && !done && !bl) { T('새 대화가 없습니다', LW / 2, 100, 15, '#6d7f8f', 'center', 800); T('모르는 사람의 메시지는 조심하세요', LW / 2, 124, 11, '#4a5a6a', 'center', 700); }
     else if (bl) { // 다시 연락 온 브로커: 입막음비를 내거나, 제보당하거나
       bubble('사장님 오랜만. 요즘 단속 심해진 거 아시죠?', false);
@@ -86,7 +97,7 @@ const HUBUI = (() => {
     R(0, 0, LW, LH, '#f3f4f7'); lapHead(k, 'AI마켓', C.hud, '#0f1722');
     const fresh = shopNewCount(), tw = Math.floor((LW - 12) / 4);
     SHOP_TABS.forEach(([key, name], i) => {
-      const on = hv.tab === key, bx = 6 + i * tw, label = key === 'new' && fresh ? `신상 ${fresh}` : key === 'model' ? 'AI 모델' : name;
+      const on = hv.tab === key, bx = 6 + i * tw, label = name + (key !== 'model' && G.fresh[{ glass: 'lens', aux: 'aux', cover: 'cover' }[key]] || (key === 'model' && G.fresh.model) ? ' ●' : '');
       R(bx, 30, tw - 4, 22, on ? '#ffffff' : '#dfe3ea'); if (on) R(bx, 30, tw - 4, 3, '#e8453e');
       T(label, bx + (tw - 4) / 2, 42, 13, on ? '#1d2433' : '#5a6474', 'center', 800);
       btns.push({ x: bx, y: 30, w: tw - 4, h: 22, key: 'tab:' + key });
@@ -96,27 +107,29 @@ const HUBUI = (() => {
     if (!list.length) { T(hv.tab === 'new' ? '새로 들어온 상품이 없어요' : '아직 입고된 상품이 없어요', LW / 2, 120, 15, '#5a6474', 'center', 800); T('시험에 처음 합격하면 신상이 들어와요', LW / 2, 144, 11, '#8a94a4', 'center', 700); }
     items.forEach((it, i) => {
       const cx = 6 + i * (cw + 8), cy = top, isModel = !!it.m;
-      let id, name, sub, eff, isNew, label, key, off, state = '';
+      let id, name, sub, eff, isNew, label, key, off, state = '', iconLv = 0;
       if (isModel) {
         const m = it.m, cur = G.gear.model === it.i, owned = G.gear.model > it.i, next = G.gear.model + 1 === it.i, cost = modelCost(it.i), ok = G.money >= cost;
         id = 'model'; name = m.name; sub = `지능 ${it.i + 1}단계 · ${m.note}`; eff = `지금 시험 AI 정답률 ${Math.round(aiAccuracyAt(CONFIG.tiers[nextTierIndex()], it.i) * 100)}%`; isNew = it.fresh; if (isNew) markShown('model');
         if (cur) { label = '구독 중'; off = true; } else if (owned) { label = '이전 모델'; off = true; } else if (!next) { label = '앞 모델부터'; off = true; } else { label = ok ? `구독 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'model' : null; off = !ok; }
       } else {
-        const d = it, lv = G.gear[d.id], cap = gearCap(d), count = d.kind === 'count', maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, so = soldOut(d), gone = so && G.flags.sold;
-        id = d.id; name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1); sub = count ? `${d.name} · 지금 ${lv}명` : `${d.name} · ${lv ? '지금 ' + gearName(d.id, lv) : '아직 없음'}`;
+        const d = it.cur || it, lv = G.gear[d.id], cap = gearCap(d), count = d.kind === 'count', maxed = lv >= cap, cost = gearCost(d.id), ok = !maxed && G.money >= cost, so = soldOut(d), gone = so && G.flags.sold;
+        if (it.cur) { const sl = it.lv || lv; id = d.id; name = gearName(d.id, sl); sub = `${d.name} · ${sl} / ${gearMax(d)}단계`; eff = GEAR_TEXT[d.id](sl); label = sl === lv ? '장착 중' : '보유 · 지난 제품'; off = true; iconLv = sl; } else {
+        id = d.id; iconLv = maxed ? lv : lv + 1; name = count ? botName(lv + 1) : maxed ? gearName(d.id, lv) : gearName(d.id, lv + 1); sub = count ? `${d.name} · 지금 ${lv}명` : `${d.name} · ${lv ? '지금 ' + gearName(d.id, lv) : '아직 없음'}`;
         eff = GEAR_TEXT[d.id](maxed ? lv : lv + 1); isNew = !!G.fresh[d.id]; if (isNew) markShown(d.id);
         if (so) state = gone ? '품절' : '남은 재고 1개';
-        if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 보유 중' : '상위 시험에서 신형 입고'; off = true; } else { label = ok ? `주문 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; }
+        if (gone) { label = '품절 · 재입고 미정'; off = true; } else if (maxed) { label = cap >= gearMax(d) ? '최고 사양 장착 중' : '다음 제품은 아직 입고 전'; off = true; } else { label = ok ? `구매 · ${won(cost)}원` : `${won(cost - G.money)}원 모자람`; key = ok ? 'buy:' + d.id : null; off = !ok; } }
       }
       R(cx, cy, cw, ch, '#ffffff'); k.frame(cx, cy, cw, ch, off ? '#d0d5de' : '#2a8f9a', 2);
-      R(cx + 8, cy + 8, 46, 46, '#eef1f6'); drawGear(k, id, cx + 31, cy + 31, 38, id === 'lens' ? Math.max(1, Math.min(G.gear.lens + 1, gearCap(gearDef('lens')))) : 3); /* 촬영·표시 장비는 카드에 적힌 단계의 그림 */
+      R(cx + 8, cy + 8, 46, 46, '#eef1f6'); if (isModel && MODEL_IMG.complete && MODEL_IMG.naturalWidth) k.b.drawImage(MODEL_IMG, (it.i % 4) * 96, Math.floor(it.i / 4) * 96, 96, 96, cx + 8, cy + 8, 46, 46); else if (!gearIcon(k, id, iconLv, cx + 8, cy + 8, 46)) drawGear(k, id, cx + 31, cy + 31, 38, id === 'lens' ? Math.max(1, Math.min(G.gear.lens + 1, gearCap(gearDef('lens')))) : 3); /* 촬영·표시 장비는 카드에 적힌 단계의 그림 */
       if (isNew) { R(cx + cw - 42, cy + 4, 38, 14, '#e8453e'); T('NEW', cx + cw - 23, cy + 11, 10, C.white, 'center', 800); }
       // 이름은 그림 오른쪽에 크게, 구분선 아래 효과는 검은 글씨로 또렷하게, 지금 가진 것은 맨 아래 작게
       const nl = wrap(k, name, cw - 70, 15).slice(0, 2); nl.forEach((ln, j) => T(ln, cx + 62, cy + (nl.length > 1 ? 24 : 32) + j * 18, 15, '#12161f', 'left', 800));
       if (state) { const sw2 = k.TW(state, 10, 800) + 10; R(cx + 8, cy + 58, sw2, 14, state === '품절' ? '#5a6474' : '#e8453e'); T(state, cx + 8 + sw2 / 2, cy + 65, 10, C.white, 'center', 800); }
       R(cx + 8, cy + 60 + (state ? 16 : 0), cw - 16, 1, '#dfe3ea');
       const ty = cy + 74 + (state ? 16 : 0);
-      wrap(k, eff, cw - 16, 12).slice(0, state ? 1 : 2).forEach((ln, j) => T(ln, cx + 8, ty + j * 15, 12, '#12161f', 'left', 700));
+      { const room = (cy + ch - 46) - (ty - 7); let fs = 12, lh = 15, ls = wrap(k, eff, cw - 16, fs); if (ls.length * lh > room) { fs = 10; lh = 12; ls = wrap(k, eff, cw - 16, fs); } // 효과 설명이 잘리지 않게: 안 들어가면 글자를 줄여 한 줄 더
+        ls.slice(0, Math.max(1, Math.floor(room / lh))).forEach((ln, j) => T(ln, cx + 8, ty - (fs < 12 ? 1 : 0) + j * lh, fs, '#12161f', 'left', 700)); }
       T(sub, cx + 8, cy + ch - 40, fitText(k, sub, cw - 16, 10, 8), '#7a8494', 'left', 700);
       btn(k, cx + 6, cy + ch - 30, cw - 12, 24, label, key, { off, bg: '#e8453e', col: '#e8453e', fg: '#ffffff', size: 13 });
     });
@@ -230,8 +243,11 @@ const HUBUI = (() => {
       b(muted ? '소리 켜기' : '소리 끄기', 'opt:mute');
       if (canFullscreen()) b(isFullscreen() ? '전체 화면 끄기' : '전체 화면 켜기 (F)', 'opt:fs');
       b(G.opts.timer ? '시험 중 시계: 켜짐' : '시험 중 시계: 꺼짐', 'opt:timer');
-      b('저장 코드 복사', 'save:export');
-      b('저장 코드 붙여넣기', 'save:import');
+      if (typeof CAN_JUMP !== 'undefined' && CAN_JUMP) { // 테스트 전용: 단계 건너뛰기
+        const J = STATE.jump || nextTierIndex() + 1, bw = Math.floor((w - 12 - 9) / 4); [['-5', '◀◀'], ['-1', '◀'], ['1', '▶'], ['5', '▶▶']].forEach(([d, lb], i) => btn(k, 6 + i * (bw + 3), ry, bw, 20, lb, 'jump:' + d, { size: 10 })); ry += 23;
+        b(`${J}번 ${TIERS[J - 1].name.slice(0, 9)} 앞으로`, 'jump:go', { bg: '#12283a', col: '#5eb5f7', fg: '#ffffff' });
+        { const bk = hasBackup(), hw = bk ? Math.floor((w - 12 - 3) / 2) : w - 12; btn(k, 6, ry, hw, 23, G.opts.rich ? '돈: 무한' : '돈: 일반', 'opt:rich', { size: 10, bg: G.opts.rich ? '#3a2c08' : undefined, col: G.opts.rich ? '#f0c53a' : undefined, fg: G.opts.rich ? '#ffe9a8' : undefined }); if (bk) btn(k, 6 + hw + 3, ry, hw, 23, '기록 되살리기', 'jump:undo', { size: 10 }); ry += 26; } }
+      { const hw = Math.floor((w - 12 - 3) / 2); btn(k, 6, ry, hw, 23, '코드 복사', 'save:export', { size: 10 }); btn(k, 6 + hw + 3, ry, hw, 23, '코드 붙여넣기', 'save:import', { size: 10 }); ry += 26; } // 저장 코드: 한 줄에 둘
       b(STATE.wipeArm > 0 ? '한 번 더 누르면 지워요' : '저장 지우고 처음부터', 'wipe', { bg: '#2a1218', col: PAL.bad, fg: '#ffd6da' });
       for (const ln of ['← → 고개 · Space 스캔', '1~4 마킹 · P 정지 · M 소리', STATE.standalone ? '홈 화면 앱으로 실행 중' : STATE.ios ? '공유 → 홈 화면에 추가' : '']) { if (ln && ry + 6 < bottom) T(ln, w / 2, ry + 6, 10, '#6f7a8c', 'center', 700); ry += 12; }
     }

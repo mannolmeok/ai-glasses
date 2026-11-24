@@ -10,7 +10,10 @@
   var el = document.createElement('div');
   el.id = 'ver';
   el.setAttribute('aria-hidden', 'true');
-  el.textContent = 'v' + BUILD;
+  var TEST = /\/ai-glasses-test(\/|$)/.test(location.pathname); // 테스트용 사이트는 본판과 헷갈리지 않게 표시한다
+  var LABEL = TEST ? 'TEST ' + BUILD : 'v' + BUILD;
+  el.textContent = LABEL;
+  if (TEST) el.style.color = '#ffd24a';
   el.style.cssText = 'position:absolute;left:8px;bottom:6px;z-index:2;font-size:11px;line-height:1;' +
     'color:rgba(236,235,242,.55);letter-spacing:.5px;pointer-events:none;display:none';
   var screen = document.getElementById('screen');
@@ -33,7 +36,7 @@
       try { tried = sessionStorage.getItem('ai-glasses-reload') || ''; } catch (e) { }
       // 제목 화면이 아니면(이미 시험을 시작했으면) 끊지 않고 알려만 준다. 한 번 새로 불렀는데도
       // 예전 판이면 서버 반영을 기다리는 중이라 다시 돌지 않는다.
-      if (tried === v || sceneNow() !== 'title') { el.textContent = 'v' + BUILD + ' · 새 버전 v' + v + ' 있음 (새로고침)'; return; }
+      if (tried === v || sceneNow() !== 'title') { el.textContent = LABEL + ' · 새 버전 ' + (TEST ? '' : 'v') + v + ' 있음 (새로고침)'; return; }
       try { sessionStorage.setItem('ai-glasses-reload', v); } catch (e) { }
       var u = new URL(location.href);
       u.searchParams.set('v', v);
